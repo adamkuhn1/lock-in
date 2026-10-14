@@ -16,7 +16,12 @@ def local_day(ts: datetime) -> date:
 
 
 def plan_day(now_: datetime) -> date:
-    return local_day(now_ - timedelta(hours=PLAN_DAY_START_HOUR))
+    # Instant arithmetic: subtract 4 h from the absolute instant (UTC), then take
+    # the Detroit date. Wall-clock subtraction on an aware local datetime is wrong
+    # across DST changes.
+    if now_.tzinfo is None:
+        raise ValueError("plan_day needs an aware datetime")
+    return local_day(now_.astimezone(timezone.utc) - timedelta(hours=PLAN_DAY_START_HOUR))
 
 
 def from_epoch(seconds: int | str) -> datetime:

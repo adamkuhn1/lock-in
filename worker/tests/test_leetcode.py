@@ -156,3 +156,26 @@ def test_store_solves_upserts_ignoring_duplicates():
     assert leetcode.store_solves(db, rows) == 1
     assert db.upserts == [("lc_solves", "slug,accepted_at", True, 1)] and db.inserts == []
     assert db.select("lc_solves")[0]["rating"] is None
+
+
+def test_apply_pending_groups_by_plan_day_across_midnight():
+    # I2: 23:00 ET Oct 14 and 01:30 ET Oct 15 are the same plan day -> one attempt.
+    db, bank = MemoryDB(), load_bank()
+    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "nailed")  # 23:00 EDT Oct 14
+    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "nailed")  # 01:30 EDT Oct 15
+    n = leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ))
+    assert n == 1
+    rated = [s for s in db.select("lc_solves") if s.get("effective_rating")]
+    assert len(rated) == 1 and rated[0]["accepted_at"].startswith("2026-10-15T03")
+    assert all(s["applied_at"] for s in db.select("lc_solves"))
+    assert db.select("lc_problem_state")[0]["interval_days"] == 3  # applied once, not twice
+
+
+def test_apply_pending_done_key_is_plan_day():
+    # An attempt applied for plan day Oct 14 blocks a 01:30 solve the next calendar day.
+    db, bank = MemoryDB(), load_bank()
+    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "nailed")
+    leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 23, 30, tzinfo=TZ))
+    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "nailed")
+    assert leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ)) == 0
+    assert len([s for s in db.select("lc_solves") if s.get("effective_rating")]) == 1

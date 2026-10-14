@@ -7,6 +7,13 @@ from lockin_worker.resume import ResumeChoice
 OID = "o-1"
 
 
+@pytest.fixture(autouse=True)
+def outreach_dir(tmp_path, monkeypatch):
+    d = tmp_path / "home" / ".lockin" / "outreach"
+    monkeypatch.setattr(launcher, "OUTREACH_DIR", d)
+    return d
+
+
 class Opener:
     def __init__(self, fail: Exception | None = None, db=None):
         self.calls, self.fail, self.db, self.status_at_open = [], fail, db, None
@@ -53,12 +60,13 @@ def test_poll_once_processes_queued_oldest_first(tmp_path):
     assert status(db, "r1")["status"] == "launched" and status(db, "r2")["status"] == "launched"
 
 
-def test_outreach_prompt_and_outreach_row(tmp_path):
+def test_outreach_prompt_and_outreach_row(tmp_path, outreach_dir):
     db = db_fixture(tmp_path)
     op = Opener()
     launcher.poll_once(db, op, "/v/bin/lockin", find=fake_find)
     cwd, prompt, _ = op.calls[0]
-    assert cwd == Path.home()
+    assert cwd == outreach_dir and outreach_dir.is_dir()
+    assert (outreach_dir.stat().st_mode & 0o777) == 0o700
     assert "/v/bin/lockin save-outreach --id o-1 <<'JSON'" in prompt
     assert "Resume to use: /R/Stripe_SWE/Adam_Kuhn_Resume.pdf" in prompt and "Matched for Stripe." in prompt
     assert "{{" not in prompt
@@ -137,3 +145,15 @@ def test_run_forever_survives_errors(tmp_path):
     launcher.run_forever(make_db, op, sleep=sleeps.append, iterations=3, lockin="lockin", find=fake_find)
     assert sleeps == [10, 10, 10] and len(op.calls) == 2  # recovered on iteration 2, nothing queued on 3
     assert len(attempts) == 2  # a working db is reused, not rebuilt every poll
+
+
+def test_default_outreach_dir_is_dedicated_not_home():
+    assert launcher.DEFAULT_OUTREACH_DIR == Path.home() / ".lockin" / "outreach"
+
+
+def test_lockin_path_with_spaces_is_shell_quoted(tmp_path):
+    db = db_fixture(tmp_path)
+    op = Opener()
+    launcher.poll_once(db, op, "/Users/a b/venv/bin/lockin", find=fake_find)
+    assert "'/Users/a b/venv/bin/lockin' save-outreach --id o-1 <<'JSON'" in op.calls[0][1]
+    assert "'/Users/a b/venv/bin/lockin' save-ideas --project 27b" in op.calls[1][1]

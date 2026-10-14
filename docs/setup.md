@@ -89,3 +89,69 @@ The logs should show counts for `leetcode`, `github`, `sheet` (about 80 rows) an
 - `sync_status` has no failures.
 
 If the run happens after 10:00 ET, "Today's plan" arrives on your phone. A second run must not send it again.
+
+## 7. Mac launcher and `lockin` CLI
+
+When you tap **Cold email** or **Suggest improvements** in the app, the launcher opens Terminal with Claude Code.
+
+1. **Store the credentials:** run `make keychain`. macOS's `security` tool asks for each value with the input hidden, so nothing appears on screen or in the process list. Enter:
+   - the Supabase URL
+   - the service-role key (Supabase → Settings → API)
+   - your user id (`LOCKIN_OWNER_ID`, the same value as the GitHub secret)
+2. **Install:** run `make install-launcher`. This creates `~/.lockin/venv`, links `~/.local/bin/lockin`, writes `~/Library/LaunchAgents/com.adamkuhn.lockin.launcher.plist` and starts it.
+3. **Check:**
+   - `~/.lockin/venv/bin/lockin doctor` should print `OK: connected to Supabase, 0 queued launch requests`.
+   - In a new Terminal window, `claude --version` and `command -v lockin` should both work. If `lockin` isn't found, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc`.
+4. **Grant macOS permissions once.** Queue a Cold email from the app.
+   - macOS asks whether **Python** (the binary behind `~/.lockin/venv`; the prompt may say "python3.12") can control **Terminal**. Allow it.
+   - It may also ask for **Desktop** folder access, since the resume folders live there. Allow it.
+   - If you missed a prompt, go to System Settings → Privacy & Security → **Automation** and **Files and Folders**. If no prompt appears, add that Python to **Full Disk Access**.
+   - A Homebrew Python upgrade can reset these grants. Re-allow them if launches start failing.
+5. **Claude Code approvals:**
+   - Approve only the exact command `~/.lockin/venv/bin/lockin save-outreach …` / `save-ideas …` when Claude asks. Don't give Claude broad Bash permission in these sessions: the outreach prompt reads web pages that could try to slip in commands.
+   - Outreach sessions run in `~/.lockin/outreach`, not your home folder.
+6. **Day to day:**
+   - `make launcher-status` shows status and logs.
+   - After pulling new code, run `make restart-launcher`.
+   - To remove it, run `make uninstall-launcher`.
+   - Don't also run `lockin-launcher` by hand while the agent is loaded.
+
+How it behaves:
+- The launcher checks for requests every 10 seconds.
+- A request is marked `launched` before Terminal opens, so it never opens twice. Failures show in the app with the error.
+- While the Mac is off, requests wait as "Queued for Mac".
+- If the login keychain is locked, the launcher logs "locked or unreadable" and keeps waiting.
+
+## 8. Retire job-radar's per-posting alerts (only with Adam's OK)
+
+Do this only after `gh run list --workflow sync` shows 24 hours of clean runs:
+
+```bash
+gh workflow disable radar.yml -R adamkuhn1/job-radar
+```
+
+Then add a note to the job-radar README saying the code now lives in `lock-in/worker/job_radar`.
+
+## 9. Web app (Vercel)
+Done together in the setup session. Nothing here is automated.
+
+1. **Supabase auth settings** (Dashboard → Authentication):
+   - URL Configuration → Site URL: `https://<project>.vercel.app`; Redirect URLs: add the same URL and `http://localhost:5173`.
+   - Email Templates → Magic Link: include the code so the iPhone home-screen app can sign in without leaving itself:
+     `<p>Your Lock In code: <strong>{{ .Token }}</strong></p><p><a href="{{ .ConfirmationURL }}">Or sign in with this link</a></p>`
+   - Sign-ups stay disabled (Plan 1 Task 12).
+2. **Create the Vercel project** (Hobby): vercel.com → Add New → Project → import `adamkuhn1/lock-in`.
+   - Root Directory: `web`. Keep "Include files outside the root directory in the Build Step" **on** (the app imports `../prompts/outreach.md`).
+   - Framework: Vite (auto-detected from `web/vercel.json`).
+   - Environment variables (Production and Preview), all from Supabase → Settings → API:
+     `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser, build-time), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the `/api/sync-leetcode` function). Never add the service-role key here.
+3. **Author check before the first push** (Vercel Hobby blocks other authors): `git log -1 --format='%an <%ae>'` must print `adamkuhn1 <184679495+adamkuhn1@users.noreply.github.com>`. Don't change git config; if it differs, stop and ask.
+4. **Deploy**: pushing to the default branch deploys. Open the URL, sign in with the emailed code.
+5. **Tell the worker the URL**: in the app, Settings → Mac → App URL = the Vercel URL (nudges open it when tapped).
+6. **Install**: iPhone Safari → Share → Add to Home Screen, open it, sign in with the code. Mac: Safari → File → Add to Dock (or Chrome → Install Lock In).
+7. **Check sync on open**: solve any problem on LeetCode, open the app, tap Refresh: the matching item in today's set checks itself off within a few seconds (if it isn't in today's set, it shows under LeetCode → History).
+
+Local development: `cd web && npm run dev:demo` (fixture data, no Supabase). Against the real project: copy `.env.example` to `.env.local`, fill the `VITE_` values, `npm run dev`. `/api/sync-leetcode` only runs under `vercel dev` or on Vercel; under plain `npm run dev` the refresh button quietly reports an error and everything else works.
+
+Notes: set `settings.app_url` (step 5) so ntfy taps open the app. If the Mac Add to Dock option is missing, use Safari 17+.
+vercel.json ships only conservative headers (nosniff, Referrer-Policy, no-cache on /sw.js); no CSP, to avoid breaking the service worker or Supabase calls.

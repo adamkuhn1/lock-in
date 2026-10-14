@@ -22,8 +22,10 @@ def test_day_status_counts():
     db.insert("lc_daily_sets", [{"day": "2026-10-14", "focus": "Stack", "mixed_day": False,
               "items": [{"slug": "a", "slot": "review", "order": 0, "done": True},
                         {"slug": "b", "slot": "new", "order": 1, "done": False}]}])
-    db.insert("postings", [{"id": "1", "status": "new", "starred": True}, {"id": "2", "status": "new", "starred": False},
-                           {"id": "3", "status": "seen", "starred": True}])
+    f = "2026-10-13T12:00:00+00:00"
+    db.insert("postings", [{"id": "1", "status": "new", "starred": True, "found_at": f},
+                           {"id": "2", "status": "new", "starred": False, "found_at": f},
+                           {"id": "3", "status": "seen", "starred": True, "found_at": f}])
     db.insert("outreach", [{"id": "o", "status": "sent", "follow_up_on": "2026-10-14"},
                            {"id": "p", "status": "replied", "follow_up_on": "2026-10-10"}])
     db.insert("ideas", [{"id": "i", "project_id": "27b", "text": "Add Chicago", "status": "today", "today_on": "2026-10-14"}])
@@ -53,3 +55,16 @@ def test_has_projects_from_active_project_or_today_idea():
     db2 = MemoryDB()
     db2.insert("projects", [{"id": "p", "name": "x", "repo": "a/b", "active": True}])
     assert day_status(db2, now).has_projects is True
+
+
+def test_day_status_new_postings_use_web_30_day_window():
+    # M15: same window as the web Today card (found_at within the last 30 days).
+    db = MemoryDB()
+    now = datetime(2026, 10, 14, 10, tzinfo=TZ)  # 14:00Z
+    db.insert("postings", [
+        {"id": "fresh", "status": "new", "starred": True, "found_at": "2026-10-01T00:00:00Z"},
+        {"id": "edge", "status": "new", "starred": False, "found_at": "2026-09-14T14:00:00Z"},  # exactly 30 days
+        {"id": "old", "status": "new", "starred": True, "found_at": "2026-09-14T13:59:00Z"},
+    ])
+    st = day_status(db, now)
+    assert (st.new_postings, st.starred_postings) == (2, 1)

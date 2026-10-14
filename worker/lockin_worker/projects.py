@@ -74,7 +74,7 @@ def pick_today_idea(db, day: date) -> dict | None:
 def complete_idea_on_commit(db, day: date, now: datetime) -> bool:
     for idea in db.select("ideas", {"status": "today"}):
         commits = db.select("commits", {"project_id": idea["project_id"]})
-        if any(clock.local_day(clock.parse_ts(c["committed_at"])) == day for c in commits):
+        if any(clock.plan_day(clock.parse_ts(c["committed_at"])) == day for c in commits):
             db.update("ideas", {"id": idea["id"]}, {"status": "done", "done_at": now.isoformat()})
             return True
     return False

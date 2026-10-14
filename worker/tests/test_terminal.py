@@ -64,3 +64,12 @@ def test_open_in_terminal_error(tmp_path):
 
     with pytest.raises(terminal.TerminalError, match="Not authorized"):
         terminal.open_in_terminal(tmp_path, "hello", "r9", run=run, directory=tmp_path)
+
+
+def test_prompt_dir_0700_and_file_0600(tmp_path):
+    d = tmp_path / "prompts"
+    p = terminal.write_prompt("x", "r1", d)
+    assert (d.stat().st_mode & 0o777) == 0o700
+    assert (p.stat().st_mode & 0o777) == 0o600
+    terminal.write_prompt("y", "r1", d)  # overwrite keeps the mode
+    assert (p.stat().st_mode & 0o777) == 0o600 and p.read_text() == "y"

@@ -6,3 +6,5 @@ node_modules/
 dist/
 *.egg-info/
 .pytest_cache/
+!**/.env.example
+!web/.env.example

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
@@ -16,13 +17,17 @@ class TerminalError(Exception):
 
 def write_prompt(text: str, name: str, directory: Path = PROMPT_DIR) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
+    directory.chmod(0o700)
     cutoff = time.time() - KEEP_DAYS * 86400
     for old in directory.glob("lockin-prompt-*.md"):
         if old.stat().st_mtime < cutoff:
             old.unlink(missing_ok=True)
     safe = re.sub(r"[^A-Za-z0-9-]", "", name) or "prompt"
     path = directory / f"lockin-prompt-{safe}.md"
-    path.write_text(text, encoding="utf-8")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    path.chmod(0o600)  # an existing file keeps its old mode through O_CREAT
     return path
 
 

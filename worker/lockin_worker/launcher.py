@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 import time
 from datetime import datetime
@@ -11,6 +12,8 @@ from . import creds, prompts, resume, terminal
 POLL_SECONDS = 10
 DEFAULT_ROOT = "~/Desktop/Adam_Kuhn_Resumes"
 ERROR_MAX = 500
+DEFAULT_OUTREACH_DIR = Path.home() / ".lockin" / "outreach"
+OUTREACH_DIR = DEFAULT_OUTREACH_DIR  # Claude runs here, not in $HOME
 
 
 class LaunchError(Exception):
@@ -48,9 +51,11 @@ def build_outreach(db, payload: dict, lockin: str, find=resume.find_resume) -> t
     text = prompts.render(prompts.load("outreach"), {
         "outreach_id": oid, "job_url": job_url,
         "company": display_company or match_company or "unknown (read it from the posting)",
-        "resume_path": str(choice.path), "resume_note": choice.note, "lockin": lockin,
+        "resume_path": str(choice.path), "resume_note": choice.note, "lockin": shlex.quote(lockin),
     })
-    return Path.home(), text
+    OUTREACH_DIR.mkdir(parents=True, exist_ok=True)
+    OUTREACH_DIR.chmod(0o700)
+    return OUTREACH_DIR, text
 
 
 def build_suggest(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
@@ -65,7 +70,8 @@ def build_suggest(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]
     if not cwd.is_dir():
         raise LaunchError(f"{cwd} doesn't exist on this Mac")
     text = prompts.render(prompts.load("suggest_ideas"), {
-        "project_id": pid, "project_name": p["name"], "repo": p["repo"], "lockin": lockin})
+        "project_id": pid, "project_name": p["name"], "repo": p["repo"],
+        "lockin": shlex.quote(lockin)})
     return cwd, text
 
 

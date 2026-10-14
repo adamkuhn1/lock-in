@@ -100,3 +100,19 @@ def test_sync_raises_when_every_repo_fails(monkeypatch):
         projects.sync(db, None, "tok", datetime(2026, 10, 14, 20, tzinfo=TZ))
     assert "adamkuhn1/27b: HTTP 409 empty" in str(exc.value)
     assert "adamkuhn1/showboat: HTTP 409 empty" in str(exc.value)
+
+
+def test_commit_after_midnight_completes_plan_day_idea():
+    # I2: 01:30 ET Oct 15 is still plan day Oct 14.
+    db = _db()
+    db.insert("ideas", [{"id": "i1", "project_id": "27b", "text": "a", "status": "today", "today_on": "2026-10-14", "position": 0}])
+    db.insert("commits", [{"sha": "1", "project_id": "27b", "message": "m", "committed_at": "2026-10-15T05:30:00Z"}])
+    assert projects.complete_idea_on_commit(db, date(2026, 10, 14), datetime(2026, 10, 15, 2, tzinfo=TZ))
+    assert db.select("ideas", {"id": "i1"})[0]["status"] == "done"
+
+
+def test_commit_before_4am_does_not_complete_next_plan_day():
+    db = _db()
+    db.insert("ideas", [{"id": "i1", "project_id": "27b", "text": "a", "status": "today", "today_on": "2026-10-15", "position": 0}])
+    db.insert("commits", [{"sha": "1", "project_id": "27b", "message": "m", "committed_at": "2026-10-15T05:30:00Z"}])
+    assert not projects.complete_idea_on_commit(db, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ))

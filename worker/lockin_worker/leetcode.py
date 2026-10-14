@@ -105,7 +105,7 @@ def apply_pending(db, bank: dict[str, Problem], today: date, now: datetime) -> i
     solves = sorted(db.select("lc_solves"), key=lambda s: _ts_key(s["accepted_at"]))
     states = load_states(db)
     slots = _slots_by_day(db)
-    done_keys = {(s["slug"], clock.local_day(_ts_key(s["accepted_at"])))
+    done_keys = {(s["slug"], clock.plan_day(_ts_key(s["accepted_at"])))
                  for s in solves if s.get("applied_at") and s.get("effective_rating")}
     groups: dict[tuple[str, date], list[dict]] = {}
     for s in solves:
@@ -114,11 +114,11 @@ def apply_pending(db, bank: dict[str, Problem], today: date, now: datetime) -> i
         if s["slug"] not in bank:
             db.update("lc_solves", _match(s), {"applied_at": now.isoformat()})
             continue
-        day = clock.local_day(_ts_key(s["accepted_at"]))
+        day = clock.plan_day(_ts_key(s["accepted_at"]))  # one attempt per plan day (4 AM boundary)
         groups.setdefault((s["slug"], day), []).append(s)
 
     applied = 0
-    for (slug, day), rows in groups.items():  # one attempt per (slug, local day)
+    for (slug, day), rows in groups.items():  # one attempt per (slug, plan day)
         if (slug, day) in done_keys:
             for r in rows:
                 db.update("lc_solves", _match(r), {"applied_at": now.isoformat()})
@@ -134,7 +134,7 @@ def apply_pending(db, bank: dict[str, Problem], today: date, now: datetime) -> i
                                         "due_on": after.due_on.isoformat() if after.due_on else None,
                                         "lapses": after.lapses}], on_conflict="slug")
         first, rest = rows[0], rows[1:]
-        slot = slots.get(clock.plan_day(_ts_key(first["accepted_at"])).isoformat(), {}).get(slug, "new")  # sets are keyed by plan day
+        slot = slots.get(day.isoformat(), {}).get(slug, "new")  # sets are keyed by plan day
         db.update("lc_solves", _match(first), {"applied_at": now.isoformat(), "effective_rating": rating,
                                                "interval_before": before.interval_days, "slot": slot})
         for r in rest:

@@ -33,6 +33,13 @@ class DayStatus:
     has_projects: bool  # an active project or a today idea exists
 
 
+POSTINGS_WINDOW = timedelta(days=30)  # matches the web (usePostings: found_at >= now - 30 days)
+
+
+def _recent(p: dict, cutoff: datetime) -> bool:
+    return bool(p.get("found_at")) and clock.parse_ts(p["found_at"]) >= cutoff
+
+
 def day_status(db, now: datetime) -> DayStatus:
     today = clock.local_day(now)
     pday = clock.plan_day(now).isoformat()
@@ -40,7 +47,8 @@ def day_status(db, now: datetime) -> DayStatus:
     items = sets[0]["items"] if sets else []
     lc_days = {clock.local_day(clock.parse_ts(s["accepted_at"])) for s in db.select("lc_solves")}
     commit_days = {clock.local_day(clock.parse_ts(c["committed_at"])) for c in db.select("commits")}
-    postings = db.select("postings", {"status": "new"})
+    cutoff = now - POSTINGS_WINDOW
+    postings = [p for p in db.select("postings", {"status": "new"}) if _recent(p, cutoff)]
     due = [o for o in db.select("outreach", {"status": "sent"})
            if o.get("follow_up_on") and o["follow_up_on"] <= today.isoformat()]
     active_projects = db.select("projects", {"active": True})

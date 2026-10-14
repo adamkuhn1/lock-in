@@ -1,0 +1,10 @@
+{
+  "_comment": "Plan-day boundary cases (4 AM America/Detroit, across DST). Read by worker/tests/test_clock.py and web/src/lib/time.test.ts.",
+  "cases": [
+    { "instant": "2026-03-08T08:30:00Z", "plan_day": "2026-03-07" },
+    { "instant": "2026-03-08T09:00:00Z", "plan_day": "2026-03-08" },
+    { "instant": "2026-11-01T07:30:00Z", "plan_day": "2026-10-31" },
+    { "instant": "2026-11-01T08:00:00Z", "plan_day": "2026-11-01" },
+    { "instant": "2026-11-01T09:00:00Z", "plan_day": "2026-11-01" }
+  ]
+}
