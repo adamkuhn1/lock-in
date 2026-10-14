@@ -52,3 +52,23 @@ def test_save_blocks_are_fenced_with_terminator_at_column_0():
         assert "write line breaks as \\n" in t, name
         assert not t.lstrip().startswith("-"), name
     assert "don't run save-outreach" in prompts.load("outreach")
+
+
+def test_work_on_idea_template():
+    t = prompts.load("work_on_idea")
+    assert prompts.placeholders(t) == {"project_name", "repo", "idea_text", "idea_size", "readme", "branch"}
+    assert "Don't push" in t and "blanket Bash permission" in t
+
+
+def test_mock_interview_template():
+    t = prompts.load("mock_interview")
+    assert prompts.placeholders(t) == {"mode", "company", "company_notes", "stories", "lockin"}
+    assert "{{lockin}} log-prep --kind mock" in t and "Logged mock session" in t
+
+
+def test_work_on_idea_completion_copy_is_honest():
+    t = prompts.load("work_on_idea")
+    assert "reaches the project's main branch on GitHub" in t
+    assert "ask him first; don't push yourself" in t and "He can also tick it done in the app." in t
+    assert "the next commit on this project" not in t
+    assert "~~~~\n{{readme}}\n~~~~" in t

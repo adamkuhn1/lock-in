@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useAuth } from '../data/context';
-import { useAddProject, useNow, useProjects, useSetProjectActive, useSettings, useSyncStatus, useUpdateSettings } from '../data/hooks';
+import { useAddProject, useNow, useProjects, useSetProjectActive, useSettings, useUpdateProject, useSyncStatus, useUpdateSettings } from '../data/hooks';
 import type { Project } from '../data/types';
 import { STAGE_LABEL } from '../lib/funnel';
 import { STAGE_RULES } from '../lib/stages';
@@ -94,6 +94,21 @@ function NudgeTimes({ value, onSave }: { value: string[]; onSave: (v: string[]) 
   );
 }
 
+const REPO_RE = /^[A-Za-z0-9-][\w.-]*\/[\w.-]+$/;
+
+function ProjectEdit({ project }: { project: Project }) {
+  const upd = useUpdateProject();
+  return (
+    <Disclosure summary={`Edit ${project.name}`}>
+      <TextField label={`${project.name} repo`} value={project.repo ?? ''} placeholder="owner/name"
+        validate={(v) => (!v || (REPO_RE.test(v) && !v.includes('..')) ? null : 'Repo looks like owner/name.')}
+        onSave={(v, cb) => upd.mutate({ id: project.id, patch: { repo: v || null } }, cb)} />
+      <TextField label={`${project.name} folder`} value={project.local_path ?? ''} placeholder="~/Developer/name"
+        onSave={(v, cb) => upd.mutate({ id: project.id, patch: { local_path: v || null } }, cb)} />
+    </Disclosure>
+  );
+}
+
 const EMPTY_FORM = { id: '', name: '', repo: '', local_path: '' };
 
 function ProjectsCard({ projects }: { projects: Project[] }) {
@@ -103,11 +118,11 @@ function ProjectsCard({ projects }: { projects: Project[] }) {
   const [err, setErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const p = { id: form.id.trim().toLowerCase(), name: form.name.trim(), repo: form.repo.trim(), local_path: form.local_path.trim() || null };
+    const p = { id: form.id.trim().toLowerCase(), name: form.name.trim(), repo: form.repo.trim() || null, local_path: form.local_path.trim() || null };
     const problem =
       !/^[a-z0-9-]+$/.test(p.id) ? 'ID: lowercase letters, digits and dashes.'
       : !p.name ? 'Name is required.'
-      : (!/^[A-Za-z0-9-][\w.-]*\/[\w.-]+$/.test(p.repo) || p.repo.includes('..')) ? 'Repo looks like owner/name.'
+      : (p.repo && (!REPO_RE.test(p.repo) || p.repo.includes('..'))) ? 'Repo looks like owner/name.'
       : projects.some((x) => x.id === p.id) ? 'That ID is taken.'
       : null;
     setErr(problem);
@@ -128,8 +143,9 @@ function ProjectsCard({ projects }: { projects: Project[] }) {
           <li key={p.id}>
             <label className="check-row">
               <input type="checkbox" checked={p.active} onChange={(e) => setActive.mutate({ id: p.id, active: e.target.checked })} />
-              <span>{p.name} <span className="muted small">{p.repo}</span></span>
+              <span>{p.name} <span className="muted small">{p.repo ?? 'no repo'}</span></span>
             </label>
+            <ProjectEdit project={p} />
           </li>
         ))}
       </ul>
@@ -184,6 +200,10 @@ export default function Settings() {
         <Card aria-labelledby="targets-h">
           <CardHead id="targets-h" title="Targets" />
           <NumberField label="Applications per week" value={s.weekly_app_target} min={1} max={200} onSave={(v) => update.mutate({ weekly_app_target: v })} />
+          <NumberField label="Emails per week" value={s.weekly_email_target} min={1} max={100} onSave={(v) => update.mutate({ weekly_email_target: v })} />
+          <TextField label="Day 1" value={s.day_one} placeholder="2026-09-28"
+            validate={(v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v ? null : 'Use YYYY-MM-DD.')}
+            onSave={(v, cb) => update.mutate({ day_one: v }, cb)} />
           <NudgeTimes value={s.nudge_times} onSave={(v) => update.mutate({ nudge_times: v })} />
         </Card>
       )}

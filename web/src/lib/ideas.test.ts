@@ -4,7 +4,7 @@ import { commitStrip, committedOnPlanDay, doneIdeas, moveIdea, nextPosition, sug
 
 const I = (id: string, over: Partial<Idea> = {}): Idea => ({
   id, project_id: '27b', text: id, size: 'S', status: 'todo', source: 'me', position: 0, today_on: null,
-  done_at: null, created_at: '2026-10-01T00:00:00Z', ...over,
+  done_at: null, started_at: null, created_at: '2026-10-01T00:00:00Z', ...over,
 });
 
 describe('ideas', () => {
@@ -74,4 +74,19 @@ describe('ideas', () => {
     expect(suggestState([R('launched', '2026-10-14T12:00:00Z')], '27b', new Date('2026-10-14T12:30:00Z'))).toEqual({ kind: 'launched' });
     expect(suggestState([R('queued', '2026-10-14T12:00:00Z')], 'showboat')).toEqual({ kind: 'idle' });
   });
+});
+
+import { workState as ws, visibleIdeas as vis } from './ideas';
+it('workState follows the newest work_on_idea request for that idea', () => {
+  const now = new Date('2026-10-14T16:00:00Z');
+  const req = (id: string, status: 'queued' | 'launched' | 'failed', idea: string, at: string) =>
+    ({ id, kind: 'work_on_idea' as const, payload: { idea_id: idea }, status, error: status === 'failed' ? 'Project folder not found' : null, created_at: at });
+  expect(ws([], 'i1', now)).toEqual({ kind: 'idle' });
+  expect(ws([req('a', 'failed', 'i1', '2026-10-14T15:00:00Z'), req('b', 'queued', 'i1', '2026-10-14T15:30:00Z')], 'i1', now)).toEqual({ kind: 'queued' });
+  expect(ws([req('a', 'failed', 'i1', '2026-10-14T15:00:00Z')], 'i1', now)).toEqual({ kind: 'failed', error: 'Project folder not found' });
+  expect(ws([req('a', 'queued', 'i2', '2026-10-14T15:00:00Z')], 'i1', now)).toEqual({ kind: 'idle' });
+});
+it('visibleIdeas keeps in_progress ideas', () => {
+  const i = { id: 'x', project_id: 'p', text: 't', size: 'S' as const, status: 'in_progress' as const, source: 'me' as const, position: 0, today_on: null, done_at: null, started_at: null, created_at: '' };
+  expect(vis([i], 'p')).toHaveLength(1);
 });

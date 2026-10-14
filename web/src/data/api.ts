@@ -1,7 +1,8 @@
 import type {
-  Application, Commit, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest, NewIdea, NewProject, Outreach,
-  OutreachPatch, Posting, PostingStatus, Problem, ProblemState, Project, Rating, Settings, SettingsPatch, Solve,
-  SyncResult, SyncStatus, Topic, TopicState,
+  Application, CalEvent, Commit, CompanyPrep, CompanyPrepInput, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest,
+  NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
+  PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Rating, Settings, SettingsPatch, Solve, Story,
+  StoryInput, StoryPatch, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
 
 export interface DataApi {
@@ -32,6 +33,21 @@ export interface DataApi {
   listLaunchRequests(): Promise<LaunchRequest[]>;
   listSyncStatus(): Promise<SyncStatus[]>;
   syncLeetCode(): Promise<SyncResult>;
+  updateProject(id: string, patch: ProjectPatch): Promise<void>;
+  listStories(): Promise<Story[]>;
+  addStory(s: StoryInput): Promise<void>;
+  updateStory(id: string, patch: StoryPatch): Promise<void>;
+  deleteStory(id: string): Promise<void>;
+  listPrepSessions(sinceDay: string): Promise<PrepSession[]>;
+  addPrepSession(s: NewPrepSession): Promise<void>;
+  listPrepItems(): Promise<PrepItem[]>;
+  listPrepProgress(): Promise<PrepProgress[]>;
+  setPrepProgress(itemId: string, status: PrepStatus | null): Promise<void>; // null deletes the row
+  listCompanyPrep(): Promise<CompanyPrep[]>;
+  saveCompanyPrep(p: CompanyPrepInput): Promise<void>; // upsert on (owner, company)
+  listEvents(): Promise<CalEvent[]>;
+  addEvent(e: NewCalEvent): Promise<void>;
+  deleteEvent(id: string): Promise<void>;
 }
 
 /** The worker applied the solve before the rating landed; the rating can no longer change it. */

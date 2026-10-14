@@ -113,6 +113,7 @@ def finish(db, session, now: datetime, env: dict) -> list[str]:
             ("ensure_plan", lambda: plan.ensure_plan(db, now, bank, topics)),
             ("refresh_done", lambda: plan.refresh_done(db, now)),
             ("complete_idea_on_commit", lambda: projects.complete_idea_on_commit(db, today, now)),
+            ("complete_started_ideas", lambda: projects.complete_started_ideas(db)),
         ]
     except Exception as exc:
         errors.append(f"load: {_safe_err(exc)}")

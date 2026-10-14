@@ -17,8 +17,8 @@ describe('demo api', () => {
     const api = createDemoApi(NOW);
     expect(await api.listApplications()).toHaveLength(20);
     expect(await api.listPostings('2000-01-01T00:00:00Z')).toHaveLength(8);
-    expect(await api.listOutreach()).toHaveLength(2);
-    expect((await api.listProjects()).map((p) => p.id)).toEqual(['27b', 'showboat']);
+    expect(await api.listOutreach()).toHaveLength(4);
+    expect((await api.listProjects()).map((p) => p.id)).toEqual(['27b', 'showboat', 'lego']);
     expect(await api.listTopics()).toHaveLength(18);
   });
   it('returns copies, so callers cannot mutate the store', async () => {
@@ -70,5 +70,24 @@ describe('demo api', () => {
   });
   it('sync is a no-op in demo mode', async () => {
     expect(await createDemoApi(NOW).syncLeetCode()).toEqual({ status: 'skipped' });
+  });
+});
+
+describe('demo v2 data', () => {
+  it('round-trips prep, events and company prep', async () => {
+    const api = createDemoApi(new Date('2026-10-14T16:00:00Z'));
+    await api.addPrepSession({ kind: 'study', happened_on: '2026-10-14', minutes: 20 });
+    expect((await api.listPrepSessions('2026-10-14'))[0]).toMatchObject({ kind: 'study', minutes: 20, note: null });
+    await api.setPrepProgress('cs-http', null);
+    expect((await api.listPrepProgress()).some((p) => p.item_id === 'cs-http')).toBe(false);
+    await api.saveCompanyPrep({ company: 'Stripe', notes: 'x', links: '', interview_on: null });
+    await api.saveCompanyPrep({ company: 'Stripe', notes: 'y', links: '', interview_on: null });
+    expect((await api.listCompanyPrep()).filter((c) => c.company === 'Stripe')).toHaveLength(1);
+    await api.addEvent({ title: 'T', kind: 'other', on_date: '2026-10-20' });
+    const ev = (await api.listEvents()).find((x) => x.title === 'T')!;
+    await api.deleteEvent(ev.id);
+    expect((await api.listEvents()).some((x) => x.title === 'T')).toBe(false);
+    expect((await api.listProjects()).find((p) => p.id === 'lego')!.repo).toBeNull();
+    expect(await api.listPrepItems()).toHaveLength(30);
   });
 });

@@ -3,12 +3,15 @@ import { expect, test } from '@playwright/test';
 
 const SCREENS = [
   { name: 'today', path: '/', heading: /^Day \d+$/ },
-  { name: 'leetcode', path: '/leetcode', heading: 'LeetCode' },
-  { name: 'projects', path: '/projects', heading: 'Projects' },
-  { name: 'apps', path: '/apps', heading: 'Applications' },
-  { name: 'jobs', path: '/jobs', heading: 'Jobs' },
-  { name: 'outreach', path: '/outreach', heading: 'Outreach' },
-  { name: 'settings', path: '/settings', heading: 'Settings' },
+  { name: 'grind-leetcode', path: '/grind/leetcode', heading: 'LeetCode' },
+  { name: 'grind-prep', path: '/grind/prep', heading: 'Prep' },
+  { name: 'hunt-jobs', path: '/hunt/jobs', heading: 'Jobs' },
+  { name: 'hunt-apps', path: '/hunt/apps', heading: 'Applications' },
+  { name: 'hunt-outreach', path: '/hunt/outreach', heading: 'Outreach' },
+  { name: 'calendar', path: '/calendar', heading: 'Calendar' },
+  { name: 'me', path: '/me', heading: 'Me' },
+  { name: 'share', path: '/me/share', heading: 'Share' },
+  { name: 'settings', path: '/me/settings', heading: 'Settings' },
 ];
 
 for (const s of SCREENS) {
@@ -52,12 +55,23 @@ for (const s of SCREENS) {
 
 test('every tab is reachable from the navigation', async ({ page }) => {
   await page.goto('/');
-  for (const [label, path] of [['LeetCode', '/leetcode'], ['Projects', '/projects'], ['Apps', '/apps'], ['Jobs', '/jobs'], ['Outreach', '/outreach'], ['Today', '/']] as const) {
-    await page.getByRole('link', { name: label, exact: true }).first().click();
+  for (const [label, path] of [['Grind', '/grind/leetcode'], ['Hunt', '/hunt/jobs'], ['Calendar', '/calendar'], ['Me', '/me'], ['Today', '/']] as const) {
+    // The demo data has a stale Sheet sync, so the Me tab's accessible name is "Me (a sync is stale)" there.
+    const name = label === 'Me' ? /^Me( \(a sync is stale\))?$/ : label;
+    await page.getByRole('link', { name, exact: label !== 'Me' }).first().click();
     await expect(page).toHaveURL(new RegExp(`${path === '/' ? '/' : path}$`));
   }
+  // Settings is a row on the Me screen, not a tab.
+  await page.getByRole('link', { name: /^Me/ }).first().click();
   await page.getByRole('link', { name: /^Settings/ }).first().click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/me\/settings$/);
+});
+
+test('old v1 paths redirect', async ({ page }) => {
+  await page.goto('/jobs');
+  await expect(page).toHaveURL(/\/hunt\/jobs$/);
+  await page.goto('/settings');
+  await expect(page).toHaveURL(/\/me\/settings$/);
 });
 
 test('keyboard focus is visible', async ({ page }) => {

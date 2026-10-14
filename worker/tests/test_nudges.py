@@ -12,7 +12,7 @@ TIMES = ["10:00", "18:00", "22:00"]
 def S(**kw):
     base = dict(lc_done=0, lc_total=6, focus="Sliding Window", reviews=1, mixed_day=False, project_done=False,
                 idea_text="Add Chicago", new_postings=9, starred_postings=2, followups_due=1, lc_streak=6, project_streak=2,
-                has_projects=True)
+                has_projects=True, active_streak=6)
     base.update(kw)
     base.setdefault("lc_today", base["lc_done"] > 0)  # a done set item implies a solve today
     return DayStatus(**base)
@@ -39,11 +39,19 @@ def test_evening_only_if_something_open():
     assert (n.kind, n.body) == ("check", "Still open: LeetCode 2/6 · project")
     assert decide(at(18, 7), TIMES, S(lc_done=6, project_done=True, followups_due=0), {"plan"}) == []
 
-def test_risk_only_when_streak_at_risk():
-    [n] = decide(at(22, 7), TIMES, S(lc_done=0), {"plan", "check"})
-    assert n.kind == "risk" and "LeetCode streak (6 days)" in n.body and n.priority == "high"
-    assert decide(at(22, 7), TIMES, S(lc_done=1, project_done=True), {"plan", "check"}) == []
-    assert decide(at(22, 7), TIMES, S(lc_done=0, lc_streak=0, project_streak=0), {"plan", "check"}) == []
+def test_risk_uses_any_work_streak():
+    st = S(active_streak=5, active_today=False, lc_streak=0, project_streak=0)
+    out = decide(at(22, 7), TIMES, st, {"plan", "check"})
+    assert len(out) == 1 and out[0].kind == "risk" and out[0].priority == "high"
+    assert out[0].body == "Lock-in streak (5 days) ends at 4 AM. One solve, app, email, commit or prep keeps it."
+    assert decide(at(22, 7), TIMES, S(active_streak=5, active_today=True), {"plan", "check"}) == []
+    assert decide(at(22, 7), TIMES, S(active_streak=0, active_today=False), {"plan", "check"}) == []
+
+
+def test_plan_nudge_appends_agenda():
+    out = decide(at(10, 7), TIMES, S(agenda=("Stripe OA today", "Figma interview tomorrow")), set())
+    assert out[0].body.endswith(" · Stripe OA today · Figma interview tomorrow")
+
 
 def test_late_run_sends_only_latest_due_slot():
     kinds = [n.kind for n in decide(at(22, 30), TIMES, S(), set())]
@@ -126,17 +134,15 @@ def test_send_encodes_non_ascii_title_and_checks_status():
         send(FakeSession(status=500), "topic", Nudge("plan", "t", "b"))
 
 
-def test_no_risk_when_solved_today_outside_set():
-    # solved something today that isn't in the daily set: streak is safe even though lc_done == 0
-    st = S(lc_done=0, lc_today=True, project_done=True)
-    assert decide(at(22, 7), TIMES, st, {"plan", "check"}) == []
-    # the check nudge still reports the set's progress (it's the plan)
+def test_check_counts_solve_outside_set_as_progress_only_for_set():
+    # check nudge still reports the set's progress even when a solve happened outside the set
     [n] = decide(at(18, 7), TIMES, S(lc_done=0, lc_today=True, project_done=True, followups_due=0), {"plan"})
     assert n.body == "Still open: LeetCode 0/6"
 
-def test_risk_when_no_solve_today():
-    [n] = decide(at(22, 7), TIMES, S(lc_done=0, lc_today=False, project_done=True), {"plan", "check"})
-    assert n.body == "LeetCode streak (6 days) ends at midnight"
+def test_no_risk_when_any_work_today_and_risk_when_none():
+    assert decide(at(22, 7), TIMES, S(active_today=True), {"plan", "check"}) == []
+    [n] = decide(at(22, 7), TIMES, S(active_today=False), {"plan", "check"})
+    assert n.kind == "risk"
 
 def test_check_omits_project_without_projects_or_idea():
     st = S(lc_done=6, followups_due=0, project_done=False, has_projects=False)

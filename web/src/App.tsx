@@ -1,17 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter } from 'react-router';
 import type { DataApi } from './data/api';
 import type { AuthApi } from './data/auth';
 import { DataProvider } from './data/context';
-import Applications from './screens/Applications';
-import Jobs from './screens/Jobs';
-import LeetCode from './screens/LeetCode';
-import Outreach from './screens/Outreach';
-import Projects from './screens/Projects';
-import SettingsScreen from './screens/Settings';
-import Today from './screens/Today';
-import { AppShell } from './ui/AppShell';
+import { AppRoutes } from './routes';
 import { SignIn } from './ui/SignIn';
 
 function AuthGate({ auth, children }: { auth: AuthApi; children: ReactNode }) {
@@ -34,18 +27,7 @@ export default function App({ api, auth }: { api: DataApi; auth: AuthApi }) {
       <AuthGate auth={auth}>
         <QueryClientProvider client={qc}>
           <BrowserRouter>
-            <Routes>
-              <Route element={<AppShell />}>
-                <Route index element={<Today />} />
-                <Route path="leetcode" element={<LeetCode />} />
-                <Route path="projects" element={<Projects />} />
-                <Route path="apps" element={<Applications />} />
-                <Route path="jobs" element={<Jobs />} />
-                <Route path="outreach" element={<Outreach />} />
-                <Route path="settings" element={<SettingsScreen />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Route>
-            </Routes>
+            <AppRoutes />
           </BrowserRouter>
         </QueryClientProvider>
       </AuthGate>

@@ -15,13 +15,13 @@ const tree = (
 );
 
 describe('AppShell', () => {
-  it('has six tabs, a settings link flagged stale, and syncs on open', async () => {
+  it('has five tabs, a Me tab flagged stale, and syncs on open', async () => {
     const api = createDemoApi();
     const spy = vi.spyOn(api, 'syncLeetCode');
     renderWithData(tree, { api });
     const tabs = screen.getByRole('navigation', { name: 'Tabs' });
-    expect(within(tabs).getAllByRole('link').map((a) => a.textContent)).toEqual(['Today', 'LeetCode', 'Projects', 'Apps', 'Jobs', 'Outreach']);
-    expect(await screen.findAllByRole('link', { name: 'Settings (a sync is stale)' })).not.toHaveLength(0);
+    expect(within(tabs).getAllByRole('link').map((a) => a.textContent)).toEqual(['Today', 'Grind', 'Hunt', 'Calendar', 'Me']);
+    expect(await screen.findAllByRole('link', { name: 'Me (a sync is stale)' })).not.toHaveLength(0);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('main')).toHaveTextContent('home');
   });

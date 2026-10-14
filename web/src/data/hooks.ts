@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DataApi } from './api';
 import { useApi } from './context';
-import type { IdeaPatch, LaunchKind, NewIdea, NewProject, OutreachPatch, PostingStatus, Problem, Rating, SettingsPatch, Solve } from './types';
+import { addDays, planDay } from '../lib/time';
+import type {
+  CompanyPrepInput, Idea, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
+} from './types';
 
 export const keys = {
   settings: ['settings'],
@@ -22,6 +26,12 @@ export const keys = {
   contacts: ['contacts'],
   launchRequests: ['launchRequests'],
   syncStatus: ['syncStatus'],
+  stories: ['stories'],
+  prepSessions: ['prepSessions'],
+  prepItems: ['prepItems'],
+  prepProgress: ['prepProgress'],
+  companyPrep: ['companyPrep'],
+  events: ['events'],
 } as const;
 
 const HOUR = 3_600_000;
@@ -151,4 +161,61 @@ export function useSyncOnOpen() {
     return () => document.removeEventListener('visibilitychange', go);
   }, [mutate]);
   return sync;
+}
+
+export const useStories = () => { const api = useApi(); return useQuery({ queryKey: keys.stories, queryFn: () => api.listStories() }); };
+export const usePrepSessions = () => {
+  const api = useApi();
+  return useQuery({ queryKey: keys.prepSessions, queryFn: () => api.listPrepSessions(addDays(planDay(new Date()), -400)) });
+};
+export const usePrepItems = () => { const api = useApi(); return useQuery({ queryKey: keys.prepItems, queryFn: () => api.listPrepItems(), staleTime: 24 * HOUR }); };
+export const usePrepProgress = () => { const api = useApi(); return useQuery({ queryKey: keys.prepProgress, queryFn: () => api.listPrepProgress() }); };
+export const useCompanyPrep = () => { const api = useApi(); return useQuery({ queryKey: keys.companyPrep, queryFn: () => api.listCompanyPrep() }); };
+export const useEvents = () => { const api = useApi(); return useQuery({ queryKey: keys.events, queryFn: () => api.listEvents() }); };
+
+export const useUpdateProject = () =>
+  useApiMutation((api, v: { id: string; patch: ProjectPatch }) => api.updateProject(v.id, v.patch), [keys.projects]);
+export const useAddStory = () => useApiMutation((api, s: StoryInput) => api.addStory(s), [keys.stories]);
+export const useUpdateStory = () => useApiMutation((api, v: { id: string; patch: StoryPatch }) => api.updateStory(v.id, v.patch), [keys.stories]);
+export const useDeleteStory = () => useApiMutation((api, id: string) => api.deleteStory(id), [keys.stories]);
+export const usePracticeStory = () =>
+  useApiMutation(async (api, v: { id: string; day: string }) => {
+    await api.updateStory(v.id, { last_practiced_on: v.day });
+    await api.addPrepSession({ kind: 'story', story_id: v.id, happened_on: v.day });
+  }, [keys.stories, keys.prepSessions]);
+export const useAddPrepSession = () => useApiMutation((api, s: NewPrepSession) => api.addPrepSession(s), [keys.prepSessions]);
+export const useSetPrepProgress = () =>
+  useApiMutation((api, v: { itemId: string; status: PrepStatus | null }) => api.setPrepProgress(v.itemId, v.status), [keys.prepProgress]);
+export const useSaveCompanyPrep = () => useApiMutation((api, p: CompanyPrepInput) => api.saveCompanyPrep(p), [keys.companyPrep]);
+export const useAddEvent = () => useApiMutation((api, e: NewCalEvent) => api.addEvent(e), [keys.events]);
+export const useDeleteEvent = () => useApiMutation((api, id: string) => api.deleteEvent(id), [keys.events]);
+/**
+ * Two steps, and not idempotent: a repeat call for an idea already in flight is ignored. An id is released only
+ * after the refetch has settled and the UI has had a turn to re-render with the new status, so a stale button
+ * can't slip a second request through.
+ */
+export function useWorkOnIdea() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const inflight = useRef(new Set<string>());
+  const m = useMutation({
+    mutationFn: async (idea: Pick<Idea, 'id' | 'status'>) => {
+      await api.updateIdea(idea.id, { status: 'in_progress', started_at: new Date().toISOString() });
+      await api.requestLaunch('work_on_idea', { idea_id: idea.id, prev_status: idea.status });
+    },
+    onSettled: async (_d, _e, idea) => {
+      try {
+        await Promise.all([keys.ideas, keys.launchRequests].map((k) => qc.invalidateQueries({ queryKey: k })));
+      } finally {
+        setTimeout(() => inflight.current.delete(idea.id), 0);
+      }
+    },
+  });
+  const { mutate: run } = m;
+  const mutate = (idea: Pick<Idea, 'id' | 'status'>) => {
+    if (inflight.current.has(idea.id)) return;
+    inflight.current.add(idea.id);
+    run(idea);
+  };
+  return { ...m, mutate };
 }

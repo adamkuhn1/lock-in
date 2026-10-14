@@ -14,7 +14,7 @@ describe('LeetCode', () => {
     expect(container.querySelectorAll('.roadmap .topic')).toHaveLength(18);
     expect(screen.getByRole('button', { name: /Sliding Window.*Focus.*Learning/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Trees, Locked$/ })).toHaveClass('lvl-locked');
-    expect(container.querySelector('[data-primary]')).toHaveTextContent('Roadmap');
+    expect(container.querySelector('[data-primary]')).toHaveTextContent('Sliding Window');
   });
   it('Make focus sets the focus topic from today', async () => {
     const api = createDemoApi();

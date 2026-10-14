@@ -1,25 +1,13 @@
-import { Check, ChevronDown, ChevronUp, MoreHorizontal, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoreHorizontal, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react';
 import {
-  useAddIdea, useCommits, useIdeas, useLaunchRequests, useNow, useProjects, useReorderIdeas, useRequestLaunch, useUpdateIdea,
+  useAddIdea, useCommits, useIdeas, useLaunchRequests, useNow, useProjects, useReorderIdeas, useRequestLaunch, useUpdateIdea, useWorkOnIdea,
 } from '../data/hooks';
 import type { Commit, Idea, LaunchRequest, Project } from '../data/types';
-import { commitStrip, doneIdeas, moveIdea, nextPosition, suggestState, visibleIdeas } from '../lib/ideas';
+import { commitStrip, doneIdeas, moveIdea, nextPosition, suggestState, visibleIdeas, workState } from '../lib/ideas';
 import { localDay, relativeTime } from '../lib/time';
+import { IdeaCard } from '../ui/IdeaCard';
 import { Button, Card, CardHead, Disclosure, Empty, ErrorDetail, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
-
-function IdeaRow({ idea, first, last, onMove, onDone, onDrop }: {
-  idea: Idea; first: boolean; last: boolean; onMove: (dir: -1 | 1) => void; onDone: () => void; onDrop: () => void;
-}) {
-  const tags = [idea.size, idea.source === 'claude' ? 'Claude' : null, idea.status === 'today' ? 'Today' : null].filter(Boolean).join(' · ');
-  return (
-    <li className="idea-row">
-      <span className="idea-text">{idea.text} <span className="muted small">{tags}</span></span>
-      <Button variant="quiet" aria-label={`Done: ${idea.text}`} onClick={onDone}><Check size={18} aria-hidden /></Button>
-      <IdeaMenu label={idea.text} first={first} last={last} onMove={onMove} onDrop={onDrop} />
-    </li>
-  );
-}
 
 /** The row's "…" menu: closes after an action, on Escape and on a click outside, and hands focus back to its toggle. */
 function IdeaMenu({ label, first, last, onMove, onDrop }: {
@@ -94,6 +82,7 @@ function ProjectCard({ project, primary, now, commits, ideas, requests }: {
   const updateIdea = useUpdateIdea();
   const reorder = useReorderIdeas();
   const launch = useRequestLaunch();
+  const work = useWorkOnIdea();
   const strip = commitStrip(commits, project.id, localDay(now));
   const last = commits
     .filter((c) => c.project_id === project.id)
@@ -114,21 +103,23 @@ function ProjectCard({ project, primary, now, commits, ideas, requests }: {
   return (
     <Card data-primary={primary || undefined} aria-labelledby={headId}>
       <CardHead id={headId} title={project.name}>
-        <ExternalLink className="btn btn-quiet" href={`https://github.com/${project.repo}`}>GitHub</ExternalLink>
+        {project.repo && <ExternalLink className="btn btn-quiet" href={`https://github.com/${project.repo}`}>GitHub</ExternalLink>}
       </CardHead>
-      <p className="muted small">{last ? `${relativeTime(last.committed_at, now)} · ${last.message}` : 'No commits yet'}</p>
+      <p className="muted small">{!project.repo ? 'No repo linked' : last ? `${relativeTime(last.committed_at, now)} · ${last.message}` : 'No commits yet'}</p>
       <div className="strip" role="img" aria-label={`Commits on ${strip.filter((n) => n > 0).length} of the last 30 days`}>
         {strip.map((n, i) => <span key={i} className={n > 0 ? 'on' : undefined} />)}
       </div>
       {list.length === 0 ? (
         <Empty>No ideas yet.</Empty>
       ) : (
-        <ol ref={listRef}>
+        <ol ref={listRef} className="idea-list">
           {list.map((idea, i) => (
-            <IdeaRow key={idea.id} idea={idea} first={i === 0} last={i === list.length - 1}
-              onMove={(dir) => reorder.mutate(moveIdea(list, idea.id, dir))}
+            <IdeaCard key={idea.id} idea={idea} state={workState(requests, idea.id, now)} busy={work.isPending}
+              onWork={() => work.mutate({ id: idea.id, status: idea.status })}
               onDone={() => leave(i, { status: 'done', done_at: new Date().toISOString() })}
-              onDrop={() => leave(i, { status: 'dropped' })} />
+              menu={<IdeaMenu label={idea.text} first={i === 0} last={i === list.length - 1}
+                onMove={(dir) => reorder.mutate(moveIdea(list, idea.id, dir))}
+                onDrop={() => leave(i, { status: 'dropped' })} />} />
           ))}
         </ol>
       )}
@@ -141,7 +132,7 @@ function ProjectCard({ project, primary, now, commits, ideas, requests }: {
         </Button>
         {suggest.kind === 'launched' && <span className="muted small">Opened on Mac</span>}
       </div>
-      {(launch.isError || addIdea.isError || updateIdea.isError || reorder.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
+      {(launch.isError || addIdea.isError || updateIdea.isError || reorder.isError || work.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
       {suggest.kind === 'failed' && <ErrorDetail error={suggest.error} />}
       {done.length > 0 && (
         <Disclosure summary={`Done (${done.length})`}>
@@ -152,28 +143,22 @@ function ProjectCard({ project, primary, now, commits, ideas, requests }: {
   );
 }
 
-export default function Projects() {
+export function ProjectsList() {
   const now = useNow();
   const projects = useProjects();
   const commits = useCommits();
   const ideas = useIdeas();
   const requests = useLaunchRequests();
   const active = (projects.data ?? []).filter((p) => p.active);
+  if (projects.isPending) return <Skeleton label="Loading projects" />;
+  if (projects.isError) return <LoadError what="projects" onRetry={() => void projects.refetch()} />;
+  if (active.length === 0) return <Empty>No active projects. Add one in Settings.</Empty>;
   return (
-    <div className="screen">
-      <header className="screen-head"><h1>Projects</h1></header>
-      {projects.isPending ? (
-        <Skeleton label="Loading projects" />
-      ) : projects.isError ? (
-        <LoadError what="projects" onRetry={() => void projects.refetch()} />
-      ) : active.length === 0 ? (
-        <Empty>No active projects. Add one in Settings.</Empty>
-      ) : (
-        active.map((p, i) => (
-          <ProjectCard key={p.id} project={p} primary={i === 0} now={now}
-            commits={commits.data ?? []} ideas={ideas.data ?? []} requests={requests.data ?? []} />
-        ))
-      )}
-    </div>
+    <>
+      {active.map((p, i) => (
+        <ProjectCard key={p.id} project={p} primary={i === 0} now={now}
+          commits={commits.data ?? []} ideas={ideas.data ?? []} requests={requests.data ?? []} />
+      ))}
+    </>
   );
 }

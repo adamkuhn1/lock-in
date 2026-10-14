@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from . import creds
+from . import clock, creds
 from .db import DBError
 
 CONFIDENCE = ("verified", "pattern", "guess")
@@ -168,6 +168,11 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
     si = sub.add_parser("save-ideas", help="read ideas JSON list on stdin")
     si.add_argument("--project", required=True, help="project id, e.g. 27b")
     sub.add_parser("doctor", help="check Keychain credentials and the database connection")
+    lp = sub.add_parser("log-prep", help="log a prep session (used by Mock with Claude)")
+    lp.add_argument("--kind", required=True, choices=["oa", "mock", "study", "story"])
+    lp.add_argument("--minutes", type=int)
+    lp.add_argument("--note", default="")
+    lp.add_argument("--company")
     args = ap.parse_args(argv)
     try:
         if args.cmd == "doctor":
@@ -175,6 +180,15 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             db.select("settings")
             queued = len(db.select("launch_requests", {"status": "queued"}))
             print(f"OK: connected to Supabase, {_plural(queued, 'queued launch request')}", file=stdout)
+            return 0
+        if args.cmd == "log-prep":
+            if args.minutes is not None and not 1 <= args.minutes <= 600:
+                raise InputError("--minutes must be between 1 and 600")
+            row = {"kind": args.kind, "minutes": args.minutes, "note": args.note.strip()[:500] or None,
+                   "company": (args.company or "").strip() or None,
+                   "happened_on": clock.plan_day(clock.now()).isoformat()}
+            db_factory().insert("prep_sessions", [row])
+            print(f"Logged {args.kind} session", file=stdout)
             return 0
         payload = parse_json(stdin.read())
         if args.cmd == "save-outreach":

@@ -3,11 +3,11 @@ export type Slot = 'new' | 'review' | 'mystery' | 'spot';
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type Level = 'locked' | 'available' | 'learning' | 'practicing' | 'solid' | 'mastered';
 export type Stage = 'applied' | 'oa' | 'interview' | 'offer' | 'closed' | 'other';
-export type IdeaStatus = 'todo' | 'today' | 'done' | 'dropped';
+export type IdeaStatus = 'todo' | 'today' | 'in_progress' | 'done' | 'dropped';
 export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {
@@ -22,9 +22,11 @@ export interface Settings {
   lc_focus_topic: string | null;
   lc_focus_since: string | null;
   app_url: string | null;
+  day_one: string;
+  weekly_email_target: number;
 }
 export type SettingsPatch = Partial<
-  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since'>
+  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target'>
 >;
 
 export interface SetItem { slug: string; slot: Slot; order: number; done: boolean }
@@ -63,8 +65,9 @@ export interface Solve {
   note: string | null;
 }
 
-export interface Project { id: string; name: string; repo: string; local_path: string | null; active: boolean }
+export interface Project { id: string; name: string; repo: string | null; local_path: string | null; active: boolean }
 export type NewProject = Omit<Project, 'active'>;
+export type ProjectPatch = Partial<Pick<Project, 'repo' | 'local_path'>>;
 export interface Commit { sha: string; project_id: string; message: string; committed_at: string }
 export interface Idea {
   id: string;
@@ -76,10 +79,11 @@ export interface Idea {
   position: number;
   today_on: string | null;
   done_at: string | null;
+  started_at: string | null;
   created_at: string;
 }
 export interface NewIdea { project_id: string; text: string; size: 'S' | 'M'; position: number }
-export type IdeaPatch = Partial<Pick<Idea, 'status' | 'position' | 'today_on' | 'done_at' | 'text'>>;
+export type IdeaPatch = Partial<Pick<Idea, 'status' | 'position' | 'today_on' | 'done_at' | 'text' | 'started_at'>>;
 
 export interface Application {
   id: number;
@@ -140,3 +144,21 @@ export interface LaunchRequest {
 }
 export interface SyncStatus { source: string; last_ok_at: string | null; last_error: string | null; consecutive_failures: number }
 export type SyncResult = { status: 'ok'; added: number } | { status: 'skipped' } | { status: 'error'; message: string };
+
+export const STORY_TAGS = ['leadership', 'conflict', 'failure', 'impact', 'teamwork'] as const;
+export type StoryTag = (typeof STORY_TAGS)[number];
+export interface Story { id: string; title: string; tags: StoryTag[]; situation: string; task: string; action: string; result: string; last_practiced_on: string | null; created_at: string }
+export type StoryInput = Pick<Story, 'title' | 'tags' | 'situation' | 'task' | 'action' | 'result'>;
+export type StoryPatch = Partial<StoryInput & { last_practiced_on: string | null }>;
+export type PrepKind = 'oa' | 'mock' | 'study' | 'story';
+export interface PrepSession { id: string; kind: PrepKind; minutes: number | null; note: string | null; company: string | null; story_id: string | null; happened_on: string; created_at: string }
+export type NewPrepSession = Pick<PrepSession, 'kind' | 'happened_on'> & Partial<Pick<PrepSession, 'minutes' | 'note' | 'company' | 'story_id'>>;
+export type PrepTrack = 'system_design' | 'cs';
+export interface PrepItem { id: string; track: PrepTrack; title: string; ord: number }
+export type PrepStatus = 'learning' | 'solid';
+export interface PrepProgress { item_id: string; status: PrepStatus }
+export interface CompanyPrep { id: string; company: string; notes: string; links: string; interview_on: string | null; created_at: string }
+export type CompanyPrepInput = Pick<CompanyPrep, 'company' | 'notes' | 'links' | 'interview_on'>;
+export type EventKind = 'app_open' | 'deadline' | 'oa' | 'interview' | 'other';
+export interface CalEvent { id: string; title: string; kind: EventKind; on_date: string; at_time: string | null; company: string | null; url: string | null; created_at: string }
+export type NewCalEvent = Pick<CalEvent, 'title' | 'kind' | 'on_date'> & Partial<Pick<CalEvent, 'at_time' | 'company' | 'url'>>;

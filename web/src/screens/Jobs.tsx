@@ -55,7 +55,7 @@ export default function Jobs() {
     try {
       await queue.mutateAsync({ job_url: href, company: p.company, role: p.title });
       await setStatus.mutateAsync({ id: p.id, status: 'outreach' });
-      navigate('/outreach');
+      navigate('/hunt/outreach');
     } catch {
       // The alert below shows the failure.
     }

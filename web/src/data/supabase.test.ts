@@ -117,4 +117,35 @@ describe('supabase api', () => {
     expect(canRate({ applied_at: null })).toBe(true);
     expect(canRate({ applied_at: '2026-10-13T00:00:00Z' })).toBe(false);
   });
+  it('setPrepProgress(null) deletes the row for that item', async () => {
+    const { api, calls } = harness(empty);
+    await api.setPrepProgress('cs-http', null);
+    expect(calls[0].method).toBe('DELETE');
+    expect(calls[0].url.pathname).toBe('/rest/v1/prep_progress');
+    expect(calls[0].url.searchParams.get('item_id')).toBe('eq.cs-http');
+  });
+  it('setPrepProgress upserts on owner,item_id', async () => {
+    const { api, calls } = harness(empty);
+    await api.setPrepProgress('cs-http', 'learning');
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].url.searchParams.get('on_conflict')).toBe('owner,item_id');
+    expect(calls[0].body).toMatchObject({ owner: 'u1', item_id: 'cs-http', status: 'learning' });
+  });
+  it('saveCompanyPrep upserts on owner,company', async () => {
+    const { api, calls } = harness(empty);
+    await api.saveCompanyPrep({ company: 'Stripe', notes: 'n', links: '', interview_on: '2026-10-20' });
+    expect(calls[0].url.pathname).toBe('/rest/v1/company_prep');
+    expect(calls[0].url.searchParams.get('on_conflict')).toBe('owner,company');
+    expect(calls[0].body).toMatchObject({ owner: 'u1', company: 'Stripe', interview_on: '2026-10-20' });
+  });
+  it('listPrepSessions filters by day', async () => {
+    const { api, calls } = harness(() => json([]));
+    await api.listPrepSessions('2026-01-01');
+    expect(calls[0].url.searchParams.get('happened_on')).toBe('gte.2026-01-01');
+  });
+  it('listIdeas selects started_at', async () => {
+    const { api, calls } = harness(() => json([]));
+    await api.listIdeas();
+    expect(calls[0].url.searchParams.get('select')).toContain('started_at');
+  });
 });

@@ -9,7 +9,7 @@ import Jobs from './Jobs';
 const tree = (
   <Routes>
     <Route path="/" element={<Jobs />} />
-    <Route path="/outreach" element={<p>outreach page</p>} />
+    <Route path="/hunt/outreach" element={<p>outreach page</p>} />
   </Routes>
 );
 

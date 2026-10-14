@@ -1,5 +1,5 @@
 import type { LaunchRequest, Outreach } from '../data/types';
-import { addDays } from './time';
+import { addDays, weekStart } from './time';
 
 export const FOLLOW_UP_DAYS = 5;
 export const followUpOn = (sentOn: string) => addDays(sentOn, FOLLOW_UP_DAYS);
@@ -47,4 +47,10 @@ export function sortOutreach(list: Outreach[], requests: LaunchRequest[], today:
   return [...list].sort((a, b) =>
     RANK[outreachPhase(a, requests, today).kind] - RANK[outreachPhase(b, requests, today).kind] ||
     Date.parse(b.created_at) - Date.parse(a.created_at));
+}
+
+/** Outreach marked sent this week (Mon..today). */
+export function sentThisWeek(outreach: Pick<Outreach, 'sent_on'>[], today: string): number {
+  const start = weekStart(today);
+  return outreach.filter((o) => o.sent_on !== null && o.sent_on >= start && o.sent_on <= today).length;
 }

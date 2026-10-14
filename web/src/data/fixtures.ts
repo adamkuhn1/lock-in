@@ -1,7 +1,8 @@
+import prepItems from '../../../shared/prep_items.json';
 import { addDays, localDay, planDay } from '../lib/time';
 import type {
-  Application, Commit, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting, Problem,
-  ProblemState, Project, Rating, Settings, Solve, Stage, SyncStatus, Topic, TopicState,
+  Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting,
+  PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Rating, Settings, Solve, Stage, Story, SyncStatus, Topic, TopicState,
 } from './types';
 
 export interface DemoDb {
@@ -21,6 +22,12 @@ export interface DemoDb {
   contacts: Contact[];
   launchRequests: LaunchRequest[];
   syncStatus: SyncStatus[];
+  stories: Story[];
+  prepSessions: PrepSession[];
+  prepItems: PrepItem[];
+  prepProgress: PrepProgress[];
+  companyPrep: CompanyPrep[];
+  events: CalEvent[];
 }
 
 const TOPICS: [string, number, string[]][] = [
@@ -112,6 +119,7 @@ export function createFixtures(now: Date): DemoDb {
       nudge_times: ['10:00', '18:00', '22:00'], daily_lc_count: 6, weekly_app_target: 25, ntfy_topic: null,
       resume_root: '~/Desktop/Adam_Kuhn_Resumes', sheet_id: 'demo-sheet-id', lc_username: 'adamkuhn',
       lc_started_on: addDays(day, -11), lc_focus_topic: 'Sliding Window', lc_focus_since: addDays(day, -3), app_url: null,
+      day_one: addDays(day, -20), weekly_email_target: 10,
     },
     dailySet: {
       day, focus: 'Sliding Window', mixed_day: false,
@@ -145,19 +153,20 @@ export function createFixtures(now: Date): DemoDb {
     projects: [
       { id: '27b', name: '27B', repo: 'adamkuhn1/27b', local_path: '~/Developer/27b', active: true },
       { id: 'showboat', name: 'Showboat', repo: 'adamkuhn1/showboat', local_path: '~/Developer/showboat', active: true },
+      { id: 'lego', name: 'LEGO', repo: null, local_path: '~/Developer/lego', active: true },
     ],
     commits: [
       ...[1, 2, 4, 7, 9, 15].map((d, i) => ({ sha: `27b${i}`, project_id: '27b', message: ['Add city search', 'Fix map zoom', 'Cache tiles', 'Add tests for routing', 'Refactor store', 'Initial map view'][i], committed_at: at(d) })),
       ...[3, 10, 20].map((d, i) => ({ sha: `sb${i}`, project_id: 'showboat', message: ['Polish landing page', 'Add auth', 'Scaffold app'][i], committed_at: at(d) })),
     ],
     ideas: [
-      { id: 'i1', project_id: '27b', text: 'Add Chicago to the city picker', size: 'S', status: 'today', source: 'me', position: 0, today_on: day, done_at: null, created_at: hoursAgo(200) },
-      { id: 'i2', project_id: '27b', text: 'Cache weather API responses', size: 'S', status: 'todo', source: 'me', position: 1, today_on: null, done_at: null, created_at: hoursAgo(190) },
-      { id: 'i3', project_id: '27b', text: 'Add README screenshots', size: 'S', status: 'todo', source: 'claude', position: 2, today_on: null, done_at: null, created_at: hoursAgo(100) },
-      { id: 'i4', project_id: '27b', text: 'Offline mode for saved trips', size: 'M', status: 'todo', source: 'claude', position: 3, today_on: null, done_at: null, created_at: hoursAgo(100) },
-      { id: 'i5', project_id: 'showboat', text: 'Add loading skeletons to the feed', size: 'S', status: 'todo', source: 'me', position: 0, today_on: null, done_at: null, created_at: hoursAgo(300) },
-      { id: 'i6', project_id: 'showboat', text: 'Fix nav overlap on small phones', size: 'S', status: 'todo', source: 'me', position: 1, today_on: null, done_at: null, created_at: hoursAgo(250) },
-      { id: 'i7', project_id: 'showboat', text: 'End-to-end test for sign-up', size: 'M', status: 'done', source: 'me', position: 2, today_on: addDays(day, -3), done_at: hoursAgo(70), created_at: hoursAgo(400) },
+      { id: 'i1', project_id: '27b', text: 'Add Chicago to the city picker', size: 'S', status: 'today', source: 'me', position: 0, today_on: day, done_at: null, started_at: null, created_at: hoursAgo(200) },
+      { id: 'i2', project_id: '27b', text: 'Cache weather API responses', size: 'S', status: 'todo', source: 'me', position: 1, today_on: null, done_at: null, started_at: null, created_at: hoursAgo(190) },
+      { id: 'i3', project_id: '27b', text: 'Add README screenshots', size: 'S', status: 'todo', source: 'claude', position: 2, today_on: null, done_at: null, started_at: null, created_at: hoursAgo(100) },
+      { id: 'i4', project_id: '27b', text: 'Offline mode for saved trips', size: 'M', status: 'todo', source: 'claude', position: 3, today_on: null, done_at: null, started_at: null, created_at: hoursAgo(100) },
+      { id: 'i5', project_id: 'showboat', text: 'Add loading skeletons to the feed', size: 'S', status: 'todo', source: 'me', position: 0, today_on: null, done_at: null, started_at: null, created_at: hoursAgo(300) },
+      { id: 'i6', project_id: 'showboat', text: 'Fix nav overlap on small phones', size: 'S', status: 'todo', source: 'me', position: 1, today_on: null, done_at: null, started_at: null, created_at: hoursAgo(250) },
+      { id: 'i7', project_id: 'showboat', text: 'End-to-end test for sign-up', size: 'M', status: 'done', source: 'me', position: 2, today_on: addDays(day, -3), done_at: hoursAgo(70), started_at: null, created_at: hoursAgo(400) },
     ],
     applications: APPS.map(([company, role, stage, status, d], id) => ({
       id: id + 1, company, role, stage, status, track: role.includes('New Grad') ? 'New grad' : 'Internship', term: null,
@@ -169,6 +178,8 @@ export function createFixtures(now: Date): DemoDb {
     })),
     outreach: [
       { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, created_at: minsAgo(5) },
+      { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), created_at: hoursAgo(30) },
+      { id: 'o4', job_url: 'https://jobs.lever.co/palantir/2', company: 'Palantir', role: 'FDSE Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 6), created_at: hoursAgo(50) },
       { id: 'o1', job_url: 'https://boards.greenhouse.io/stripe/jobs/4000002', company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', resume_path: '~/Desktop/Adam_Kuhn_Resumes/Stripe_SWE_Intern_2027/Adam_Kuhn_Resume.pdf', status: 'drafted', sent_on: null, follow_up_on: null, created_at: hoursAgo(26) },
     ],
     contacts: [
@@ -193,6 +204,24 @@ export function createFixtures(now: Date): DemoDb {
       { source: 'github', last_ok_at: minsAgo(12), last_error: null, consecutive_failures: 0 },
       { source: 'sheet', last_ok_at: hoursAgo(3), last_error: 'TransportError: timed out', consecutive_failures: 6 },
       { source: 'jobs', last_ok_at: minsAgo(12), last_error: null, consecutive_failures: 0 },
+    ],
+    stories: [
+      { id: 's1', title: 'Shipped 27B to 2k users', tags: ['impact', 'leadership'], situation: 'Class project that grew', task: 'Keep it fast as usage grew', action: 'Added tile caching and load tests', result: 'p95 load 3.1s → 0.9s', last_practiced_on: addDays(day, -2), created_at: hoursAgo(500) },
+      { id: 's2', title: 'Group project conflict', tags: ['conflict', 'teamwork'], situation: 'Two teammates disagreed on stack', task: 'Unblock the team', action: 'Ran a 1-hour spike on both options', result: 'Picked one with data; shipped on time', last_practiced_on: null, created_at: hoursAgo(400) },
+    ],
+    prepSessions: [
+      { id: 'ps1', kind: 'oa', minutes: 45, note: 'HackerRank practice set', company: 'Amazon', story_id: null, happened_on: addDays(day, -1), created_at: hoursAgo(28) },
+      { id: 'ps2', kind: 'mock', minutes: 30, note: 'Behavioral with Claude', company: null, story_id: null, happened_on: addDays(day, -3), created_at: hoursAgo(75) },
+    ],
+    prepItems: prepItems as PrepItem[],
+    prepProgress: [{ item_id: 'sd-url-shortener', status: 'solid' }, { item_id: 'cs-http', status: 'learning' }],
+    companyPrep: [
+      { id: 'cp1', company: 'Datadog', notes: 'R2 is system design lite: metrics pipeline.', links: 'https://www.datadoghq.com/careers/', interview_on: addDays(day, 3), created_at: hoursAgo(100) },
+    ],
+    events: [
+      { id: 'e1', title: 'Amazon OA due', kind: 'oa', on_date: addDays(day, 2), at_time: null, company: 'Amazon', url: null, created_at: hoursAgo(20) },
+      { id: 'e2', title: 'Career fair', kind: 'other', on_date: addDays(day, 9), at_time: '10:00:00', company: null, url: null, created_at: hoursAgo(20) },
+      { id: 'e3', title: 'Microsoft Explore deadline', kind: 'deadline', on_date: addDays(day, 16), at_time: null, company: 'Microsoft', url: null, created_at: hoursAgo(20) },
     ],
   };
 }

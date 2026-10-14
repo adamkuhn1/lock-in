@@ -1,0 +1,16 @@
+# Only web/, prompts/ and shared/ are needed by the Vercel build.
+worker/
+supabase/
+docs/
+scripts/
+.superpowers/
+.github/
+Makefile
+**/node_modules
+**/.venv
+**/__pycache__
+web/dist
+web/test-results
+web/playwright-report
+.env*
+!web/.env.example

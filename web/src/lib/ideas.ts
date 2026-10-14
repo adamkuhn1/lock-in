@@ -4,7 +4,7 @@ import { addDays, localDay, planDay } from './time';
 const byPosition = (a: Idea, b: Idea) => a.position - b.position || a.created_at.localeCompare(b.created_at);
 
 export function visibleIdeas(ideas: Idea[], projectId: string): Idea[] {
-  return ideas.filter((i) => i.project_id === projectId && (i.status === 'todo' || i.status === 'today')).sort(byPosition);
+  return ideas.filter((i) => i.project_id === projectId && (i.status === 'todo' || i.status === 'today' || i.status === 'in_progress')).sort(byPosition);
 }
 
 export function doneIdeas(ideas: Idea[], projectId: string): Idea[] {
@@ -49,14 +49,18 @@ export function committedOnPlanDay(commits: Commit[], projectId: string, day: st
 /** "Opened on Mac" is only news for a while; after this the card goes back to idle. */
 export const LAUNCHED_FRESH_MS = 3_600_000;
 
-export function suggestState(requests: LaunchRequest[], projectId: string, now: Date = new Date()):
-  { kind: 'idle' } | { kind: 'queued' } | { kind: 'launched' } | { kind: 'failed'; error: string } {
-  const mine = requests
-    .filter((r) => r.kind === 'suggest_ideas' && r.payload.project_id === projectId)
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const r = mine[0];
+export type LaunchState = { kind: 'idle' } | { kind: 'queued' } | { kind: 'launched' } | { kind: 'failed'; error: string };
+
+export function launchState(requests: LaunchRequest[], match: (r: LaunchRequest) => boolean, now: Date = new Date()): LaunchState {
+  const r = requests.filter(match).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
   if (!r) return { kind: 'idle' };
   if (r.status === 'queued') return { kind: 'queued' };
   if (r.status === 'launched') return now.getTime() - Date.parse(r.created_at) <= LAUNCHED_FRESH_MS ? { kind: 'launched' } : { kind: 'idle' };
   return { kind: 'failed', error: r.error ?? 'Unknown error' };
 }
+export const suggestState = (requests: LaunchRequest[], projectId: string, now: Date = new Date()) =>
+  launchState(requests, (r) => r.kind === 'suggest_ideas' && r.payload.project_id === projectId, now);
+export const workState = (requests: LaunchRequest[], ideaId: string, now: Date = new Date()) =>
+  launchState(requests, (r) => r.kind === 'work_on_idea' && r.payload.idea_id === ideaId, now);
+export const mockState = (requests: LaunchRequest[], now: Date = new Date()) =>
+  launchState(requests, (r) => r.kind === 'mock_interview', now);

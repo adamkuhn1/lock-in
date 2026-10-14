@@ -36,3 +36,8 @@ describe('outreach', () => {
     expect(sortOutreach(list, [R('r', 'queued', 'queued')], '2026-10-14').map((o) => o.id)).toEqual(['due', 'drafted', 'queued', 'sent', 'replied']);
   });
 });
+
+import { sentThisWeek } from './outreach';
+it('sentThisWeek counts Mon..today', () => {
+  expect(sentThisWeek([{ sent_on: '2026-10-11' }, { sent_on: '2026-10-12' }, { sent_on: '2026-10-14' }, { sent_on: null }], '2026-10-14')).toBe(2);
+});

@@ -9,6 +9,7 @@ import { LEVEL_LABEL, reviewQueue, roadmapRows, topicCounts, upcomingReviews } f
 import { localDay, planDay, relativeTime } from '../lib/time';
 import { RATINGS, problemUrl } from '../lib/today';
 import { Button, Card, CardHead, DifficultyTag, Disclosure, Empty, ExternalLink, LoadError, Skeleton, Stepper } from '../ui/primitives';
+import { DailySetCard } from './DailySet';
 
 const ALL_LEVELS: Level[] = ['locked', 'available', 'learning', 'practicing', 'solid', 'mastered'];
 const RATING_LABEL = Object.fromEntries(RATINGS.map((r) => [r.value, `${r.emoji} ${r.label}`])) as Record<string, string>;
@@ -60,7 +61,9 @@ export default function LeetCode() {
     <div className="screen">
       <header className="screen-head"><h1>LeetCode</h1></header>
 
-      <Card data-primary aria-labelledby="map-h">
+      <DailySetCard />
+
+      <Card aria-labelledby="map-h">
         <CardHead id="map-h" title="Roadmap" />
         {topics.isPending || states.isPending ? (
           <Skeleton label="Loading roadmap" />

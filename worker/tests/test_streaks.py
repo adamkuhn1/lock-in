@@ -68,3 +68,61 @@ def test_day_status_new_postings_use_web_30_day_window():
     ])
     st = day_status(db, now)
     assert (st.new_postings, st.starred_postings) == (2, 1)
+
+
+from datetime import timezone
+from lockin_worker.streaks import activity_days
+
+
+def test_activity_days_unions_all_kinds_on_plan_days():
+    db = MemoryDB()
+    db.insert("lc_solves", [{"accepted_at": "2026-10-14T07:30:00Z"}])  # 03:30 EDT Oct 14 -> plan day Oct 13
+    db.insert("commits", [{"committed_at": "2026-10-14T08:00:00Z"}])   # 04:00 EDT -> Oct 14
+    db.insert("applications", [{"applied_on": "2026-10-10"}, {"applied_on": None}])
+    db.insert("outreach", [{"sent_on": "2026-10-11"}, {"sent_on": None}])
+    db.insert("prep_sessions", [{"happened_on": "2026-10-12"}])
+    assert activity_days(db) == {date(2026, 10, d) for d in (10, 11, 12, 13, 14)}
+
+
+def test_day_status_active_streak_counts_any_kind_and_today_flag():
+    db = MemoryDB()
+    db.insert("prep_sessions", [{"happened_on": "2026-10-12"}, {"happened_on": "2026-10-13"}])
+    now = datetime(2026, 10, 14, 2, 0, tzinfo=timezone.utc)  # 22:00 EDT Oct 13 -> plan day Oct 13
+    st = day_status(db, now)
+    assert st.active_streak == 2 and st.active_today is True
+    later = datetime(2026, 10, 15, 2, 0, tzinfo=timezone.utc)  # 22:00 EDT Oct 14, nothing yet
+    st2 = day_status(db, later)
+    assert st2.active_streak == 2 and st2.active_today is False
+
+
+def test_day_status_idea_text_includes_in_progress_today_idea():
+    db = MemoryDB()
+    db.insert("ideas", [{"id": "i", "project_id": "27b", "text": "Add Chicago", "status": "in_progress",
+                         "today_on": "2026-10-14"}])
+    st = day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ))
+    assert st.idea_text == "Add Chicago" and st.has_projects is True
+
+
+def test_active_streak_ignores_activity_before_day_one():
+    db = MemoryDB()
+    db.insert("settings", [{"day_one": "2026-10-13"}])
+    db.insert("prep_sessions", [{"happened_on": d} for d in ("2026-10-11", "2026-10-12", "2026-10-13", "2026-10-14")])
+    st = day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ))
+    assert st.active_streak == 2 and st.active_today is True
+
+
+def test_active_streak_defaults_day_one_when_settings_missing():
+    db = MemoryDB()
+    db.insert("prep_sessions", [{"happened_on": d} for d in ("2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29")])
+    st = day_status(db, datetime(2026, 9, 29, 10, tzinfo=TZ))
+    assert st.active_streak == 2  # default Day 1 is 2026-09-28
+    db.insert("settings", [{"day_one": None}])
+    assert day_status(db, datetime(2026, 9, 29, 10, tzinfo=TZ)).active_streak == 2
+
+
+def test_future_day_one_means_no_streak():
+    db = MemoryDB()
+    db.insert("settings", [{"day_one": "2026-10-20"}])
+    db.insert("prep_sessions", [{"happened_on": "2026-10-14"}])
+    st = day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ))
+    assert st.active_streak == 0 and st.active_today is False

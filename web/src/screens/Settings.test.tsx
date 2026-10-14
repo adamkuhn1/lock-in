@@ -66,7 +66,7 @@ describe('Settings', () => {
     await userEvent.click(await screen.findByRole('checkbox', { name: /Showboat/ }));
     expect(toggle).toHaveBeenCalledWith('showboat', false);
     await userEvent.click(screen.getByText('New project'));
-    await userEvent.type(screen.getByRole('textbox', { name: 'ID' }), 'lego');
+    await userEvent.type(screen.getByRole('textbox', { name: 'ID' }), 'lego2');
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'LEGO');
     await userEvent.type(screen.getByRole('textbox', { name: 'GitHub repo' }), 'not a repo');
     await userEvent.click(screen.getByRole('button', { name: 'Add project' }));
@@ -74,7 +74,7 @@ describe('Settings', () => {
     await userEvent.clear(screen.getByRole('textbox', { name: 'GitHub repo' }));
     await userEvent.type(screen.getByRole('textbox', { name: 'GitHub repo' }), 'adamkuhn1/lego');
     await userEvent.click(screen.getByRole('button', { name: 'Add project' }));
-    expect(add).toHaveBeenCalledWith({ id: 'lego', name: 'LEGO', repo: 'adamkuhn1/lego', local_path: null });
+    expect(add).toHaveBeenCalledWith({ id: 'lego2', name: 'LEGO', repo: 'adamkuhn1/lego', local_path: null });
   });
   it('shows the Sheet status → stage table', async () => {
     renderWithData(<Settings />);
@@ -108,5 +108,40 @@ describe('Settings', () => {
     await userEvent.tab();
     expect((await screen.findAllByText("Couldn't save. Try again.")).length).toBeGreaterThan(0);
     expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+  });
+
+  it('saves Day 1 and the weekly email target', async () => {
+    const api = createDemoApi();
+    const update = vi.spyOn(api, 'updateSettings');
+    renderWithData(<Settings />, { api });
+    const day = await screen.findByLabelText('Day 1');
+    await userEvent.clear(day);
+    await userEvent.type(day, '2026-09-28{Enter}');
+    expect(update).toHaveBeenCalledWith({ day_one: '2026-09-28' });
+    await userEvent.clear(day);
+    await userEvent.type(day, 'sept 28{Enter}');
+    expect(screen.getByText('Use YYYY-MM-DD.')).toBeInTheDocument();
+    update.mockClear();
+    await userEvent.clear(day);
+    await userEvent.type(day, '2026-02-31{Enter}');
+    expect(screen.getByText('Use YYYY-MM-DD.')).toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
+    const emails = screen.getByLabelText('Emails per week');
+    await userEvent.clear(emails);
+    await userEvent.type(emails, '12{Enter}');
+    expect(update).toHaveBeenCalledWith({ weekly_email_target: 12 });
+  });
+
+  it("edits a project's repo and folder", async () => {
+    const api = createDemoApi();
+    const upd = vi.spyOn(api, 'updateProject');
+    renderWithData(<Settings />, { api });
+    await userEvent.click(await screen.findByText('Edit LEGO'));
+    const repo = screen.getByLabelText('LEGO repo');
+    await userEvent.type(repo, 'adamkuhn1/lego{Enter}');
+    expect(upd).toHaveBeenCalledWith('lego', { repo: 'adamkuhn1/lego' });
+    await userEvent.clear(repo);
+    await userEvent.type(repo, 'not a repo{Enter}');
+    expect(screen.getByText('Repo looks like owner/name.')).toBeInTheDocument();
   });
 });

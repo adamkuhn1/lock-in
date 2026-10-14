@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 
 from .bank import load_bank, load_topics
 from .db import RestDB
@@ -9,6 +11,8 @@ PROJECTS = [
     {"id": "27b", "name": "27B", "repo": "adamkuhn1/27b", "local_path": "~/Developer/27b", "active": True},
     {"id": "showboat", "name": "Showboat", "repo": "adamkuhn1/showboat", "local_path": "~/Developer/showboat", "active": True},
 ]
+LEGO = {"id": "lego", "name": "LEGO", "repo": None, "local_path": "~/Developer/lego", "active": True}
+PREP_ITEMS = Path(__file__).resolve().parents[2] / "shared" / "prep_items.json"
 
 
 def seed(db, ntfy_topic: str | None, sheet_id: str | None) -> dict:
@@ -25,8 +29,12 @@ def seed(db, ntfy_topic: str | None, sheet_id: str | None) -> dict:
         db.insert("settings", [given])
     elif given:
         db.update("settings", {}, given)
-    db.upsert("projects", PROJECTS, on_conflict="id")
-    return {"problems": len(bank), "topics": len(topics), "projects": len(PROJECTS)}
+    db.upsert("projects", PROJECTS, on_conflict="id", ignore_duplicates=True)  # never clobber edits
+    if not db.select("projects", {"id": "lego"}):  # insert-only: never overwrite a repo Adam linked later
+        db.insert("projects", [LEGO])
+    items = json.loads(PREP_ITEMS.read_text(encoding="utf-8"))
+    db.upsert("prep_items", items, on_conflict="id")
+    return {"problems": len(bank), "topics": len(topics), "projects": len(PROJECTS) + 1, "prep_items": len(items)}
 
 
 if __name__ == "__main__":

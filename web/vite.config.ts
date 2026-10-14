@@ -14,8 +14,8 @@ export default defineConfig({
         description: 'What to do today, and whether you did it.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#0b0d10',
-        theme_color: '#0b0d10',
+        background_color: '#000000',
+        theme_color: '#000000',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -25,7 +25,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/api\//],
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
     }),
   ],

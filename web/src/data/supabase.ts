@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AlreadyCountedError, type DataApi } from './api';
 import type {
-  Application, Commit, Contact, DailySet, Idea, LaunchRequest, Outreach, Posting, Problem, ProblemState, Project,
-  Settings, Solve, SyncResult, SyncStatus, Topic, TopicState,
+  Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Idea, LaunchRequest, Outreach, Posting, PrepItem, PrepProgress,
+  PrepSession, Problem, ProblemState, Project, Settings, Solve, Story, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
 
 type PgError = { message: string } | null;
@@ -106,7 +106,7 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
       allPages<Commit>((a, b) => sb.from('commits').select('sha,project_id,message,committed_at').gte('committed_at', since)
         .order('committed_at', { ascending: false }).order('sha').range(a, b)),
     listIdeas: () =>
-      allPages<Idea>((a, b) => sb.from('ideas').select('id,project_id,text,size,status,source,position,today_on,done_at,created_at')
+      allPages<Idea>((a, b) => sb.from('ideas').select('id,project_id,text,size,status,source,position,today_on,done_at,started_at,created_at')
         .order('position').order('id').range(a, b)),
     addIdea: (i) => exec(sb.from('ideas').insert({ ...i, status: 'todo', source: 'me' })),
     updateIdea: (id, patch) => exec(sb.from('ideas').update(patch).eq('id', id)),
@@ -134,6 +134,37 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
     listLaunchRequests: () =>
       rows<LaunchRequest[]>(sb.from('launch_requests').select('id,kind,payload,status,error,created_at')
         .order('created_at', { ascending: false }).limit(50)),
+    updateProject: (id, patch) => exec(sb.from('projects').update(patch).eq('id', id)),
+    listStories: () =>
+      allPages<Story>((a, b) => sb.from('stories').select('id,title,tags,situation,task,action,result,last_practiced_on,created_at')
+        .order('created_at').order('id').range(a, b)),
+    addStory: (s) => exec(sb.from('stories').insert(s)),
+    updateStory: (id, patch) => exec(sb.from('stories').update(patch).eq('id', id)),
+    deleteStory: (id) => exec(sb.from('stories').delete().eq('id', id)),
+    listPrepSessions: (since) =>
+      allPages<PrepSession>((a, b) => sb.from('prep_sessions').select('id,kind,minutes,note,company,story_id,happened_on,created_at')
+        .gte('happened_on', since).order('happened_on', { ascending: false }).order('id').range(a, b)),
+    addPrepSession: (s) => exec(sb.from('prep_sessions').insert(s)),
+    listPrepItems: () => rows<PrepItem[]>(sb.from('prep_items').select('id,track,title,ord').order('track').order('ord')),
+    listPrepProgress: () => rows<PrepProgress[]>(sb.from('prep_progress').select('item_id,status')),
+    async setPrepProgress(itemId, status) {
+      if (status === null) {
+        await exec(sb.from('prep_progress').delete().eq('item_id', itemId));
+        return;
+      }
+      await exec(sb.from('prep_progress').upsert(
+        { owner: await deps.ownerId(), item_id: itemId, status, updated_at: new Date().toISOString() },
+        { onConflict: 'owner,item_id' }));
+    },
+    listCompanyPrep: () => rows<CompanyPrep[]>(sb.from('company_prep').select('id,company,notes,links,interview_on,created_at').order('company')),
+    async saveCompanyPrep(p) {
+      await exec(sb.from('company_prep').upsert({ ...p, owner: await deps.ownerId() }, { onConflict: 'owner,company' }));
+    },
+    listEvents: () =>
+      allPages<CalEvent>((a, b) => sb.from('events').select('id,title,kind,on_date,at_time,company,url,created_at')
+        .order('on_date').order('id').range(a, b)),
+    addEvent: (e) => exec(sb.from('events').insert(e)),
+    deleteEvent: (id) => exec(sb.from('events').delete().eq('id', id)),
     listSyncStatus: () => rows<SyncStatus[]>(sb.from('sync_status').select('source,last_ok_at,last_error,consecutive_failures')),
     async syncLeetCode(): Promise<SyncResult> {
       const token = await deps.accessToken();

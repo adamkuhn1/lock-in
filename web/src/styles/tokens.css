@@ -1,14 +1,23 @@
+/* Lock In v2: Scoreboard. Dark only. Existing token names keep v1 component CSS working. */
 :root {
   color-scheme: dark;
-  --bg: #0b0d10;
-  --surface: #14171c;
-  --surface-2: #1c2027;
-  --border: #2a2f38;
-  --text: #e8eaed;
-  --muted: #9aa3ae;
-  --accent: #c4f04d;
-  --accent-ink: #0b0d10;
-  --accent-soft: rgb(196 240 77 / 0.14);
+  --bg: #000;
+  --surface: #141414;
+  --surface-2: #1f1f1f;
+  --border: #262626;
+  --text: #fff;
+  --muted: #a3a3a3;
+  --accent: #ff4d1a;
+  --accent-ink: #000;
+  --accent-soft: rgb(255 77 26 / 0.16);
+  --orange: #ff4d1a;
+  --yellow: #ffd21a;
+  --cyan: #1ad1ff;
+  --heat-0: #1a1a1a;
+  --heat-1: #4a1f10;
+  --heat-2: #7a2c12;
+  --heat-3: #c23f15;
+  --heat-4: #ff4d1a;
   --easy: #2cbbb0;
   --medium: #ffb800;
   --hard: #ff5c75;
@@ -19,26 +28,7 @@
   --gap: 12px;
   --tap: 44px;
   --nav-h: 64px;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --surface-2: #eef0f3;
-    --border: #d9dde3;
-    --text: #111418;
-    --muted: #5b6470;
-    --accent: #3f6a0a;
-    --accent-ink: #ffffff;
-    --accent-soft: rgb(63 106 10 / 0.12);
-    --easy: #00796b;
-    --medium: #9a6200;
-    --hard: #c62845;
-    --danger: #c62828;
-    --warn: #9a6200;
-  }
 }

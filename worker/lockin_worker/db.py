@@ -5,7 +5,7 @@ from typing import Protocol
 
 import requests
 
-GLOBAL_TABLES = {"problems", "topics"}
+GLOBAL_TABLES = {"problems", "topics", "prep_items"}
 TIMEOUT = 30
 PAGE = 1000
 # Stable sort key per table so Range-based pagination never skips or repeats rows (owner is already filtered).
@@ -14,6 +14,8 @@ ORDER = {
     "lc_problem_state": "slug", "lc_topic_state": "topic", "lc_daily_sets": "day", "lc_tag_counts": "tag",
     "projects": "id", "commits": "sha", "ideas": "id", "postings": "id", "outreach": "id", "contacts": "id",
     "launch_requests": "id", "sync_status": "source", "worker_state": "key", "settings": "owner",
+    "stories": "id", "prep_sessions": "id", "prep_items": "id", "prep_progress": "item_id",
+    "company_prep": "id", "events": "id",
 }
 
 

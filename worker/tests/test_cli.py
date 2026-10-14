@@ -163,3 +163,33 @@ def test_network_and_os_errors_exit_1(exc):
     out, err = io.StringIO(), io.StringIO()
     code = cli.main(["doctor"], stdin=io.StringIO(""), stdout=out, stderr=err, db_factory=boom)
     assert code == 1 and f"error: {type(exc).__name__}:" in err.getvalue()
+
+
+from lockin_worker import clock
+
+
+def test_log_prep_inserts_a_session_on_todays_plan_day(monkeypatch):
+    from datetime import datetime, timezone
+    monkeypatch.setattr(clock, "now", lambda: datetime(2026, 10, 14, 6, 0, tzinfo=timezone.utc))  # 02:00 EDT -> Oct 13
+    db = MemoryDB()
+    code, out, _ = run(db, ["log-prep", "--kind", "mock", "--minutes", "30", "--note", "  STAR felt rushed  "], "")
+    assert code == 0 and out.strip() == "Logged mock session"
+    row = db.select("prep_sessions")[0]
+    assert row == {"kind": "mock", "minutes": 30, "note": "STAR felt rushed", "company": None, "happened_on": "2026-10-13"}
+
+
+@pytest.mark.parametrize("argv", [
+    ["log-prep", "--kind", "mock", "--minutes", "0"],
+    ["log-prep", "--kind", "mock", "--minutes", "601"],
+])
+def test_log_prep_rejects_bad_minutes(argv):
+    db = MemoryDB()
+    code, _, err = run(db, argv, "")
+    assert code == 2 and "minutes" in err and db.select("prep_sessions") == []
+
+
+def test_log_prep_rejects_unknown_kind():
+    db = MemoryDB()
+    with pytest.raises(SystemExit) as e:
+        cli.main(["log-prep", "--kind", "nap"], db_factory=lambda: db)
+    assert e.value.code == 2 and db.select("prep_sessions") == []

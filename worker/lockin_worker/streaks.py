@@ -4,6 +4,24 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from . import clock
+from .agenda import _d, agenda as _agenda
+
+
+def activity_days(db) -> set[date]:
+    """Plan days with any real work: a solve, application, outreach sent, commit or prep session."""
+    days = {clock.plan_day(clock.parse_ts(s["accepted_at"])) for s in db.select("lc_solves") if s.get("accepted_at")}
+    days |= {clock.plan_day(clock.parse_ts(c["committed_at"])) for c in db.select("commits") if c.get("committed_at")}
+    for table, col in (("applications", "applied_on"), ("outreach", "sent_on"), ("prep_sessions", "happened_on")):
+        days |= {d for d in (_d(r.get(col)) for r in db.select(table)) if d}
+    return days
+
+
+DEFAULT_DAY_ONE = date(2026, 9, 28)  # matches the settings.day_one column default
+
+
+def day_one(db) -> date:
+    rows = db.select("settings")
+    return (_d(rows[0].get("day_one")) if rows else None) or DEFAULT_DAY_ONE
 
 
 def streak(days: set[date], today: date) -> int:
@@ -31,6 +49,9 @@ class DayStatus:
     project_streak: int
     lc_today: bool  # any accepted solve on today's calendar day, in the set or not
     has_projects: bool  # an active project or a today idea exists
+    active_streak: int = 0
+    active_today: bool = False
+    agenda: tuple[str, ...] = ()
 
 
 POSTINGS_WINDOW = timedelta(days=30)  # matches the web (usePostings: found_at >= now - 30 days)
@@ -52,7 +73,11 @@ def day_status(db, now: datetime) -> DayStatus:
     due = [o for o in db.select("outreach", {"status": "sent"})
            if o.get("follow_up_on") and o["follow_up_on"] <= today.isoformat()]
     active_projects = db.select("projects", {"active": True})
-    idea = next((i for i in db.select("ideas", {"status": "today"}) if i.get("today_on") == pday), None)
+    idea = next((i for st in ("today", "in_progress") for i in db.select("ideas", {"status": st})
+                 if i.get("today_on") == pday), None)
+    pday_d = clock.plan_day(now)
+    first = day_one(db)
+    act = {d for d in activity_days(db) if d >= first}  # like the web: nothing before Day 1 counts
     return DayStatus(
         lc_done=sum(1 for i in items if i.get("done")), lc_total=len(items),
         focus=sets[0]["focus"] if sets else None,
@@ -62,4 +87,5 @@ def day_status(db, now: datetime) -> DayStatus:
         new_postings=len(postings), starred_postings=sum(1 for p in postings if p.get("starred")),
         followups_due=len(due), lc_streak=streak(lc_days, today), project_streak=streak(commit_days, today),
         lc_today=today in lc_days, has_projects=bool(idea or active_projects),
+        active_streak=streak(act, pday_d), active_today=pday_d in act, agenda=tuple(_agenda(db, pday_d)),
     )

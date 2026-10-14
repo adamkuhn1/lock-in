@@ -8,3 +8,6 @@ dist/
 .pytest_cache/
 !**/.env.example
 !web/.env.example
+.DS_Store
+.vercel/
+supabase/.temp/

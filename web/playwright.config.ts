@@ -11,8 +11,6 @@ export default defineConfig({
   webServer: { command: 'npm run dev:demo', url: 'http://localhost:5199', reuseExistingServer: !process.env.CI, timeout: 60_000 },
   projects: [
     { name: 'phone-dark', use: { ...devices['Desktop Chrome'], ...phone, colorScheme: 'dark' } },
-    { name: 'phone-light', use: { ...devices['Desktop Chrome'], ...phone, colorScheme: 'light' } },
     { name: 'desktop-dark', use: { ...devices['Desktop Chrome'], ...desktop, colorScheme: 'dark' } },
-    { name: 'desktop-light', use: { ...devices['Desktop Chrome'], ...desktop, colorScheme: 'light' } },
   ],
 });

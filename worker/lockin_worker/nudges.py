@@ -39,6 +39,7 @@ def _plan(st: DayStatus) -> Nudge:
         parts.append(f"{st.new_postings} new postings{star}")
     if st.followups_due:
         parts.append(_plural(st.followups_due, "follow-up"))
+    parts.extend(st.agenda)
     return Nudge("plan", "Today's plan", " · ".join(parts))
 
 
@@ -66,14 +67,11 @@ def decide(now: datetime, times: list[str], st: DayStatus, sent: set[str]) -> li
     if kind == "check":
         items = _open_items(st)
         return [Nudge("check", "Still open", "Still open: " + " · ".join(items))] if items else []
-    risks = []
-    if st.lc_streak and not st.lc_today:
-        risks.append(f"LeetCode streak ({st.lc_streak} days)")
-    if st.project_streak and not st.project_done:
-        risks.append(f"project streak ({st.project_streak} days)")
-    if not risks:
-        return []
-    return [Nudge("risk", "Streak at risk", " and ".join(risks) + " ends at midnight", priority="high")]
+    if st.active_streak and not st.active_today:
+        return [Nudge("risk", "Streak at risk",
+                      f"Lock-in streak ({st.active_streak} days) ends at 4 AM. One solve, app, email, commit or prep keeps it.",
+                      priority="high")]
+    return []
 
 
 def health(rows: list[dict], now: datetime, today: date) -> list[tuple[str, Nudge]]:
