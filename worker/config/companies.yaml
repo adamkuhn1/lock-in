@@ -1,0 +1,38 @@
+# One entry per company board. See README "Adding a company".
+#   ats:   greenhouse | lever | ashby
+#   token: the board slug from the careers URL
+#   tier:  A = high-priority push, B/C = normal push
+companies:
+  # --- Greenhouse: boards-api.greenhouse.io/v1/boards/<token>/jobs
+  - { name: Stripe,     ats: greenhouse, token: stripe,     tier: A }
+  - { name: Databricks, ats: greenhouse, token: databricks, tier: A }
+  - { name: Anthropic,  ats: greenhouse, token: anthropic,  tier: A }
+  - { name: Figma,      ats: greenhouse, token: figma,      tier: A }
+  - { name: Airbnb,     ats: greenhouse, token: airbnb,     tier: B }
+  - { name: Robinhood,  ats: greenhouse, token: robinhood,  tier: B }
+  - { name: Discord,    ats: greenhouse, token: discord,    tier: B }
+  - { name: Cloudflare, ats: greenhouse, token: cloudflare, tier: B }
+  - { name: Datadog,    ats: greenhouse, token: datadog,    tier: B }
+  - { name: Pinterest,  ats: greenhouse, token: pinterest,  tier: B }
+  - { name: Reddit,     ats: greenhouse, token: reddit,     tier: B }
+  - { name: Lyft,       ats: greenhouse, token: lyft,       tier: B }
+  - { name: Instacart,  ats: greenhouse, token: instacart,  tier: C }
+  - { name: Scale AI,   ats: greenhouse, token: scaleai,    tier: B }
+  - { name: Asana,      ats: greenhouse, token: asana,      tier: C }
+  - { name: Dropbox,    ats: greenhouse, token: dropbox,    tier: C }
+  - { name: GitLab,     ats: greenhouse, token: gitlab,     tier: C }
+
+  # --- Lever: api.lever.co/v0/postings/<token>?mode=json
+  - { name: Palantir,   ats: lever, token: palantir, tier: A }
+  - { name: Spotify,    ats: lever, token: spotify,  tier: B }
+
+  # --- Ashby: api.ashbyhq.com/posting-api/job-board/<token>
+  - { name: OpenAI,     ats: ashby, token: openai,     tier: A }
+  - { name: Ramp,       ats: ashby, token: ramp,       tier: A }
+  - { name: Notion,     ats: ashby, token: notion,     tier: B }
+  - { name: Linear,     ats: ashby, token: linear,     tier: B }
+  - { name: Cursor,     ats: ashby, token: cursor,     tier: B }
+  - { name: Perplexity, ats: ashby, token: perplexity, tier: B }
+  - { name: Replit,     ats: ashby, token: replit,     tier: C }
+  - { name: Vanta,      ats: ashby, token: vanta,      tier: C }
+  - { name: Snowflake,  ats: ashby, token: snowflake,  tier: B }

@@ -1,0 +1,4 @@
+{"data":{"matchedUser":{"tagProblemCounts":{
+ "advanced":[{"tagSlug":"union-find","problemsSolved":3}],
+ "intermediate":[{"tagSlug":"hash-table","problemsSolved":8}],
+ "fundamental":[{"tagSlug":"array","problemsSolved":20}]}}}}

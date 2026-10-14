@@ -1,0 +1,53 @@
+# Title filters for company boards (Greenhouse / Lever / Ashby).
+# Python regexes, case-insensitive, OR-ed together. A posting alerts if its
+# title matches ANY include pattern and NO exclude pattern.
+# Excludes always win over includes.
+# GitHub lists (config/lists.yaml) apply only the excludes unless
+# `apply_include: true` is set — those lists are already early-career.
+title:
+  include:
+    - '\bnew[- ]?grad(uate)?s?\b'
+    - '\b2027\b'
+    - '\bearly[- ]career\b'
+    - '\buniversity[- ]grad(uate)?s?\b'
+    - '\bentry[- ]level\b'
+    - '\bsoftware engineer,?\s+(i|1)\b'      # "Software Engineer I", not II / Infra
+    - '\bco-?op\b'
+    - '\bwinter\b'
+    - '\bspring\b'
+    - '\bintern(s|ship|ships)?\b'           # not "internal" / "international"
+
+  exclude:
+    - '\bsenior\b'
+    - '\bstaff\b'
+    - '\bprincipal\b'
+    - '\bmanager\b'
+    - '\bph\.?d\b'
+    - '\bsr\b\.?'
+
+    # --- No Summer 2027 internships ---
+    # Summer internships / co-ops / "Summer Analyst"-style programs, unless the
+    # title also offers winter/spring (keeps "Software Engineer, Intern (Summer
+    # or Winter)"). Full-time new grad roles with a summer start are NOT affected.
+    - '^(?!.*\b(winter|spring)\b)(?=.*\b(intern(s|ship|ships)?|co-?op|summer (analyst|associate)s?)\b).*\bsummer\b'
+    # Internships that don't name a term. In practice these are almost always
+    # summer, so an intern title must mention winter, spring or co-op to alert.
+    # For SimplifyJobs rows the Terms column counts as part of the title.
+    - '^(?!.*\b(winter|spring|co-?op)\b).*\bintern(s|ship|ships)?\b'
+
+    # added beyond the original list — catches e.g. "Head of Early Career Recruiting"
+    - '\bhead of\b'
+    - '\bdirector\b'
+    - '\bvp\b'
+
+# Where the job is. Checked against the posting's location plus any office /
+# country info the job board provides (see job_radar/location.py).
+location:
+  us_only: true
+  # Postings that give no usable location at all ("Remote", "Hybrid", blank).
+  # allow = still alert (the alert shows the location so you can judge);
+  # block = drop them.
+  unknown: allow
+  # US jobs here alert first, at high priority, with a ⭐.
+  # Choices: nyc, chicago, texas, california
+  preferred: [nyc, chicago, texas, california]

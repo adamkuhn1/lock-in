@@ -1,0 +1,55 @@
+from datetime import date, datetime, timedelta
+from lockin_worker.clock import TZ
+from lockin_worker.db import MemoryDB
+from lockin_worker.streaks import day_status, streak
+
+D = date(2026, 10, 14)
+
+def test_streak_counts_back_from_today_or_yesterday():
+    assert streak({D, D - timedelta(1), D - timedelta(2)}, D) == 3
+    assert streak({D - timedelta(1), D - timedelta(2)}, D) == 2   # today not done yet: still alive
+    assert streak({D - timedelta(2)}, D) == 0
+    assert streak(set(), D) == 0
+
+def test_streak_counts_late_night_solve():
+    db = MemoryDB()
+    db.insert("lc_solves", [{"slug": "a", "title": "a", "accepted_at": "2026-10-14T03:50:00+00:00"}])  # 23:50 ET Oct 13
+    st = day_status(db, datetime(2026, 10, 14, 9, tzinfo=TZ))
+    assert st.lc_streak == 1
+
+def test_day_status_counts():
+    db = MemoryDB()
+    db.insert("lc_daily_sets", [{"day": "2026-10-14", "focus": "Stack", "mixed_day": False,
+              "items": [{"slug": "a", "slot": "review", "order": 0, "done": True},
+                        {"slug": "b", "slot": "new", "order": 1, "done": False}]}])
+    db.insert("postings", [{"id": "1", "status": "new", "starred": True}, {"id": "2", "status": "new", "starred": False},
+                           {"id": "3", "status": "seen", "starred": True}])
+    db.insert("outreach", [{"id": "o", "status": "sent", "follow_up_on": "2026-10-14"},
+                           {"id": "p", "status": "replied", "follow_up_on": "2026-10-10"}])
+    db.insert("ideas", [{"id": "i", "project_id": "27b", "text": "Add Chicago", "status": "today", "today_on": "2026-10-14"}])
+    st = day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ))
+    assert (st.lc_done, st.lc_total, st.focus, st.reviews) == (1, 2, "Stack", 1)
+    assert (st.new_postings, st.starred_postings, st.followups_due) == (2, 1, 1)
+    assert st.idea_text == "Add Chicago" and st.project_done is False
+
+
+def test_lc_today_counts_any_solve_today():
+    db = MemoryDB()
+    db.insert("lc_daily_sets", [{"day": "2026-10-14", "focus": "Stack", "mixed_day": False,
+              "items": [{"slug": "b", "slot": "new", "order": 0, "done": False}]}])
+    st = day_status(db, datetime(2026, 10, 14, 21, tzinfo=TZ))
+    assert st.lc_today is False
+    db.insert("lc_solves", [{"slug": "off-plan", "title": "x", "accepted_at": "2026-10-14T19:00:00-04:00"}])
+    st = day_status(db, datetime(2026, 10, 14, 21, tzinfo=TZ))
+    assert st.lc_today is True and st.lc_done == 0 and st.lc_streak == 1
+
+def test_has_projects_from_active_project_or_today_idea():
+    now = datetime(2026, 10, 14, 10, tzinfo=TZ)
+    db = MemoryDB()
+    db.insert("projects", [{"id": "old", "name": "x", "repo": "a/b", "active": False}])
+    assert day_status(db, now).has_projects is False
+    db.insert("ideas", [{"id": "i", "text": "t", "status": "today", "today_on": "2026-10-14"}])
+    assert day_status(db, now).has_projects is True
+    db2 = MemoryDB()
+    db2.insert("projects", [{"id": "p", "name": "x", "repo": "a/b", "active": True}])
+    assert day_status(db2, now).has_projects is True

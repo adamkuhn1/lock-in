@@ -1,0 +1,869 @@
+{
+ "source": "neetcode.io/roadmap Angular bundle (lazy chunk 6252), node array with parentId edges; fetched 2026-10-14",
+ "note": "order = topological order by tier (longest prerequisite chain), ties broken by NeetCode practice-list order",
+ "topics": [
+  {
+   "topic": "Arrays & Hashing",
+   "order": 1,
+   "neetcodeNodeId": "1",
+   "prerequisites": [],
+   "unlocks": [
+    "Two Pointers",
+    "Stack"
+   ],
+   "tier": 0,
+   "position": {
+    "x": 0,
+    "y": -560
+   },
+   "lcTags": [
+    "array",
+    "hash-table",
+    "prefix-sum",
+    "counting"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/array/",
+    "https://leetcode.com/tag/hash-table/",
+    "https://leetcode.com/tag/prefix-sum/",
+    "https://leetcode.com/tag/counting/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Dynamic Arrays",
+     "routerLink": "/courses/dsa-for-beginners/3"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Hash Usage",
+     "routerLink": "/courses/dsa-for-beginners/26"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Hash Implementation",
+     "routerLink": "/courses/dsa-for-beginners/27"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Prefix Sums",
+     "routerLink": "/courses/advanced-algorithms/4"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 19,
+    "Medium": 19,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Two Pointers",
+   "order": 2,
+   "neetcodeNodeId": "2",
+   "prerequisites": [
+    "Arrays & Hashing"
+   ],
+   "unlocks": [
+    "Binary Search",
+    "Sliding Window",
+    "Linked List"
+   ],
+   "tier": 1,
+   "position": {
+    "x": -151,
+    "y": -358
+   },
+   "lcTags": [
+    "two-pointers"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/two-pointers/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Advanced Algorithms",
+     "name": "Two Pointers",
+     "routerLink": "/courses/advanced-algorithms/3"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 9,
+    "Medium": 14,
+    "Hard": 2
+   }
+  },
+  {
+   "topic": "Stack",
+   "order": 3,
+   "neetcodeNodeId": "3",
+   "prerequisites": [
+    "Arrays & Hashing"
+   ],
+   "unlocks": [],
+   "tier": 1,
+   "position": {
+    "x": 92,
+    "y": -383
+   },
+   "lcTags": [
+    "stack",
+    "monotonic-stack"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/stack/",
+    "https://leetcode.com/tag/monotonic-stack/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Stacks",
+     "routerLink": "/courses/dsa-for-beginners/4"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 6,
+    "Medium": 12,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Binary Search",
+   "order": 4,
+   "neetcodeNodeId": "6",
+   "prerequisites": [
+    "Two Pointers"
+   ],
+   "unlocks": [
+    "Trees"
+   ],
+   "tier": 2,
+   "position": {
+    "x": -375,
+    "y": -153
+   },
+   "lcTags": [
+    "binary-search"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/binary-search/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Search Array",
+     "routerLink": "/courses/dsa-for-beginners/14"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Search Range",
+     "routerLink": "/courses/dsa-for-beginners/15"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 5,
+    "Medium": 12,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Sliding Window",
+   "order": 5,
+   "neetcodeNodeId": "4",
+   "prerequisites": [
+    "Two Pointers"
+   ],
+   "unlocks": [],
+   "tier": 2,
+   "position": {
+    "x": -118,
+    "y": -152
+   },
+   "lcTags": [
+    "sliding-window",
+    "monotonic-queue"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/sliding-window/",
+    "https://leetcode.com/tag/monotonic-queue/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Advanced Algorithms",
+     "name": "Sliding Window Fixed Size",
+     "routerLink": "/courses/advanced-algorithms/1"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Sliding Window Variable Size",
+     "routerLink": "/courses/advanced-algorithms/2"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 6,
+    "Medium": 12,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Linked List",
+   "order": 6,
+   "neetcodeNodeId": "5",
+   "prerequisites": [
+    "Two Pointers"
+   ],
+   "unlocks": [
+    "Trees"
+   ],
+   "tier": 2,
+   "position": {
+    "x": 155,
+    "y": -144
+   },
+   "lcTags": [
+    "linked-list",
+    "doubly-linked-list"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/linked-list/",
+    "https://leetcode.com/tag/doubly-linked-list/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Singly Linked Lists",
+     "routerLink": "/courses/dsa-for-beginners/5"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Doubly Linked Lists",
+     "routerLink": "/courses/dsa-for-beginners/6"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Fast and Slow Pointers",
+     "routerLink": "/courses/advanced-algorithms/5"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 5,
+    "Medium": 14,
+    "Hard": 3
+   }
+  },
+  {
+   "topic": "Trees",
+   "order": 7,
+   "neetcodeNodeId": "7",
+   "prerequisites": [
+    "Linked List",
+    "Binary Search"
+   ],
+   "unlocks": [
+    "Tries",
+    "Heap / Priority Queue",
+    "Backtracking"
+   ],
+   "tier": 3,
+   "position": {
+    "x": -128,
+    "y": 47
+   },
+   "lcTags": [
+    "tree",
+    "binary-tree",
+    "binary-search-tree"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/tree/",
+    "https://leetcode.com/tag/binary-tree/",
+    "https://leetcode.com/tag/binary-search-tree/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "BST Insert and Remove",
+     "routerLink": "/courses/dsa-for-beginners/18"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Depth-First Search",
+     "routerLink": "/courses/dsa-for-beginners/19"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Breadth-First Search",
+     "routerLink": "/courses/dsa-for-beginners/20"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "BST Sets and Maps",
+     "routerLink": "/courses/dsa-for-beginners/21"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Iterative DFS",
+     "routerLink": "/courses/advanced-algorithms/9"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 13,
+    "Medium": 19,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Tries",
+   "order": 8,
+   "neetcodeNodeId": "8",
+   "prerequisites": [
+    "Trees"
+   ],
+   "unlocks": [],
+   "tier": 4,
+   "position": {
+    "x": -355,
+    "y": 243
+   },
+   "lcTags": [
+    "trie"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/trie/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Advanced Algorithms",
+     "name": "Trie",
+     "routerLink": "/courses/advanced-algorithms/6"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 2,
+    "Medium": 9,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Heap / Priority Queue",
+   "order": 9,
+   "neetcodeNodeId": "9",
+   "prerequisites": [
+    "Trees"
+   ],
+   "unlocks": [
+    "Intervals",
+    "Greedy",
+    "Advanced Graphs"
+   ],
+   "tier": 4,
+   "position": {
+    "x": -203,
+    "y": 393
+   },
+   "lcTags": [
+    "heap-priority-queue"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/heap-priority-queue/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Heap Properties",
+     "routerLink": "/courses/dsa-for-beginners/23"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Push and Pop",
+     "routerLink": "/courses/dsa-for-beginners/24"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Heapify",
+     "routerLink": "/courses/dsa-for-beginners/25"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Two Heaps",
+     "routerLink": "/courses/advanced-algorithms/10"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 5,
+    "Medium": 14,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Backtracking",
+   "order": 10,
+   "neetcodeNodeId": "10",
+   "prerequisites": [
+    "Trees"
+   ],
+   "unlocks": [
+    "Graphs",
+    "1-D Dynamic Programming"
+   ],
+   "tier": 4,
+   "position": {
+    "x": 96,
+    "y": 235
+   },
+   "lcTags": [
+    "backtracking"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/backtracking/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Tree Maze",
+     "routerLink": "/courses/dsa-for-beginners/22"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Subsets",
+     "routerLink": "/courses/advanced-algorithms/11"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Combinations",
+     "routerLink": "/courses/advanced-algorithms/12"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Permutations",
+     "routerLink": "/courses/advanced-algorithms/13"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 2,
+    "Medium": 15,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Graphs",
+   "order": 11,
+   "neetcodeNodeId": "11",
+   "prerequisites": [
+    "Backtracking"
+   ],
+   "unlocks": [
+    "Advanced Graphs",
+    "2-D Dynamic Programming"
+   ],
+   "tier": 5,
+   "position": {
+    "x": 85,
+    "y": 455
+   },
+   "lcTags": [
+    "graph",
+    "union-find",
+    "breadth-first-search",
+    "depth-first-search",
+    "topological-sort"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/graph/",
+    "https://leetcode.com/tag/union-find/",
+    "https://leetcode.com/tag/breadth-first-search/",
+    "https://leetcode.com/tag/depth-first-search/",
+    "https://leetcode.com/tag/topological-sort/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Intro to Graphs",
+     "routerLink": "/courses/dsa-for-beginners/28"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Matrix DFS",
+     "routerLink": "/courses/dsa-for-beginners/29"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Matrix BFS",
+     "routerLink": "/courses/dsa-for-beginners/30"
+    },
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Adjacency List",
+     "routerLink": "/courses/dsa-for-beginners/31"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 5,
+    "Medium": 19,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "1-D Dynamic Programming",
+   "order": 12,
+   "neetcodeNodeId": "12",
+   "prerequisites": [
+    "Backtracking"
+   ],
+   "unlocks": [
+    "2-D Dynamic Programming",
+    "Bit Manipulation"
+   ],
+   "tier": 5,
+   "position": {
+    "x": 372,
+    "y": 435
+   },
+   "lcTags": [
+    "dynamic-programming",
+    "memoization"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/dynamic-programming/",
+    "https://leetcode.com/tag/memoization/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "1-Dimension DP",
+     "routerLink": "/courses/dsa-for-beginners/32"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Palindromes",
+     "routerLink": "/courses/advanced-algorithms/21"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 4,
+    "Medium": 14,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Intervals",
+   "order": 13,
+   "neetcodeNodeId": "13",
+   "prerequisites": [
+    "Heap / Priority Queue"
+   ],
+   "unlocks": [],
+   "tier": 5,
+   "position": {
+    "x": -626,
+    "y": 612
+   },
+   "lcTags": [
+    "sweep-line"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/sweep-line/"
+   ],
+   "neetcodeLessons": [],
+   "freeCounts": {
+    "Easy": 3,
+    "Medium": 9,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Greedy",
+   "order": 14,
+   "neetcodeNodeId": "16",
+   "prerequisites": [
+    "Heap / Priority Queue"
+   ],
+   "unlocks": [],
+   "tier": 5,
+   "position": {
+    "x": -346,
+    "y": 691
+   },
+   "lcTags": [
+    "greedy"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/greedy/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Advanced Algorithms",
+     "name": "Kadane's Algorithm",
+     "routerLink": "/courses/advanced-algorithms/0"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 5,
+    "Medium": 13,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Advanced Graphs",
+   "order": 15,
+   "neetcodeNodeId": "17",
+   "prerequisites": [
+    "Heap / Priority Queue",
+    "Graphs"
+   ],
+   "unlocks": [],
+   "tier": 6,
+   "position": {
+    "x": -101,
+    "y": 650
+   },
+   "lcTags": [
+    "shortest-path",
+    "dijkstra",
+    "minimum-spanning-tree",
+    "eulerian-circuit",
+    "strongly-connected-component"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/shortest-path/",
+    "https://leetcode.com/tag/dijkstra/",
+    "https://leetcode.com/tag/minimum-spanning-tree/",
+    "https://leetcode.com/tag/eulerian-circuit/",
+    "https://leetcode.com/tag/strongly-connected-component/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Advanced Algorithms",
+     "name": "Dijkstra's",
+     "routerLink": "/courses/advanced-algorithms/14"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Prim's",
+     "routerLink": "/courses/advanced-algorithms/15"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Kruskal's",
+     "routerLink": "/courses/advanced-algorithms/16"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Topological Sort",
+     "routerLink": "/courses/advanced-algorithms/17"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 0,
+    "Medium": 10,
+    "Hard": 6
+   }
+  },
+  {
+   "topic": "2-D Dynamic Programming",
+   "order": 16,
+   "neetcodeNodeId": "14",
+   "prerequisites": [
+    "Graphs",
+    "1-D Dynamic Programming"
+   ],
+   "unlocks": [
+    "Math & Geometry"
+   ],
+   "tier": 6,
+   "position": {
+    "x": 194,
+    "y": 691
+   },
+   "lcTags": [
+    "dynamic-programming",
+    "matrix",
+    "longest-common-subsequence",
+    "knapsack-problem"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/dynamic-programming/",
+    "https://leetcode.com/tag/matrix/",
+    "https://leetcode.com/tag/longest-common-subsequence/",
+    "https://leetcode.com/tag/knapsack-problem/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "2-Dimension DP",
+     "routerLink": "/courses/dsa-for-beginners/33"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "0 / 1 Knapsack",
+     "routerLink": "/courses/advanced-algorithms/18"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "Unbounded Knapsack",
+     "routerLink": "/courses/advanced-algorithms/19"
+    },
+    {
+     "course": "Advanced Algorithms",
+     "name": "LCS",
+     "routerLink": "/courses/advanced-algorithms/20"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 1,
+    "Medium": 14,
+    "Hard": 4
+   }
+  },
+  {
+   "topic": "Bit Manipulation",
+   "order": 17,
+   "neetcodeNodeId": "15",
+   "prerequisites": [
+    "1-D Dynamic Programming"
+   ],
+   "unlocks": [
+    "Math & Geometry"
+   ],
+   "tier": 6,
+   "position": {
+    "x": 490,
+    "y": 683
+   },
+   "lcTags": [
+    "bit-manipulation"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/bit-manipulation/"
+   ],
+   "neetcodeLessons": [
+    {
+     "course": "Data Structures & Algorithms for Beginners",
+     "name": "Bit Operations",
+     "routerLink": "/courses/dsa-for-beginners/34"
+    }
+   ],
+   "freeCounts": {
+    "Easy": 6,
+    "Medium": 11,
+    "Hard": 1
+   }
+  },
+  {
+   "topic": "Math & Geometry",
+   "order": 18,
+   "neetcodeNodeId": "18",
+   "prerequisites": [
+    "2-D Dynamic Programming",
+    "Bit Manipulation"
+   ],
+   "unlocks": [],
+   "tier": 7,
+   "position": {
+    "x": 388,
+    "y": 901
+   },
+   "lcTags": [
+    "math",
+    "geometry",
+    "matrix"
+   ],
+   "lcTagUrls": [
+    "https://leetcode.com/tag/math/",
+    "https://leetcode.com/tag/geometry/",
+    "https://leetcode.com/tag/matrix/"
+   ],
+   "neetcodeLessons": [],
+   "freeCounts": {
+    "Easy": 7,
+    "Medium": 12,
+    "Hard": 4
+   }
+  }
+ ],
+ "edges": [
+  {
+   "from": "Arrays & Hashing",
+   "to": "Two Pointers"
+  },
+  {
+   "from": "Arrays & Hashing",
+   "to": "Stack"
+  },
+  {
+   "from": "Two Pointers",
+   "to": "Binary Search"
+  },
+  {
+   "from": "Two Pointers",
+   "to": "Sliding Window"
+  },
+  {
+   "from": "Two Pointers",
+   "to": "Linked List"
+  },
+  {
+   "from": "Linked List",
+   "to": "Trees"
+  },
+  {
+   "from": "Binary Search",
+   "to": "Trees"
+  },
+  {
+   "from": "Trees",
+   "to": "Tries"
+  },
+  {
+   "from": "Trees",
+   "to": "Heap / Priority Queue"
+  },
+  {
+   "from": "Trees",
+   "to": "Backtracking"
+  },
+  {
+   "from": "Backtracking",
+   "to": "Graphs"
+  },
+  {
+   "from": "Backtracking",
+   "to": "1-D Dynamic Programming"
+  },
+  {
+   "from": "Heap / Priority Queue",
+   "to": "Intervals"
+  },
+  {
+   "from": "Heap / Priority Queue",
+   "to": "Greedy"
+  },
+  {
+   "from": "Heap / Priority Queue",
+   "to": "Advanced Graphs"
+  },
+  {
+   "from": "Graphs",
+   "to": "Advanced Graphs"
+  },
+  {
+   "from": "Graphs",
+   "to": "2-D Dynamic Programming"
+  },
+  {
+   "from": "1-D Dynamic Programming",
+   "to": "2-D Dynamic Programming"
+  },
+  {
+   "from": "1-D Dynamic Programming",
+   "to": "Bit Manipulation"
+  },
+  {
+   "from": "2-D Dynamic Programming",
+   "to": "Math & Geometry"
+  },
+  {
+   "from": "Bit Manipulation",
+   "to": "Math & Geometry"
+  }
+ ]
+}

@@ -1,0 +1,98 @@
+from pathlib import Path
+
+import pytest
+
+from job_radar.config import ConfigError, load_companies, load_filters, load_lists
+
+ROOT = Path(__file__).parent.parent
+FILTERS = load_filters(ROOT / "config/filters.yaml")
+
+
+@pytest.mark.parametrize("title", [
+    "Software Engineer, New Grad",
+    "New Graduate Software Engineer (2027)",
+    "Early Career Software Engineer",
+    "University Grad - Backend Engineer",
+    "Entry-Level Developer",
+    "Software Engineer I",
+    "Software Engineer 1 - Backend",
+    "Co-op, Software Engineering",
+    "Winter Internship - ML",
+    "Spring 2027 Data Science Intern",
+    "Software Engineer, Intern (Summer or Winter)",   # offers winter
+    "Software Developer Intern/Co-op, Backend (Winter 2027)",
+    "Software Engineer Co-op",
+    "Middleware Software Intern (Winter 2027)",       # Simplify row + Terms column
+    "UI Intern (Summer 2027, Winter 2027)",
+])
+def test_include(title):
+    assert FILTERS.matches(title)
+
+
+@pytest.mark.parametrize("title", [
+    "Senior Software Engineer",
+    "Staff Engineer, New Grad Programs",          # exclude wins over include
+    "Principal Engineer",
+    "Engineering Manager, Early Career",
+    "PhD Intern, Research",
+    "Ph.D. Research Intern",
+    "Sr. Software Engineer",
+    "Sr Software Engineer I",
+    "Software Engineer II",                       # not "I"
+    "Software Engineer, Infrastructure",          # not "I"
+    "Internal Tools Engineer",                    # not "intern"
+    "Financial Partnerships Lead, International", # not "intern"
+    "Software Engineer",                          # no early-career signal
+    # no Summer 2027 internships
+    "Software Engineer Intern - Summer 2027",
+    "Software Engineering Intern, Backend (Summer 2027)",
+    "Summer 2027 Co-op",
+    "Software Engineer, Intern",                  # untermed intern → assume summer
+    "Software Engineer Intern (2027)",
+    "Internship, Platform",
+    "Engineering Intern (Fall 2026)",
+    "Data Engineer Intern (Summer 2027)",
+])
+
+def test_exclude_or_no_match(title):
+    assert not FILTERS.matches(title)
+
+
+def test_new_grad_unaffected_by_summer_rules():
+    # summer rules only target internships / co-ops, never full-time new grad roles
+    assert FILTERS.matches("Software Engineer, New Grad (Summer 2027 start)")
+    assert FILTERS.matches("Software Engineer, New Grad 2027")
+    assert FILTERS.matches("University Grad Software Engineer 2027 (USA)")
+    assert not FILTERS.matches("Summer Analyst, Engineering (2027)", check_include=False)
+
+
+def test_lists_skip_include_but_keep_exclude():
+    assert FILTERS.matches("iOS Engineer 1", check_include=False)
+    assert not FILTERS.matches("Senior iOS Engineer", check_include=False)
+
+
+def test_repo_config_loads():
+    companies = load_companies(ROOT / "config/companies.yaml")
+    assert companies and all(c.tier in "ABC" for c in companies)
+    assert load_lists(ROOT / "config/lists.yaml")
+
+
+def test_bad_ats_rejected(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("companies:\n  - {name: X, ats: workday, token: x, tier: A}\n")
+    with pytest.raises(ConfigError, match="ats must be"):
+        load_companies(p)
+
+
+def test_bad_tier_rejected(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("companies:\n  - {name: X, ats: lever, token: x, tier: S}\n")
+    with pytest.raises(ConfigError, match="tier"):
+        load_companies(p)
+
+
+def test_duplicate_rejected(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("companies:\n  - {name: X, ats: lever, token: x}\n  - {name: Y, ats: lever, token: x}\n")
+    with pytest.raises(ConfigError, match="duplicate"):
+        load_companies(p)

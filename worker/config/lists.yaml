@@ -1,0 +1,19 @@
+# Community-maintained GitHub README lists, polled via the GitHub API.
+#   sections: substrings of the file's "## ..." headings to keep (empty = all)
+#   path:     file in the repo (default: the repo README)
+#   terms:    only alert rows whose "Terms" column mentions one of these
+# Tier is used unless the row's company also appears in companies.yaml.
+github_lists:
+  - name: SimplifyJobs New Grad
+    repo: SimplifyJobs/New-Grad-Positions
+    sections: ["Software Engineering", "Data Science"]
+    tier: B
+
+  # Summer internships list (README.md) intentionally not watched — no Summer 2027.
+  # Bump the year below each cycle when Simplify opens the next repo.
+  - name: SimplifyJobs Internships (Winter/Spring)
+    repo: SimplifyJobs/Summer2027-Internships
+    path: README-Off-Season.md       # fall/winter/spring terms + co-ops
+    sections: ["Software Engineering", "Data Science"]
+    terms: ["Winter", "Spring"]
+    tier: B
