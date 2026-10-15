@@ -1,6 +1,6 @@
 import type {
   Application, CalEvent, Commit, CompanyPrep, CompanyPrepInput, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest,
-  NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
+  MarkAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
   PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Rating, Settings, SettingsPatch, Solve, Story,
   StoryInput, StoryPatch, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
@@ -28,11 +28,22 @@ export interface DataApi {
   listOutreach(): Promise<Outreach[]>;
   listContacts(): Promise<Contact[]>;
   queueOutreach(i: { job_url: string; company?: string | null; role?: string | null }): Promise<Outreach>;
+  /** Like queueOutreach, but the Mac tailors a resume copy first, then drafts the recruiter email. */
+  queueTailor(i: { job_url: string; company?: string | null; role?: string | null }): Promise<Outreach>;
   updateOutreach(id: string, patch: OutreachPatch): Promise<void>;
   requestLaunch(kind: LaunchKind, payload: Record<string, unknown>): Promise<void>;
   listLaunchRequests(): Promise<LaunchRequest[]>;
   listSyncStatus(): Promise<SyncStatus[]>;
   syncLeetCode(): Promise<SyncResult>;
+  /** The Sheet's Status dropdown options ([] when it has none). */
+  sheetStatuses(): Promise<string[]>;
+  /**
+   * Writes the Status cell in the Sheet, then the app row. Sends company/role/sheet_row too, because the worker's
+   * sync re-inserts rows (new ids). Throws Error with a short user-facing message.
+   */
+  setApplicationStatus(app: Pick<Application, 'id' | 'company' | 'role' | 'sheet_row'>, status: string): Promise<void>;
+  /** Appends a row to the Sheet. {duplicate: true} means the job is already there and nothing was written. */
+  markApplied(i: MarkAppliedInput): Promise<{ duplicate?: true }>;
   updateProject(id: string, patch: ProjectPatch): Promise<void>;
   listStories(): Promise<Story[]>;
   addStory(s: StoryInput): Promise<void>;

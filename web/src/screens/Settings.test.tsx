@@ -1,9 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDemoApi } from '../data/demo';
 import { renderWithData } from '../test/render';
-import { demoAuth } from '../data/auth';
+import { AuthError, demoAuth } from '../data/auth';
 import { STAGE_RULES } from '../lib/stages';
 import Settings from './Settings';
 
@@ -80,6 +80,7 @@ describe('Settings', () => {
     renderWithData(<Settings />);
     const table = await screen.findByRole('table', { name: 'Sheet stages' });
     expect(within(table).getAllByRole('row')).toHaveLength(STAGE_RULES.length + 1); // header + rules
+    expect(screen.getByText('Tip: write "Rejected after OA" or "Rejected after interview" so the funnel counts how far it got.')).toBeInTheDocument();
   });
   it('signs out', async () => {
     const spy = vi.spyOn(demoAuth, 'signOut');
@@ -115,6 +116,7 @@ describe('Settings', () => {
     const update = vi.spyOn(api, 'updateSettings');
     renderWithData(<Settings />, { api });
     const day = await screen.findByLabelText('Day 1');
+    expect(day).toHaveAttribute('type', 'date');
     await userEvent.clear(day);
     await userEvent.type(day, '2026-09-28{Enter}');
     expect(update).toHaveBeenCalledWith({ day_one: '2026-09-28' });
@@ -130,6 +132,70 @@ describe('Settings', () => {
     await userEvent.clear(emails);
     await userEvent.type(emails, '12{Enter}');
     expect(update).toHaveBeenCalledWith({ weekly_email_target: 12 });
+  });
+
+  describe('password', () => {
+    const fill = async (a: string, b: string) => {
+      await userEvent.type(await screen.findByLabelText('New password'), a);
+      await userEvent.type(screen.getByLabelText('Confirm password'), b);
+      await userEvent.click(screen.getByRole('button', { name: 'Set password' }));
+    };
+    afterEach(() => vi.restoreAllMocks());
+    it('uses new-password autofill hints and explains the iPhone case', async () => {
+      renderWithData(<Settings />);
+      expect(await screen.findByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password');
+      expect(screen.getByLabelText('Confirm password')).toHaveAttribute('autocomplete', 'new-password');
+      expect(screen.getByText('For the iPhone Home Screen app: sign in there with this email + password.')).toBeInTheDocument();
+    });
+    it('has a hidden username field so Keychain updates the right login', async () => {
+      localStorage.setItem('lockin-last-email', 'adam@example.com');
+      renderWithData(<Settings />);
+      await screen.findByLabelText('New password');
+      const u = document.querySelector<HTMLInputElement>('input[autocomplete="username"]')!;
+      expect(u).toHaveAttribute('type', 'email');
+      expect(u).toHaveAttribute('aria-hidden', 'true');
+      expect(u).toHaveAttribute('tabindex', '-1');
+      expect(u).toHaveAttribute('readonly');
+      expect(u).toHaveValue('adam@example.com');
+      localStorage.clear();
+    });
+    it('rejects a mismatch without calling the server', async () => {
+      const spy = vi.spyOn(demoAuth, 'setPassword');
+      renderWithData(<Settings />);
+      await fill('longenough1', 'longenough2');
+      expect(await screen.findByRole('alert')).toHaveTextContent("Passwords don't match.");
+      expect(spy).not.toHaveBeenCalled();
+    });
+    it('rejects under 10 characters', async () => {
+      const spy = vi.spyOn(demoAuth, 'setPassword');
+      renderWithData(<Settings />);
+      await fill('short', 'short');
+      expect(await screen.findByRole('alert')).toHaveTextContent('Use at least 10 characters.');
+      expect(spy).not.toHaveBeenCalled();
+    });
+    it('saves and says so', async () => {
+      const spy = vi.spyOn(demoAuth, 'setPassword');
+      renderWithData(<Settings />);
+      await fill('longenough1', 'longenough1');
+      expect(spy).toHaveBeenCalledWith('longenough1');
+      expect(await screen.findByText('Saved. Use it to sign in on your phone.')).toBeInTheDocument();
+      expect(screen.getByLabelText('New password')).toHaveValue('');
+    });
+    it('shows the reauthentication copy, not the raw error', async () => {
+      const reauth = 'For security, sign in with the email link once on this device, then set your password.';
+      vi.spyOn(demoAuth, 'setPassword').mockRejectedValueOnce(new AuthError(reauth));
+      renderWithData(<Settings />);
+      await fill('longenough1', 'longenough1');
+      expect(await screen.findByRole('alert')).toHaveTextContent(reauth);
+      expect(screen.queryByText('Saved. Use it to sign in on your phone.')).toBeNull();
+    });
+    it('falls back to fixed copy for an unexpected error', async () => {
+      vi.spyOn(demoAuth, 'setPassword').mockRejectedValueOnce(new Error('PGRST301 raw'));
+      renderWithData(<Settings />);
+      await fill('longenough1', 'longenough1');
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save. Try again.");
+      expect(screen.queryByText(/PGRST301/)).toBeNull();
+    });
   });
 
   it("edits a project's repo and folder", async () => {

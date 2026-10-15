@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import errno
 import os
 import re
 import shlex
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import creds, prompts, resume, terminal
 
@@ -16,6 +20,13 @@ ERROR_MAX = 500
 DEFAULT_OUTREACH_DIR = Path.home() / ".lockin" / "outreach"
 OUTREACH_DIR = DEFAULT_OUTREACH_DIR  # Claude runs here, not in $HOME
 MOCK_DIR = Path.home() / ".lockin" / "mock"  # mock interviews run here, not in $HOME
+DEFAULT_TAILOR_DIR = Path.home() / ".lockin" / "tailor"
+TAILOR_DIR = DEFAULT_TAILOR_DIR  # one work dir per tailored resume, never inside the resume folders
+BASE_RESUME = "Base_Resume"
+RESUME_STEM = "Adam_Kuhn_Resume"
+FOLDER_HINT_MAX = 80
+JOB_URL_MAX = 2000
+UNSAFE_URL_CHARS = re.compile(r"[\s\"'`$]")
 README_LINES = 60
 
 
@@ -32,14 +43,19 @@ def lockin_bin() -> str:
     return str(cand) if cand.exists() else "lockin"
 
 
+def _job_context(db, o: dict, payload: dict) -> tuple[str, dict | None]:
+    job_url = o.get("job_url") or payload.get("job_url") or ""
+    posting = next(iter(db.select("postings", {"url": job_url})), None) if job_url else None
+    return job_url, posting
+
+
 def build_outreach(db, payload: dict, lockin: str, find=resume.find_resume) -> tuple[Path, str]:
     oid = payload.get("outreach_id")
     rows = db.select("outreach", {"id": oid}) if oid else []
     if not rows:
         raise LaunchError(f"outreach {oid!r} not found")
     o = rows[0]
-    job_url = o.get("job_url") or payload.get("job_url") or ""
-    posting = next(iter(db.select("postings", {"url": job_url})), None) if job_url else None
+    job_url, posting = _job_context(db, o, payload)
     display_company = o.get("company") or (posting or {}).get("company")
     match_company = display_company or resume.company_from_url(job_url)
     settings = (db.select("settings") or [{}])[0]
@@ -156,8 +172,100 @@ def build_mock(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
     return MOCK_DIR, text
 
 
+def folder_hint(company: str | None, role: str | None) -> str:
+    """`<Company>_<Role words>` the way Adam names resume folders: ASCII letters/digits joined by single underscores."""
+    raw = " ".join(x for x in (company, role) if x)
+    hint = "_".join(re.findall(r"[A-Za-z0-9]+", raw))[:FOLDER_HINT_MAX].strip("_")
+    return hint or "Tailored_Resume"
+
+
+def safe_job_url(url) -> str:
+    """The posting link goes into a shell command Claude runs, so only plain http(s) URLs get through."""
+    ok = isinstance(url, str) and 0 < len(url) <= JOB_URL_MAX and not UNSAFE_URL_CHARS.search(url)
+    if ok:
+        u = urlparse(url)
+        ok = u.scheme in ("http", "https") and bool(u.netloc)
+    if not ok:
+        raise LaunchError("Job link isn't a plain http(s) URL")
+    return url
+
+
+ICLOUD_MSG = ("Base resume is in iCloud and couldn't be downloaded \u2014 open Base_Resume in Finder once "
+              "(or right-click \u2192 Keep Downloaded), then Try again")
+ICLOUD_RUN = subprocess.run  # injectable for tests, like resume.ensure_local's run/sleep
+ICLOUD_SLEEP = time.sleep
+COPY_ATTEMPTS = 3
+COPY_RETRY_DELAY = 1.0
+
+
+def _is_file(p: Path) -> bool:
+    try:
+        return p.is_file()
+    except OSError:
+        return False
+
+
+def _copy_base(src: Path, dst: Path) -> None:
+    """Copy from iCloud-synced storage; evicted files fail with EDEADLK/ETIMEDOUT until downloaded."""
+    for attempt in range(COPY_ATTEMPTS):
+        try:
+            shutil.copyfile(src, dst)
+            return
+        except OSError as e:
+            if e.errno not in (errno.EDEADLK, errno.ETIMEDOUT):
+                raise
+            if attempt == COPY_ATTEMPTS - 1:
+                raise LaunchError(ICLOUD_MSG) from e
+            ICLOUD_SLEEP(COPY_RETRY_DELAY)
+            resume.ensure_local(src, ICLOUD_RUN, ICLOUD_SLEEP, force=True)
+
+
+def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    oid = payload.get("outreach_id")
+    rows = db.select("outreach", {"id": oid}) if oid else []
+    if not rows:
+        raise LaunchError(f"outreach {oid!r} not found")
+    o = rows[0]
+    job_url, posting = _job_context(db, o, payload)
+    safe_job_url(job_url)
+    company = o.get("company") or (posting or {}).get("company")
+    role = o.get("role") or (posting or {}).get("title") or None
+    settings = (db.select("settings") or [{}])[0]
+    root = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT))
+    base_dir = root / BASE_RESUME
+    base_tex, base_pdf = base_dir / f"{RESUME_STEM}.tex", base_dir / f"{RESUME_STEM}.pdf"
+    for base in (base_tex, base_pdf):
+        resume.ensure_local(base, ICLOUD_RUN, ICLOUD_SLEEP)
+        if not _is_file(base):
+            if _is_file(base.with_name(f".{base.name}.icloud")):
+                raise LaunchError(ICLOUD_MSG)
+            raise LaunchError(f"Base resume not found at {base} (check the file exists and Terminal/Python has Desktop access)")
+    patch = {}
+    if company and not o.get("company"):
+        patch["company"] = company
+    if posting and not o.get("role") and posting.get("title"):
+        patch["role"] = posting["title"]
+    if patch:
+        db.update("outreach", {"id": oid}, patch)
+    hint = folder_hint(company or resume.company_from_url(job_url), role)
+    TAILOR_DIR.mkdir(parents=True, exist_ok=True)
+    TAILOR_DIR.chmod(0o700)
+    work = TAILOR_DIR / f"{slugify(hint)}-{slugify(str(oid))[:8]}"
+    work.mkdir(exist_ok=True)
+    work.chmod(0o700)
+    _copy_base(base_tex, work / f"{RESUME_STEM}.tex")
+    text = prompts.render(prompts.load("tailor_resume"), {
+        "outreach_id": oid, "job_url": job_url, "job_url_shell": shlex.quote(job_url),
+        "company": company or resume.company_from_url(job_url) or "unknown (read it from the posting)",
+        "role": role or "unknown (read it from the posting)",
+        "resume_root": str(root), "base_tex": str(base_tex), "base_pdf": str(base_pdf),
+        "work_dir": str(work), "folder_hint": hint, "lockin": shlex.quote(lockin),
+    })
+    return work, text
+
+
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
-            "work_on_idea": build_work, "mock_interview": build_mock}
+            "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor}
 ON_FAIL = {"work_on_idea": revert_work}
 
 

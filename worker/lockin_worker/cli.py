@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from typing import Any
 
@@ -14,7 +15,9 @@ CONFIDENCE = ("verified", "pattern", "guess")
 SIZES = ("S", "M")
 MAX_CONTACTS = 5
 MAX_IDEAS = 10
-WORD_TARGET = 120
+WORD_TARGET = 110
+EMAIL = re.compile(r"^[^\s@,;?&#<>\"']+@[^\s@,;?&#<>\"']+\.[A-Za-z]{2,}$")
+RESUME_PATH_MAX = 500
 HEREDOC_HINT = "Pipe the JSON in with a quoted heredoc, e.g.  lockin save-ideas --project 27b <<'JSON' ... JSON"
 
 
@@ -53,8 +56,12 @@ def validate_outreach(data: Any) -> tuple[dict, list[str]]:
     warnings: list[str] = []
     company = _str(data, "company", "$", errors, max_len=200)
     role = _str(data, "role", "$", errors, max_len=200)
+    resume_path = _str(data, "resume_path", "$", errors, max_len=RESUME_PATH_MAX)
+    if resume_path and not resume_path.startswith("/"):
+        errors.append("$.resume_path: must be an absolute path")
     contacts = data.get("contacts")
-    if not isinstance(contacts, list) or not contacts:
+    if not isinstance(contacts, list) or (not contacts and not resume_path):
+        # An empty list is fine only when this save records a tailored resume (no recruiter found).
         errors.append("$.contacts: must be a non-empty list")
         contacts = []
     elif len(contacts) > MAX_CONTACTS:
@@ -77,7 +84,7 @@ def validate_outreach(data: Any) -> tuple[dict, list[str]]:
         }
         if row["linkedin_url"] and not row["linkedin_url"].startswith(("https://", "http://")):
             errors.append(f"{p}.linkedin_url: must start with https://")
-        if row["email_guess"] and "@" not in row["email_guess"]:
+        if row["email_guess"] and not EMAIL.match(row["email_guess"]):
             errors.append(f"{p}.email_guess: not an email address")
         if row["email_confidence"] is None and row["email_guess"]:
             errors.append(f"{p}.email_confidence: required when email_guess is set (verified, pattern or guess)")
@@ -90,7 +97,10 @@ def validate_outreach(data: Any) -> tuple[dict, list[str]]:
         clean.append(row)
     if errors:
         raise InputError("\n".join(errors))
-    return {"company": company, "role": role, "contacts": clean}, warnings
+    out = {"company": company, "role": role, "contacts": clean}
+    if resume_path:
+        out["resume_path"] = resume_path
+    return out, warnings
 
 
 def validate_ideas(data: Any) -> list[dict]:
@@ -120,17 +130,20 @@ def save_outreach(db, outreach_id: str, data: dict) -> int:
     if not rows:
         raise InputError(f"no outreach request with id {outreach_id}")
     o = rows[0]
-    old_ids = [r["id"] for r in db.select("contacts", {"outreach_id": outreach_id}) if r.get("id")]
-    db.insert("contacts", [{**c, "outreach_id": outreach_id} for c in data["contacts"]])
-    for old_id in old_ids:
-        db.delete("contacts", {"id": old_id})
+    if data["contacts"]:  # a resume-only save leaves earlier drafts alone
+        old_ids = [r["id"] for r in db.select("contacts", {"outreach_id": outreach_id}) if r.get("id")]
+        db.insert("contacts", [{**c, "outreach_id": outreach_id} for c in data["contacts"]])
+        for old_id in old_ids:
+            db.delete("contacts", {"id": old_id})
     patch: dict = {}
-    if o.get("status") == "queued":
+    if o.get("status") == "queued" and data["contacts"]:
         patch["status"] = "drafted"
     if not o.get("company") and data["company"]:
         patch["company"] = data["company"]
     if not o.get("role") and data["role"]:
         patch["role"] = data["role"]
+    if data.get("resume_path"):
+        patch["resume_path"] = data["resume_path"]
     if patch:
         db.update("outreach", {"id": outreach_id}, patch)
     return len(data["contacts"])
@@ -196,7 +209,8 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             for w in warnings:
                 print(f"warning: {w}", file=stderr)
             n = save_outreach(db_factory(), args.id, data)
-            print(f"Saved {_plural(n, 'contact')}", file=stdout)
+            resume_note = "resume, " if data.get("resume_path") else ""
+            print(f"Saved {resume_note}{_plural(n, 'contact')}", file=stdout)
         else:
             saved, skipped = save_ideas(db_factory(), args.project, validate_ideas(payload))
             tail = f" ({_plural(skipped, 'duplicate')} skipped)" if skipped else ""

@@ -14,7 +14,9 @@ export function TodayIdeaCard() {
   const idea = todaysIdea(ideas.data ?? [], day);
   const project = idea ? (projects.data ?? []).find((p) => p.id === idea.project_id) : undefined;
   if (!idea || !project) return null;
-  const committed = committedOnPlanDay(commits.data ?? [], idea.project_id, day);
+  // Any commit today completes a 'today' idea (worker complete_idea_on_commit). A started idea
+  // only completes on a commit after Work on this (complete_started_ideas), so skip it here.
+  const committed = idea.status !== 'in_progress' && committedOnPlanDay(commits.data ?? [], idea.project_id, day);
   const ideaDone = idea.status === 'done' || committed;
   const next = idea.status === 'today' ? swapCandidate(ideas.data ?? [], idea) : null;
   return (
@@ -30,7 +32,7 @@ export function TodayIdeaCard() {
         <input type="checkbox" checked={ideaDone} disabled={committed || updateIdea.isPending}
           onChange={(e) => updateIdea.mutate({
             id: idea.id,
-            patch: e.target.checked ? { status: 'done', done_at: new Date().toISOString() } : { status: 'today', done_at: null },
+            patch: e.target.checked ? { status: 'done', done_at: new Date().toISOString() } : { status: idea.started_at ? 'in_progress' : 'today', done_at: null },
           })} />
         <span>{idea.text}</span>
       </label>

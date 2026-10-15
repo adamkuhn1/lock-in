@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { AuthError } from '../data/auth';
 import { useAuth } from '../data/context';
 import { useAddProject, useNow, useProjects, useSetProjectActive, useSettings, useUpdateProject, useSyncStatus, useUpdateSettings } from '../data/hooks';
 import type { Project } from '../data/types';
@@ -10,8 +11,8 @@ import { relativeTime } from '../lib/time';
 import { safeHref } from '../lib/url';
 import { Badge, Button, Card, CardHead, Disclosure, Empty, ErrorDetail } from '../ui/primitives';
 
-function TextField({ label, value, placeholder, validate, onSave }: {
-  label: string; value: string; placeholder?: string; validate?: (v: string) => string | null;
+function TextField({ label, value, placeholder, type = 'text', validate, onSave }: {
+  label: string; value: string; placeholder?: string; type?: 'text' | 'date'; validate?: (v: string) => string | null;
   onSave: (v: string, cb: { onSuccess: () => void; onError: () => void }) => void;
 }) {
   const id = useId();
@@ -32,7 +33,7 @@ function TextField({ label, value, placeholder, validate, onSave }: {
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input id={id} value={v} placeholder={placeholder} aria-invalid={err ? true : undefined}
+      <input id={id} type={type} value={v} placeholder={placeholder} aria-invalid={err ? true : undefined}
         aria-describedby={err ? `${id}-err` : undefined}
         onChange={(e) => { setV(e.target.value); setSaved(false); setFailed(false); }} onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); }} />
@@ -163,6 +164,66 @@ function ProjectsCard({ projects }: { projects: Project[] }) {
   );
 }
 
+const MIN_PASSWORD = 10;
+
+function rememberedEmail(): string {
+  try {
+    return localStorage.getItem('lockin-last-email') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+const HIDDEN_INPUT = { position: 'absolute', width: 0, height: 0, minHeight: 0, padding: 0, border: 0, opacity: 0, pointerEvents: 'none' } as const;
+
+function PasswordCard() {
+  const auth = useAuth();
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaved(false);
+    if (pw.length < MIN_PASSWORD) { setErr('Use at least 10 characters.'); return; }
+    if (pw !== confirm) { setErr("Passwords don't match."); return; }
+    setErr(null);
+    setBusy(true);
+    try {
+      await auth.setPassword(pw);
+      setPw('');
+      setConfirm('');
+      setSaved(true);
+    } catch (e2) {
+      setErr(e2 instanceof AuthError ? e2.message : SAVE_ERROR);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card aria-labelledby="pw-h">
+      <CardHead id="pw-h" title="Password" />
+      <form className="stack" onSubmit={submit}>
+        <input type="email" name="username" autoComplete="username" readOnly aria-hidden="true" tabIndex={-1}
+          defaultValue={rememberedEmail()} style={HIDDEN_INPUT} />
+        <label className="field">
+          <span>New password</span>
+          <input type="password" name="new-password" autoComplete="new-password" value={pw} onChange={(e) => { setPw(e.target.value); setSaved(false); }} />
+        </label>
+        <label className="field">
+          <span>Confirm password</span>
+          <input type="password" name="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => { setConfirm(e.target.value); setSaved(false); }} />
+        </label>
+        <div><Button type="submit" variant="primary" disabled={busy}>Set password</Button></div>
+        {err && <p role="alert" className="error small">{err}</p>}
+        <p className="muted small" role="status">{saved ? 'Saved. Use it to sign in on your phone.' : ''}</p>
+        <p className="muted small">For the iPhone Home Screen app: sign in there with this email + password.</p>
+      </form>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const now = useNow();
   const settings = useSettings();
@@ -201,7 +262,7 @@ export default function Settings() {
           <CardHead id="targets-h" title="Targets" />
           <NumberField label="Applications per week" value={s.weekly_app_target} min={1} max={200} onSave={(v) => update.mutate({ weekly_app_target: v })} />
           <NumberField label="Emails per week" value={s.weekly_email_target} min={1} max={100} onSave={(v) => update.mutate({ weekly_email_target: v })} />
-          <TextField label="Day 1" value={s.day_one} placeholder="2026-09-28"
+          <TextField label="Day 1" type="date" value={s.day_one} placeholder="2026-09-28"
             validate={(v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v ? null : 'Use YYYY-MM-DD.')}
             onSave={(v, cb) => update.mutate({ day_one: v }, cb)} />
           <NudgeTimes value={s.nudge_times} onSave={(v) => update.mutate({ nudge_times: v })} />
@@ -223,6 +284,8 @@ export default function Settings() {
         </Card>
       )}
 
+      <PasswordCard />
+
       <Card aria-labelledby="rules-h">
         <CardHead id="rules-h" title="Sheet stages" />
         <table className="rules" aria-labelledby="rules-h">
@@ -234,6 +297,7 @@ export default function Settings() {
           </tbody>
         </table>
         <p className="muted small">First match wins. Anything else is Other.</p>
+        <p className="muted small">Tip: write "Rejected after OA" or "Rejected after interview" so the funnel counts how far it got.</p>
       </Card>
 
       <div>

@@ -88,6 +88,7 @@ const APPS: [string, string, Stage, string, number][] = [
   ["Domino's", 'Software Engineer Intern', 'applied', 'Submitted', 5],
   ['Plaid', 'Software Engineer Intern', 'applied', 'Submitted', 11],
   ['Ally', 'Technology Intern', 'closed', 'No response', 25],
+  ['Coinbase', 'Software Engineer Intern', 'closed', 'Rejected after OA', 15],
   ['Whoop', 'Software Engineer Co-op', 'applied', 'Submitted', 1],
   ['Epic Games', 'Software Engineer Intern', 'applied', 'Submitted', 22],
 ];
@@ -177,10 +178,11 @@ export function createFixtures(now: Date): DemoDb {
       url: `https://boards.greenhouse.io/${company.toLowerCase().replace(/[^a-z]/g, '')}/jobs/${4000000 + h}`,
     })),
     outreach: [
-      { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, created_at: minsAgo(5) },
-      { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), created_at: hoursAgo(30) },
-      { id: 'o4', job_url: 'https://jobs.lever.co/palantir/2', company: 'Palantir', role: 'FDSE Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 6), created_at: hoursAgo(50) },
-      { id: 'o1', job_url: 'https://boards.greenhouse.io/stripe/jobs/4000002', company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', resume_path: '~/Desktop/Adam_Kuhn_Resumes/Stripe_SWE_Intern_2027/Adam_Kuhn_Resume.pdf', status: 'drafted', sent_on: null, follow_up_on: null, created_at: hoursAgo(26) },
+      { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: minsAgo(5) },
+      { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), followups: 0, created_at: hoursAgo(30) },
+      { id: 'o4', job_url: 'https://jobs.lever.co/palantir/2', company: 'Palantir', role: 'FDSE Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 6), followups: 0, created_at: hoursAgo(50) },
+      { id: 'o5', job_url: 'https://jobs.lever.co/figma/3', company: 'Figma', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: addDays(day, -5), follow_up_on: day, followups: 0, created_at: hoursAgo(130) },
+      { id: 'o1', job_url: 'https://boards.greenhouse.io/stripe/jobs/4000002', company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', resume_path: '/Users/adamk/Desktop/Adam_Kuhn_Resumes/Stripe_SWE_Intern_2027/Adam_Kuhn_Resume.pdf', status: 'drafted', sent_on: null, follow_up_on: null, followups: 0, created_at: hoursAgo(26) },
     ],
     contacts: [
       {
@@ -194,6 +196,11 @@ export function createFixtures(now: Date): DemoDb {
         email_guess: 'mlee@stripe.com', email_confidence: 'guess', why: 'Michigan alum on the team named in the posting.',
         draft_subject: 'Fellow Michigander, Payments intern question',
         draft_body: "Hi Marcus,\n\nI'm a CS student at Central Michigan University and noticed you went to school in Michigan too. I applied to Stripe's Winter 2027 SWE intern role on Payments.\n\nMy project 27B taught me a lot about caching and failure modes. I'd love to hear what the team's first month looks like for interns.\n\nWould you have 15 minutes in the next couple of weeks?\n\nThanks,\nAdam",
+      },
+      {
+        id: 'c3', outreach_id: 'o5', name: 'Priya Nair', title: 'University Recruiter', linkedin_url: null,
+        email_guess: 'pnair@figma.com', email_confidence: 'pattern', why: null,
+        draft_subject: 'CMU student, Figma SWE intern', draft_body: "Hi Priya,\n\nI applied to Figma's Software Engineer Intern role and would love to chat.\n\nThanks,\nAdam",
       },
     ],
     launchRequests: [

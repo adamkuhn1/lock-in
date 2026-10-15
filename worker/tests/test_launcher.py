@@ -1,4 +1,7 @@
 from pathlib import Path
+import errno
+import shutil
+
 import pytest
 from lockin_worker import launcher
 from lockin_worker.db import MemoryDB, DBError
@@ -280,3 +283,241 @@ def test_work_prompt_fences_readme_so_backticks_cannot_break_it(tmp_path):
     launcher.poll_once(db, op, "/v/bin/lockin")
     prompt = op.calls[0][1]
     assert "~~~~\n# 27B\n```bash\nnpm i\n```\nafter\n~~~~" in prompt
+
+
+# --- tailor_resume -------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def tailor_dir(tmp_path, monkeypatch):
+    d = tmp_path / "home" / ".lockin" / "tailor"
+    monkeypatch.setattr(launcher, "TAILOR_DIR", d)
+    return d
+
+
+@pytest.fixture(autouse=True)
+def icloud(monkeypatch):
+    calls = []
+    monkeypatch.setattr(launcher, "ICLOUD_RUN", lambda *a, **k: calls.append(a[0]))
+    monkeypatch.setattr(launcher, "ICLOUD_SLEEP", lambda s: None)
+    return calls
+
+
+def tailor_db(tmp_path, base=True, company=None, role=None, job_url="https://boards.greenhouse.io/stripe/jobs/1"):
+    root = tmp_path / "Resumes"
+    if base:
+        (root / "Base_Resume").mkdir(parents=True)
+        (root / "Base_Resume" / "Adam_Kuhn_Resume.tex").write_text("\\documentclass{article} base")
+        (root / "Base_Resume" / "Adam_Kuhn_Resume.pdf").write_bytes(b"%PDF-1.4")
+    db = MemoryDB()
+    db.insert("settings", [{"resume_root": str(root)}])
+    db.insert("outreach", [{"id": "t-1", "job_url": job_url, "status": "queued", "company": company, "role": role}])
+    db.insert("postings", [{"id": "p1", "url": "https://boards.greenhouse.io/stripe/jobs/1", "company": "Stripe",
+                            "title": "Software Engineer, New Grad (2027)"}])
+    db.insert("launch_requests", [{"id": "tr1", "kind": "tailor_resume",
+                                   "payload": {"outreach_id": "t-1", "job_url": job_url},
+                                   "status": "queued", "created_at": "2026-10-14T12:00:00Z"}])
+    return db, root
+
+
+def test_tailor_resume_happy_path(tmp_path, tailor_dir):
+    db, root = tailor_db(tmp_path)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    cwd, prompt, name = op.calls[0]
+    assert name == "tr1"
+    assert cwd.parent == tailor_dir and cwd.is_dir()
+    assert (tailor_dir.stat().st_mode & 0o777) == 0o700 and (cwd.stat().st_mode & 0o777) == 0o700
+    assert (cwd / "Adam_Kuhn_Resume.tex").read_text() == "\\documentclass{article} base"
+    assert str(root / "Base_Resume" / "Adam_Kuhn_Resume.tex") in prompt
+    assert str(root / "Base_Resume" / "Adam_Kuhn_Resume.pdf") in prompt
+    assert str(root) in prompt and str(cwd) in prompt
+    assert "Stripe_Software_Engineer_New_Grad_2027" in prompt
+    assert "`open https://boards.greenhouse.io/stripe/jobs/1`" in prompt
+    assert "/v/bin/lockin save-outreach --id t-1 <<'JSON'" in prompt
+    assert "I just applied to Browserbase's" in prompt and "I just applied to Valon's" in prompt
+    o = db.select("outreach", {"id": "t-1"})[0]
+    assert (o["company"], o["role"]) == ("Stripe", "Software Engineer, New Grad (2027)")
+
+
+def test_tailor_resume_expands_home_in_resume_root(tmp_path, monkeypatch):
+    db, root = tailor_db(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    db.update("settings", {}, {"resume_root": "~/Resumes"})
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    assert str(root / "Base_Resume" / "Adam_Kuhn_Resume.tex") in op.calls[0][1]
+
+
+def test_tailor_resume_missing_base_fails_with_message(tmp_path, icloud):
+    db, root = tailor_db(tmp_path, base=False)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "failed")]
+    assert op.calls == []
+    err = status(db, "tr1")["error"]
+    assert f"Base resume not found at {root / 'Base_Resume' / 'Adam_Kuhn_Resume.tex'}" in err
+    assert "(check the file exists and Terminal/Python has Desktop access)" in err
+
+
+def test_tailor_resume_unknown_outreach_fails(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    db.update("launch_requests", {"id": "tr1"}, {"payload": {"outreach_id": "nope"}})
+    assert launcher.poll_once(db, Opener(), "/v/bin/lockin") == [("tr1", "failed")]
+    assert "outreach 'nope' not found" in status(db, "tr1")["error"]
+
+
+def test_tailor_resume_uses_outreach_company_and_role_over_posting(tmp_path):
+    db, _ = tailor_db(tmp_path, company="Roblox", role="Software Engineer - Early Career 2027",
+                      job_url="https://careers.roblox.com/jobs/9")
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert "Roblox_Software_Engineer_Early_Career_2027" in op.calls[0][1]
+
+
+@pytest.mark.parametrize("company,role,expected", [
+    ("Valon", "Software Engineer, New Grad", "Valon_Software_Engineer_New_Grad"),
+    ("Roblox", "Software Engineer - Early Career (2027)", "Roblox_Software_Engineer_Early_Career_2027"),
+    ("AT&T  Inc.", "SWE / Intern -- Summer", "AT_T_Inc_SWE_Intern_Summer"),
+    ("Café Co", None, "Caf_Co"),
+    ("", "", "Tailored_Resume"),
+    ("A" * 60, "B" * 60, ("A" * 60 + "_" + "B" * 60)[:80]),
+])
+def test_folder_hint_sanitizing(company, role, expected):
+    hint = launcher.folder_hint(company, role)
+    assert hint == expected
+    assert len(hint) <= 80 and not hint.endswith("_") and "__" not in hint
+
+
+def test_folder_hint_trims_trailing_underscore_after_cut():
+    assert launcher.folder_hint("A" * 79, "B") == "A" * 79
+
+
+def test_tailor_work_dirs_differ_per_outreach(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    db.insert("outreach", [{"id": "t-2", "job_url": "https://boards.greenhouse.io/stripe/jobs/1", "status": "queued"}])
+    db.insert("launch_requests", [{"id": "tr2", "kind": "tailor_resume", "payload": {"outreach_id": "t-2"},
+                                   "status": "queued", "created_at": "2026-10-14T12:01:00Z"}])
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert op.calls[0][0] != op.calls[1][0]
+
+
+def test_default_tailor_dir_is_dedicated():
+    assert launcher.DEFAULT_TAILOR_DIR == Path.home() / ".lockin" / "tailor"
+
+
+@pytest.mark.parametrize("bad", [
+    'https://x.com/a";rm -rf ~;"',
+    "https://x.com/$(whoami)",
+    "https://x.com/`id`",
+    "https://x.com/a'b",
+    "https://x.com/a b",
+    "https://x.com/a\nb",
+    "javascript:alert(1)",
+    "file:///etc/passwd",
+    "https:///no-host",
+    "",
+    "https://x.com/" + "a" * 2000,
+])
+def test_tailor_resume_rejects_unsafe_job_url(tmp_path, tailor_dir, bad):
+    db, _ = tailor_db(tmp_path, job_url=bad)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "failed")]
+    assert op.calls == []
+    assert "Job link isn't a plain http(s) URL" in status(db, "tr1")["error"]
+    assert not tailor_dir.exists()  # nothing created for a rejected link
+
+
+def test_tailor_resume_shell_quotes_job_url_with_query(tmp_path):
+    url = "https://boards.greenhouse.io/x/jobs/1?gh_src=abc&t=1"
+    db, _ = tailor_db(tmp_path, job_url=url)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    prompt = op.calls[0][1]
+    assert "open 'https://boards.greenhouse.io/x/jobs/1?gh_src=abc&t=1'" in prompt
+    assert f"- Posting: {url}" in prompt
+
+
+def test_safe_job_url_accepts_plain_links():
+    assert launcher.safe_job_url("http://example.com/jobs/1#apply") == "http://example.com/jobs/1#apply"
+    with pytest.raises(launcher.LaunchError, match="Job link isn't a plain http\\(s\\) URL"):
+        launcher.safe_job_url(None)
+
+
+# --- tailor_resume: iCloud-evicted base resume ---------------------------------------------
+
+def test_tailor_resume_retries_copy_after_edeadlk(tmp_path, monkeypatch, icloud):
+    db, root = tailor_db(tmp_path)
+    real, state = shutil.copyfile, {"n": 0}
+
+    def flaky(src, dst):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise OSError(errno.EDEADLK, "Resource deadlock avoided")
+        return real(src, dst)
+
+    ensured = []
+    orig = launcher.resume.ensure_local
+    monkeypatch.setattr(launcher.shutil, "copyfile", flaky)
+    monkeypatch.setattr(launcher.resume, "ensure_local", lambda p, *a, **k: ensured.append(p) or orig(p, *a, **k))
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    tex = root / "Base_Resume" / "Adam_Kuhn_Resume.tex"
+    assert state["n"] == 2 and ensured.count(tex) == 2  # initial download + retry
+
+
+def test_copy_base_edeadlk_retry_forces_download(tmp_path, monkeypatch, icloud):
+    src, dst = tmp_path / "base.pdf", tmp_path / "out.pdf"
+    src.write_bytes(b"%PDF")
+    real, state = shutil.copyfile, {"n": 0}
+
+    def flaky(s, d):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise OSError(errno.EDEADLK, "Resource deadlock avoided")
+        return real(s, d)
+
+    monkeypatch.setattr(launcher.shutil, "copyfile", flaky)
+    launcher._copy_base(src, dst)
+    assert state["n"] == 2 and dst.read_bytes() == b"%PDF"
+    assert ["brctl", "download", str(src)] in icloud  # file exists locally, so only force triggers this
+
+
+def test_tailor_resume_persistent_edeadlk_fails_with_icloud_message(tmp_path, monkeypatch, icloud):
+    db, _ = tailor_db(tmp_path)
+    n = {"n": 0}
+
+    def always(src, dst):
+        n["n"] += 1
+        raise OSError(errno.EDEADLK, "Resource deadlock avoided")
+
+    monkeypatch.setattr(launcher.shutil, "copyfile", always)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "failed")]
+    assert op.calls == [] and n["n"] == launcher.COPY_ATTEMPTS
+    assert "Base resume is in iCloud and couldn't be downloaded" in status(db, "tr1")["error"]
+
+
+def test_tailor_resume_icloud_placeholder_downloads_then_launches(tmp_path, monkeypatch):
+    db, root = tailor_db(tmp_path)
+    base = root / "Base_Resume"
+    (base / "Adam_Kuhn_Resume.tex").rename(base / ".Adam_Kuhn_Resume.tex.icloud")
+    brctl = []
+
+    def fake_run(cmd, **kw):
+        brctl.append(cmd)
+        (base / ".Adam_Kuhn_Resume.tex.icloud").rename(base / "Adam_Kuhn_Resume.tex")
+
+    monkeypatch.setattr(launcher, "ICLOUD_RUN", fake_run)
+    monkeypatch.setattr(launcher, "ICLOUD_SLEEP", lambda s: None)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    assert brctl == [["brctl", "download", str(base / "Adam_Kuhn_Resume.tex")]]
+
+
+def test_tailor_resume_placeholder_that_never_downloads_gets_icloud_message(tmp_path, monkeypatch, icloud):
+    db, root = tailor_db(tmp_path)
+    base = root / "Base_Resume"
+    (base / "Adam_Kuhn_Resume.pdf").rename(base / ".Adam_Kuhn_Resume.pdf.icloud")
+    monkeypatch.setattr(launcher.resume, "ensure_local", lambda *a, **k: False)
+    assert launcher.poll_once(db, Opener(), "/v/bin/lockin") == [("tr1", "failed")]
+    assert "in iCloud and couldn't be downloaded" in status(db, "tr1")["error"]

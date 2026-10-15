@@ -15,6 +15,10 @@ describe('Today', () => {
     expect(screen.getByRole('img', { name: /^Emails this week: 2 of 10$/ })).toBeInTheDocument();
     for (const t of ['Applications', 'Online assessments', 'Interviews', 'Offers']) expect(screen.getByText(t)).toBeInTheDocument();
     expect(screen.getByText('vs 9%')).toBeInTheDocument();
+    expect(screen.getByText('vs 38%')).toBeInTheDocument(); // Offers: 5/13, rounded only at display
+    const fire = container.querySelector('.streak-chip [aria-hidden="true"]');
+    expect(fire).toHaveTextContent('🔥');
+    expect(container.querySelector('.streak-chip')).toHaveTextContent(/\d+ day streak/);
   });
 
   it('rings and tiles link to their screens', async () => {

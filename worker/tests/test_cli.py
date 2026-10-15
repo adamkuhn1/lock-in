@@ -88,9 +88,11 @@ def test_empty_stdin_explains_heredoc():
 
 
 def test_long_body_warns_but_saves():
-    long = {**CONTACT, "draft_body": " ".join(["word"] * 130)}
+    long = {**CONTACT, "draft_body": " ".join(["word"] * 111)}
     code, out, err = run(db_with_outreach(), ["save-outreach", "--id", OID], json.dumps({"contacts": [long]}))
-    assert code == 0 and "130 words (aim for under 120)" in err
+    assert code == 0 and "111 words (aim for under 110)" in err
+    ok = {**CONTACT, "draft_body": " ".join(["word"] * 110)}
+    assert "words" not in run(db_with_outreach(), ["save-outreach", "--id", OID], json.dumps({"contacts": [ok]}))[2]
 
 
 def test_save_ideas_appends_with_positions_and_skips_duplicates():
@@ -193,3 +195,74 @@ def test_log_prep_rejects_unknown_kind():
     with pytest.raises(SystemExit) as e:
         cli.main(["log-prep", "--kind", "nap"], db_factory=lambda: db)
     assert e.value.code == 2 and db.select("prep_sessions") == []
+
+
+def test_save_outreach_sets_resume_path_when_given():
+    db = db_with_outreach()
+    body = {"company": "Stripe", "contacts": [CONTACT],
+            "resume_path": "/Users/a/Desktop/Adam_Kuhn_Resumes/Stripe_SWE/Adam_Kuhn_Resume.pdf"}
+    code, out, _ = run(db, ["save-outreach", "--id", OID], json.dumps(body))
+    assert code == 0 and out.strip() == "Saved resume, 1 contact"
+    assert db.select("outreach")[0]["resume_path"] == body["resume_path"]
+    assert db.select("outreach")[0]["status"] == "drafted"
+
+
+def test_save_outreach_without_resume_path_leaves_it_alone():
+    db = db_with_outreach()
+    db.update("outreach", {"id": OID}, {"resume_path": "/old/Adam_Kuhn_Resume.pdf"})
+    run(db, ["save-outreach", "--id", OID], json.dumps({"contacts": [CONTACT]}))
+    assert db.select("outreach")[0]["resume_path"] == "/old/Adam_Kuhn_Resume.pdf"
+
+
+@pytest.mark.parametrize("bad,msg", [
+    ("relative/Adam_Kuhn_Resume.pdf", "$.resume_path: must be an absolute path"),
+    (42, "$.resume_path: must be a string"),
+    ("/" + "a" * 500, "$.resume_path: longer than 500 characters"),
+])
+def test_save_outreach_rejects_bad_resume_path(bad, msg):
+    db = db_with_outreach()
+    code, _, err = run(db, ["save-outreach", "--id", OID], json.dumps({"contacts": [CONTACT], "resume_path": bad}))
+    assert code == 2 and msg in err
+    assert db.select("contacts") == []
+
+
+RESUME = "/Users/a/Desktop/Adam_Kuhn_Resumes/Acme_SWE/Adam_Kuhn_Resume.pdf"
+
+
+def test_save_outreach_resume_only_keeps_queued():
+    db = db_with_outreach()
+    code, out, _ = run(db, ["save-outreach", "--id", OID], json.dumps({"company": "Acme", "contacts": [], "resume_path": RESUME}))
+    assert code == 0 and out.strip() == "Saved resume, 0 contacts"
+    o = db.select("outreach")[0]
+    assert (o["status"], o["resume_path"], o["company"]) == ("queued", RESUME, "Acme")
+    assert db.select("contacts") == []
+
+
+def test_save_outreach_resume_only_keeps_earlier_contacts():
+    db = db_with_outreach(status="drafted")
+    db.insert("contacts", [{**CONTACT, "id": "c0", "outreach_id": OID}])
+    run(db, ["save-outreach", "--id", OID], json.dumps({"contacts": [], "resume_path": RESUME}))
+    assert [c["id"] for c in db.select("contacts")] == ["c0"] and db.select("outreach")[0]["status"] == "drafted"
+
+
+def test_empty_contacts_without_resume_path_is_still_an_error():
+    code, _, err = run(db_with_outreach(), ["save-outreach", "--id", OID], json.dumps({"contacts": []}))
+    assert code == 2 and "$.contacts: must be a non-empty list" in err
+    code, _, err = run(db_with_outreach(), ["save-outreach", "--id", OID], json.dumps({"resume_path": RESUME}))
+    assert code == 2 and "$.contacts" in err
+
+
+@pytest.mark.parametrize("email", ["dana@stripe.com", "dana.reyes+jobs@eng.stripe.co.uk", "a_b-c@x.io"])
+def test_email_guess_accepts_plain_addresses(email):
+    code, _, err = run(db_with_outreach(), ["save-outreach", "--id", OID],
+                       json.dumps({"contacts": [{**CONTACT, "email_guess": email}]}))
+    assert code == 0, err
+
+
+@pytest.mark.parametrize("email", ["dana@stripe", "dana stripe@x.com", "a@b@c.com", "a@b.com?bcc=e@v.il", "a@b.com,c@d.com",
+                                   "a@b.com;c@d.com", "a&b@c.com", "a#b@c.com", "<a@b.com>", '"a"@b.com', "a'b@c.com",
+                                   "@b.com", "a@.com", "a@b.c"])
+def test_email_guess_rejects_anything_but_a_plain_address(email):
+    code, _, err = run(db_with_outreach(), ["save-outreach", "--id", OID],
+                       json.dumps({"contacts": [{**CONTACT, "email_guess": email}]}))
+    assert code == 2 and "$.contacts[0].email_guess: not an email address" in err

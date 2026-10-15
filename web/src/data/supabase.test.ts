@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { AlreadyCountedError } from './api';
-import { canRate, createSupabaseApi } from './supabase';
+import { SHEET_TIMEOUT_MS, canRate, createSupabaseApi } from './supabase';
 
 interface Call { url: URL; method: string; body: unknown; headers: Record<string, string> }
 
@@ -63,6 +63,17 @@ describe('supabase api', () => {
     expect(calls[0].body).toEqual({ job_url: 'https://x.com/j', company: null, role: null });
     expect(calls[1].body).toEqual({ kind: 'outreach', payload: { outreach_id: 'o1', job_url: 'https://x.com/j' } });
   });
+  it('queueTailor inserts the outreach, then a tailor_resume launch request for it', async () => {
+    const { api, calls } = harness((c) =>
+      c.url.pathname.endsWith('/outreach')
+        ? json({ id: 'o9', job_url: 'https://x.com/j', company: 'X', role: 'SWE', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, created_at: '2026-10-14T16:00:00Z' }, 201)
+        : empty());
+    const o = await api.queueTailor({ job_url: 'https://x.com/j', company: 'X', role: 'SWE' });
+    expect(o.id).toBe('o9');
+    expect(calls.map((c) => [c.method, c.url.pathname])).toEqual([['POST', '/rest/v1/outreach'], ['POST', '/rest/v1/launch_requests']]);
+    expect(calls[0].body).toEqual({ job_url: 'https://x.com/j', company: 'X', role: 'SWE' });
+    expect(calls[1].body).toEqual({ kind: 'tailor_resume', payload: { outreach_id: 'o9', job_url: 'https://x.com/j' } });
+  });
   it('surfaces PostgREST errors', async () => {
     const { api } = harness(() => json({ message: 'permission denied for table ideas' }, 403));
     await expect(api.listIdeas()).rejects.toThrow('permission denied');
@@ -92,6 +103,74 @@ describe('supabase api', () => {
     expect(seen).toBeInstanceOf(AbortSignal);
     expect(r.status).toBe('error');
     expect(calls).toHaveLength(1);
+  });
+  it('listApplications selects sheet_row, and still works before migration 0005 adds it', async () => {
+    const row = { id: 1, company: 'Ramp', role: null, track: null, term: null, location: null, status: 'Applied', stage: 'applied', priority: null, applied_on: null };
+    const withCol = harness(() => json([{ ...row, sheet_row: 7 }]));
+    expect(await withCol.api.listApplications()).toEqual([{ ...row, sheet_row: 7 }]);
+    expect(withCol.calls[0].url.searchParams.get('select')).toContain('sheet_row');
+    const before = harness((c) => (c.url.searchParams.get('select')?.includes('sheet_row')
+      ? json({ code: '42703', message: 'column applications.sheet_row does not exist' }, 400)
+      : json([row])));
+    expect(await before.api.listApplications()).toEqual([row]);
+    expect(before.calls).toHaveLength(2);
+    const other = harness(() => json({ message: 'permission denied for table applications' }, 403));
+    await expect(other.api.listApplications()).rejects.toThrow('permission denied');
+  });
+  it('listOutreach selects followups, and still works (as 0) before migration 0006 adds it', async () => {
+    const row = { id: 'o1', job_url: 'https://x.com/1', company: 'Ramp', role: null, resume_path: null, status: 'sent', sent_on: null, follow_up_on: null, created_at: '2026-10-14T12:00:00Z' };
+    const withCol = harness(() => json([{ ...row, followups: 2 }]));
+    expect(await withCol.api.listOutreach()).toEqual([{ ...row, followups: 2 }]);
+    expect(withCol.calls[0].url.searchParams.get('select')).toContain('followups');
+    const before = harness((c) => (c.url.searchParams.get('select')?.includes('followups')
+      ? json({ code: '42703', message: 'column outreach.followups does not exist' }, 400)
+      : json([row])));
+    expect(await before.api.listOutreach()).toEqual([{ ...row, followups: 0 }]);
+    const other = harness(() => json({ message: 'permission denied for table outreach' }, 403));
+    await expect(other.api.listOutreach()).rejects.toThrow('permission denied');
+  });
+  it('the /api/sheet client timeout is 40 s', () => {
+    expect(SHEET_TIMEOUT_MS).toBe(40_000);
+  });
+  it('sheetStatuses GETs /api/sheet?op=statuses with the bearer token', async () => {
+    const { api, calls } = harness(() => json({ statuses: ['Applied', 'Rejected after OA'] }));
+    expect(await api.sheetStatuses()).toEqual(['Applied', 'Rejected after OA']);
+    expect(calls[0].url.pathname).toBe('/api/sheet');
+    expect(calls[0].url.searchParams.get('op')).toBe('statuses');
+    expect(calls[0].method).toBe('GET');
+    expect(calls[0].headers.authorization).toBe('Bearer tok');
+  });
+  it('setApplicationStatus POSTs set_status and throws the server message on error', async () => {
+    const ok = harness(() => json({ ok: true, synced: false }));
+    await ok.api.setApplicationStatus({ id: 11, company: 'Ramp', role: null, sheet_row: 7 }, 'OA invited');
+    expect(ok.calls[0].method).toBe('POST');
+    expect(ok.calls[0].body).toEqual({ op: 'set_status', application_id: 11, company: 'Ramp', role: null, sheet_row: 7, status: 'OA invited' });
+    await ok.api.setApplicationStatus({ id: 12, company: 'Visa', role: 'SWE' }, 'OA invited');
+    expect(ok.calls[1].body).toEqual({ op: 'set_status', application_id: 12, company: 'Visa', role: 'SWE', status: 'OA invited' });
+    expect(ok.calls[0].headers.authorization).toBe('Bearer tok');
+    const gone = harness(() => json({ error: "Couldn't find that row in your Sheet; it may have moved. Refresh and try again." }, 409));
+    await expect(gone.api.setApplicationStatus({ id: 11, company: 'Ramp', role: null }, 'x')).rejects.toThrow("Couldn't find that row");
+  });
+  it('markApplied returns {duplicate} on 409 duplicate and {} on success', async () => {
+    const dup = harness(() => json({ duplicate: true, error: 'Already in your Sheet.' }, 409));
+    expect(await dup.api.markApplied({ posting_id: 'p1' })).toEqual({ duplicate: true });
+    expect(dup.calls[0].body).toEqual({ op: 'applied', posting_id: 'p1' });
+    const ok = harness(() => json({ ok: true }));
+    expect(await ok.api.markApplied({ outreach_id: 'o1', force: true })).toEqual({});
+    expect(ok.calls[0].body).toEqual({ op: 'applied', outreach_id: 'o1', force: true });
+  });
+  it('sheet calls map network failures, timeouts and non-JSON errors to the fixed Google message', async () => {
+    const off = harness(() => { throw new Error('offline'); });
+    await expect(off.api.sheetStatuses()).rejects.toThrow("Couldn't reach Google. Try again.");
+    const html = harness(() => new Response('<html>502</html>', { status: 502 }));
+    await expect(html.api.markApplied({ posting_id: 'p1' })).rejects.toThrow("Couldn't reach Google. Try again.");
+    let seen: AbortSignal | null | undefined;
+    const slow = harness((_c, init) => new Promise<Response>((_res, rej) => {
+      seen = init?.signal;
+      seen?.addEventListener('abort', () => rej(seen?.reason));
+    }), 20);
+    await expect(slow.api.setApplicationStatus({ id: 1, company: 'Ramp', role: null }, 'x')).rejects.toThrow("Couldn't reach Google. Try again.");
+    expect(seen).toBeInstanceOf(AbortSignal);
   });
   it('pages past the 1000-row cap', async () => {
     const mk = (n: number, off: number) => Array.from({ length: n }, (_, i) => ({ id: off + i, sha: `s${off + i}`, project_id: 'p', message: 'm', committed_at: '2026-10-01T00:00:00Z' }));

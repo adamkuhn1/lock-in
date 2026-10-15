@@ -144,7 +144,7 @@ Done together in the setup session. Nothing here is automated.
    - Root Directory: `web`. Keep "Include files outside the root directory in the Build Step" **on** (the app imports `../prompts/outreach.md`).
    - Framework: Vite (auto-detected from `web/vercel.json`).
    - Environment variables (Production and Preview), all from Supabase → Settings → API:
-     `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser, build-time), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the `/api/sync-leetcode` function). Never add the service-role key here.
+     `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser, build-time), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the `/api/sync-leetcode` and `/api/sheet` functions), and for Sheet writes `GOOGLE_SA_JSON`, `SHEET_ID`, `LOCKIN_OWNER_ID` (server-only; see §10). Never add the service-role key here.
 3. **Author check before the first push** (Vercel Hobby blocks other authors): `git log -1 --format='%an <%ae>'` must print `adamkuhn1 <184679495+adamkuhn1@users.noreply.github.com>`. Don't change git config; if it differs, stop and ask.
 4. **Deploy**: pushing to the default branch deploys. Open the URL, sign in with the emailed code.
 5. **Tell the worker the URL**: in the app, Settings → Mac → App URL = the Vercel URL (nudges open it when tapped).
@@ -155,3 +155,21 @@ Local development: `cd web && npm run dev:demo` (fixture data, no Supabase). Aga
 
 Notes: set `settings.app_url` (step 5) so ntfy taps open the app. If the Mac Add to Dock option is missing, use Safari 17+.
 vercel.json ships only conservative headers (nosniff, Referrer-Policy, no-cache on /sw.js); no CSP, to avoid breaking the service worker or Supabase calls.
+
+## 10. v2 (2026-10-14)
+- Migration `0003_v2.sql` is applied (prep, calendar, `day_activity` view); `shared/prep_items.json` is loaded into `prep_items`; LEGO is a project with no repo. Link it in Me → Settings → Projects → Edit LEGO once `adamkuhn1/lego` exists.
+- **Deploying the web app:** this Vercel account isn't linked to the `adamkuhn1` GitHub identity, so Hobby blocks deploys that carry git metadata ("commit author doesn't have permission"). Deploy a git-free copy instead:
+  ```bash
+  D=$(mktemp -d) && git archive main | tar -x -C "$D" && mkdir "$D/.vercel" && cp .vercel/project.json "$D/.vercel/"
+  (cd "$D" && VERCEL_TOKEN="$(security find-generic-password -s lockin -a vercel_token -w)" npx -y vercel@64.0.2 deploy --prod --yes)
+  ```
+- **Ship order** when the schema changes: migrate → `make restart-launcher` → push `main` → data inserts → Vercel deploy.
+- **Work on this / Mock with Claude** use the same Mac permissions as Cold email. An idea is marked done when a commit made after you tapped the button reaches the project's main branch on GitHub (or tick it done in the app).
+- **Tailor resume** (Hunt → Jobs): apply migration `0004_tailor.sql` and run `make restart-launcher` first. It needs the same Terminal Desktop access as Cold email, plus `tectonic` (installed at `/opt/homebrew/bin/tectonic`) and `Base_Resume/Adam_Kuhn_Resume.tex` and `.pdf` inside the resume root (default `~/Desktop/Adam_Kuhn_Resumes`). Claude works in `~/.lockin/tailor/<job>`, saves the tailored PDF and .tex into a new folder next to the others, opens the posting, and drafts one recruiter email.
+- **Open in Outlook** (Hunt → Outreach) opens a prefilled email in the default mail app. Make Outlook the default once: Outlook → Settings → General → Default email app. The card's "Resume:" line is the file to attach.
+- **Write to the Sheet** (Hunt → Jobs/Outreach **I applied**, Hunt → Applications **Status**): roll out in this order:
+  1. **Apply migration `0005_sheet_writes.sql`** in the Supabase SQL editor (adds `applications.sheet_row` and the `applied` posting status). This must come **before the worker update**: the new worker inserts `sheet_row`, and the 30-minute sheet sync fails on every run until the column exists.
+  2. **Worker update:** merge to `main` (the GitHub Actions sync runs the new worker) and run `make restart-launcher` on the Mac. Let one sync run so rows get their `sheet_row`.
+  3. **Vercel env vars** (below), then **deploy the web app**. The web app also works before 0005 (it reads `sheet_row` only if the column exists), but `/api/sheet` and "I applied" need 0005, because `postings.status = 'applied'` is rejected without it.
+
+  In Vercel (Production and Preview) add these **server-only** env vars (never `VITE_`-prefixed): `GOOGLE_SA_JSON` (the service-account key JSON, one line; the account needs Editor on the Sheet), `SHEET_ID` (the only Sheet `/api/sheet` will ever write) and `LOCKIN_OWNER_ID` (your Supabase user id, the same value as the GitHub secret). Without all three, `/api/sheet` refuses with "Sheet writes aren't configured." and only `LOCKIN_OWNER_ID` may write. The Status picker shows exactly the options in the Sheet's Status dropdown, so add new wording (e.g. "Rejected after OA", "Rejected after interview") to the dropdown in the Sheet first; if the Status column has no dropdown, the picker is hidden.

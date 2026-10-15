@@ -32,6 +32,11 @@ describe('ideas', () => {
     expect(todaysIdea([I('t', { status: 'done', today_on: '2026-10-14' })], '2026-10-14')?.id).toBe('t');
     expect(todaysIdea([I('t', { status: 'today', today_on: '2026-10-13' })], '2026-10-14')).toBeNull();
   });
+  it("today's idea stays today's idea after Work on this (in_progress)", () => {
+    expect(todaysIdea([I('t', { status: 'in_progress', today_on: '2026-10-14' })], '2026-10-14')?.id).toBe('t');
+    expect(todaysIdea([I('t', { status: 'in_progress', today_on: null })], '2026-10-14')).toBeNull();
+    expect(todaysIdea([I('t', { status: 'todo', today_on: '2026-10-14' }), I('d', { status: 'dropped', today_on: '2026-10-14' })], '2026-10-14')).toBeNull();
+  });
   it('swapCandidate prefers the same project, else any todo', () => {
     const cur = I('t', { status: 'today' });
     expect(swapCandidate([cur, I('o', { project_id: 'showboat' }), I('n', { position: 5 })], cur)?.id).toBe('n');

@@ -80,3 +80,37 @@ def test_v2_day_activity_uses_instant_shift_like_plan_day():
     for col in ("now()", "accepted_at", "committed_at"):
         assert f"(({col} - interval '4 hours') at time zone 'America/Detroit')::date" in V2
         assert f"(({col} at time zone 'America/Detroit') - interval '4 hours')" not in V2
+
+
+TAILOR = Path(__file__).parents[2] / "supabase/migrations/0004_tailor.sql"
+
+
+def test_tailor_migration_adds_launch_kind_idempotently():
+    sql = TAILOR.read_text()
+    assert "drop constraint if exists launch_requests_kind_check" in sql
+    assert ("add constraint launch_requests_kind_check check "
+            "(kind in ('outreach','suggest_ideas','work_on_idea','mock_interview','tailor_resume'))") in sql
+
+
+SHEET_WRITES = Path(__file__).parents[2] / "supabase/migrations/0005_sheet_writes.sql"
+
+
+def test_sheet_writes_migration_adds_sheet_row_and_applied_status_idempotently():
+    sql = SHEET_WRITES.read_text()
+    assert "create table" not in sql
+    assert "alter table public.applications add column if not exists sheet_row int" in sql
+    assert "drop constraint if exists postings_status_check" in sql
+    assert ("add constraint postings_status_check check "
+            "(status in ('new','seen','dismissed','outreach','applied'))") in sql
+    assert sql.index("drop constraint if exists postings_status_check") < sql.index("add constraint postings_status_check")
+    # 0001's inline check is auto-named <table>_<column>_check, which is the name dropped here.
+    assert "status text not null default 'new' check (status in ('new','seen','dismissed','outreach'))" in SQL
+
+
+FOLLOWUPS = Path(__file__).parents[2] / "supabase/migrations/0006_followups.sql"
+
+
+def test_followups_migration_adds_count_idempotently():
+    sql = FOLLOWUPS.read_text()
+    assert "create table" not in sql
+    assert "alter table public.outreach add column if not exists followups int not null default 0" in sql

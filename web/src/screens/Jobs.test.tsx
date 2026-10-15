@@ -50,6 +50,35 @@ describe('Jobs', () => {
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
   });
+  it('Tailor resume queues a tailor request and goes to Outreach', async () => {
+    const api = createDemoApi();
+    const tailor = vi.spyOn(api, 'queueTailor');
+    const cold = vi.spyOn(api, 'queueOutreach');
+    const status = vi.spyOn(api, 'setPostingStatus');
+    const { container } = renderWithData(tree, { api });
+    await screen.findAllByRole('button', { name: 'Tailor resume' });
+    const stripe = [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes('Stripe')) as HTMLElement;
+    await userEvent.click(within(stripe).getByRole('button', { name: 'Tailor resume' }));
+    expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027' });
+    expect(cold).not.toHaveBeenCalled();
+    expect(await screen.findByText('outreach page')).toBeInTheDocument();
+    expect(status).toHaveBeenCalledWith('p1', 'outreach');
+  });
+  it('Cold email and Tailor resume are disabled when an outreach for that job is already queued', async () => {
+    const api = createDemoApi();
+    const postings = await api.listPostings('2000-01-01T00:00:00Z');
+    const stripe = postings.find((p) => p.company === 'Stripe')!;
+    await api.queueOutreach({ job_url: stripe.url! });
+    const { container } = renderWithData(tree, { api });
+    await screen.findAllByRole('button', { name: 'Tailor resume' });
+    const rowOf = (company: string) => [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes(company)) as HTMLElement;
+    await vi.waitFor(() => expect(within(rowOf('Stripe')).getByRole('button', { name: 'Tailor resume' })).toBeDisabled());
+    expect(within(rowOf('Stripe')).getByRole('button', { name: 'Cold email' })).toBeDisabled();
+    expect(within(rowOf('Stripe')).getByText('Already queued')).toHaveClass('muted');
+    expect(within(rowOf('Ramp')).getByRole('button', { name: 'Tailor resume' })).toBeEnabled();
+    expect(within(rowOf('Ramp')).getByRole('button', { name: 'Cold email' })).toBeEnabled();
+    expect(within(rowOf('Ramp')).queryByText('Already queued')).toBeNull();
+  });
   it('Jobs renders a javascript: URL as text', async () => {
     const api = createDemoApi();
     api.listPostings = async () => [{
@@ -61,6 +90,7 @@ describe('Jobs', () => {
     expect(container.querySelector('a[href^="javascript"]')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Cold email' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tailor resume' })).toBeDisabled();
   });
   it('cold email waits for the posting to leave the inbox before navigating', async () => {
     const api = createDemoApi();
@@ -83,5 +113,41 @@ describe('Jobs', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(spy).toHaveBeenLastCalledWith('p3', 'new');
     expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+  });
+  it('I applied adds the posting to the Sheet and removes it from the inbox', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'markApplied');
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' }));
+    expect(spy).toHaveBeenCalledWith({ posting_id: 'p3' });
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
+    expect((await api.listApplications()).some((a) => a.company === 'Ramp' && a.role === 'Software Engineer, New Grad')).toBe(true);
+  });
+  it('I applied asks before adding a duplicate; Add anyway forces, Cancel backs out', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'markApplied');
+    renderWithData(tree, { api });
+    const name = 'I applied: Stripe Software Engineer Intern, Winter 2027';
+    await userEvent.click(await screen.findByRole('button', { name }));
+    expect(await screen.findByText('Already in your Sheet. Add anyway?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel adding Stripe' }));
+    expect(screen.queryByText('Already in your Sheet. Add anyway?')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Add Stripe anyway' }));
+    expect(spy).toHaveBeenLastCalledWith({ posting_id: 'p1', force: true });
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
+  });
+  it('I applied shows the short error and keeps the posting', async () => {
+    const api = createDemoApi();
+    vi.spyOn(api, 'markApplied').mockRejectedValue(new Error("Couldn't reach Google. Try again."));
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't reach Google. Try again.");
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+  });
+  it('I applied moves focus to Add anyway when the Sheet already has the job', async () => {
+    renderWithData(tree);
+    await userEvent.click(await screen.findByRole('button', { name: 'I applied: Stripe Software Engineer Intern, Winter 2027' }));
+    expect(await screen.findByRole('button', { name: 'Add Stripe anyway' })).toHaveFocus();
   });
 });

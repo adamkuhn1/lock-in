@@ -37,6 +37,27 @@ describe('components', () => {
     expect(screen.getByText('vs 9%')).toBeInTheDocument();
   });
 
+  it('FunnelTile rounds only for display and compares raw rates', () => {
+    const rows = funnel([]);
+    // 23/60 = 38.3% shows as 38% like the 5/13 = 38.5% benchmark, but does not beat it.
+    const offer = { ...rows[3], count: 23, pct: (23 / 60) * 100 };
+    const { container } = render(<FunnelTile row={offer} />);
+    expect(screen.getByText('vs 38%')).toBeInTheDocument();
+    expect(screen.getByText('38%')).toBeInTheDocument();
+    expect(container.querySelector('.stat-rate')).not.toHaveClass('beats');
+  });
+
+  it('FunnelTile shows active, rejected and pass rate for OA and interview rows only', () => {
+    const rows = funnel([]);
+    const oa = { ...rows[1], active: 1, rejected: 2, passed: 1, passRate: (1 / 3) * 100 };
+    const { rerender } = render(<FunnelTile row={oa} />);
+    expect(screen.getByText('1 active · 2 rejected · 33% passed')).toBeInTheDocument();
+    rerender(<FunnelTile row={rows[1]} />);
+    expect(screen.getByText('0 active · 0 rejected · — passed')).toBeInTheDocument();
+    rerender(<FunnelTile row={rows[3]} />);
+    expect(screen.queryByText(/active/)).toBeNull();
+  });
+
   it('Segmented renders links with badges', () => {
     render(<MemoryRouter initialEntries={['/hunt/jobs']}><Segmented label="Hunt" items={[{ to: '/hunt/jobs', label: 'Jobs', badge: 4, badgeLabel: 'new' }, { to: '/hunt/apps', label: 'Applications' }]} /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Jobs, 4 new' })).toHaveAttribute('aria-current', 'page');

@@ -38,3 +38,14 @@ These are decisions made during the autonomous build, where the plan was silent,
 - No commit pagination beyond 100 commits in 30 days.
 - The iPhone status bar stays black-translucent in light mode, because iOS offers no per-theme setting.
 - job-radar's own alerts are still on until you OK the cutover (setup step 8).
+
+## v2 (2026-10-14)
+- build on `build/v2`, FF main in Task 18 — live sync runs from main; pushing half-built worker code would break prod — cost if wrong: one extra FF step |
+- "Also today" nav removed from Today in T10 (not just T11) — spec §3 Hunt says Hunt badges replace it (Task 16) — cost if wrong: links missing between T10 and T16 on the unshipped branch only
+- in-flight id released in hook-level onSettled after refetch + setTimeout(0), not mutationFn finally as controller asked — finally-release let a stale button double-launch (brief test) — cost if wrong: id held for one refetch duration
+- minutes is a number input, not v1 Stepper as spec §6 says — Stepper steps by 1 (30 taps to reach 60) — cost if wrong: cosmetic
+- e2e nav test matches Me via anchored regex and reaches Settings via /me — demo sync is deliberately stale and Settings now lives under Me — cost if wrong: none (still exact-anchored)
+- worker streak bounded by day_one (match web) — Day N/streak are "since Day 1" by spec — cost if wrong: nudge streak undercounts pre-Day-1 activity
+- Task 18 order changed to: migrate (no LEGO) → restart launcher → push/FF main → LEGO insert → worker run → Vercel deploy — avoids v1 launcher stranding work_on_idea and v1 worker hitting repos/None — cost if wrong: none
+- residual I1+I2 are load-bearing one-liners on shipped user paths (undo on Today; iPhone/Safari download) — apply as a tiny residual patch with its own focused tests + one scoped check, rather than shipping known bugs — cost if wrong: one extra small commit
+- Deferred: FKs on prep_progress/prep_sessions; one commit can complete both a 'today' idea and a separately started idea on the same project; v1 per-kind streaks still use calendar day; Today hides non-settings query failures (shows zeros); heatmap per-day details are hover-only; `useWorkOnIdea` exposes an unguarded `mutateAsync` (unused).

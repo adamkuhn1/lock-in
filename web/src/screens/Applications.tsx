@@ -1,15 +1,37 @@
 import { useState } from 'react';
-import { useApplications, useNow, useSettings } from '../data/hooks';
-import { STAGE_LABEL, appliedThisWeek, funnel, groupByStage, searchApps } from '../lib/funnel';
+import { useApplications, useNow, useSetApplicationStatus, useSettings, useSheetStatuses } from '../data/hooks';
+import type { Application } from '../data/types';
+import { STAGE_LABEL, appliedThisWeek, fmtPct, funnel, groupByStage, searchApps } from '../lib/funnel';
 import { localDay, shortDate } from '../lib/time';
+import { funnelDetail } from '../ui/StatTile';
 import { Card, CardHead, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
 const OPEN_BY_DEFAULT = new Set(['offer', 'interview', 'oa']);
+
+/** Native select of the Sheet's Status options; writes immediately, reverts on error. */
+function StatusSelect({ a, options }: { a: Application; options: string[] }) {
+  const set = useSetApplicationStatus();
+  const current = a.status ?? '';
+  const list = current && !options.includes(current) ? [current, ...options] : options;
+  return (
+    <span className="status-edit">
+      <select aria-label={`Status for ${[a.company, a.role].filter(Boolean).join(' ')}`} value={current} disabled={set.isPending}
+        onChange={(e) => set.mutate({ app: a, status: e.target.value })}>
+        {!current && <option value="">No status</option>}
+        {list.map((s) => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <span className="muted small" aria-live="polite">{set.isPending ? 'Saving…' : set.isSuccess ? 'Saved' : ''}</span>
+      {set.isError && <span role="alert" className="error small">{set.error.message}</span>}
+    </span>
+  );
+}
 
 export default function Applications() {
   const now = useNow();
   const apps = useApplications();
   const settings = useSettings();
+  const statuses = useSheetStatuses();
+  const options = statuses.data ?? [];
   const [q, setQ] = useState('');
   const list = apps.data ?? [];
   const week = appliedThisWeek(list, localDay(now));
@@ -59,10 +81,13 @@ export default function Applications() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.stage}>
-                    <th scope="row">{r.label}</th>
+                    <th scope="row">
+                      {r.label}
+                      {(r.stage === 'oa' || r.stage === 'interview') && <small className="muted funnel-detail">{funnelDetail(r)}</small>}
+                    </th>
                     <td>{r.count}</td>
-                    <td>{r.pct === null ? '—' : `${r.pct}%`}</td>
-                    <td className="muted">{r.refPct === null ? '—' : `${r.refPct}%`}</td>
+                    <td>{fmtPct(r.pct)}</td>
+                    <td className="muted">{fmtPct(r.refPct)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,7 +118,14 @@ export default function Applications() {
                   <li key={a.id} className="app-row">
                     <span className="job-title">{a.company}</span>
                     {a.role && <span className="small">{a.role}</span>}
-                    <span className="muted small">{[a.status, a.applied_on && shortDate(a.applied_on)].filter(Boolean).join(' · ')}</span>
+                    {options.length > 0 ? (
+                      <>
+                        {a.applied_on && <span className="muted small">{shortDate(a.applied_on)}</span>}
+                        <StatusSelect a={a} options={options} />
+                      </>
+                    ) : (
+                      <span className="muted small">{[a.status, a.applied_on && shortDate(a.applied_on)].filter(Boolean).join(' · ')}</span>
+                    )}
                   </li>
                 ))}
               </ul>

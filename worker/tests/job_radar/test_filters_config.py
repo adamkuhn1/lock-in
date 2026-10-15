@@ -58,6 +58,40 @@ def test_exclude_or_no_match(title):
     assert not FILTERS.matches(title)
 
 
+@pytest.mark.parametrize("title", [
+    "Machine Learning Research Perception Intern 🎓 Spring 2027",
+    "Software Engineer Intern - Master's (Spring 2027)",
+    "Software Engineer Intern - Master’s (Spring 2027)",
+    "MS/PhD Research Intern, Winter 2027",
+    "M.S./Ph.D. Research Intern, Winter 2027",
+    "Graduate Student Researcher - Spring 2027",
+    "Postdoctoral Fellow",
+    "Post-doc Researcher, Spring 2027",
+    "Doctoral Intern (Spring 2027)",
+    "Software Intern, Masters Program (Spring 2027)",
+    "Master of Science Intern - Winter 2027",
+    "Master of Engineering Intern - Winter 2027",
+    "Doctorate Research Intern",
+    "Postgraduate Intern Spring 2027",
+    "Post-graduate Intern Spring 2027",
+])
+def test_advanced_degree_excluded(title):
+    assert not FILTERS.matches(title)
+    assert not FILTERS.matches(title, check_include=False)
+
+
+@pytest.mark.parametrize("title", [
+    "Software Engineer Intern (Spring 2027)",
+    "Master Data Engineer - New Grad 2027",
+    "University Graduate Software Engineer 2027",
+    "Scrum Master Intern (Spring 2027)",
+    "Software Engineer Intern (Bachelor's or Master's) Spring 2027",
+    "Software Engineer Intern (Bachelor’s or Masters degree) Spring 2027",
+])
+def test_advanced_degree_not_overmatched(title):
+    assert FILTERS.matches(title)
+
+
 def test_new_grad_unaffected_by_summer_rules():
     # summer rules only target internships / co-ops, never full-time new grad roles
     assert FILTERS.matches("Software Engineer, New Grad (Summer 2027 start)")

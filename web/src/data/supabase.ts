@@ -46,11 +46,14 @@ export interface SupabaseApiDeps {
   ownerId(): Promise<string>;
   accessToken(): Promise<string | null>;
   fetchImpl?: typeof fetch;
-  /** Client-side cap on /api/sync-leetcode; the server caps LeetCode at 8 s. */
+  /** Client-side cap on /api/sync-leetcode; the server caps LeetCode at 8 s. Also caps /api/sheet in tests. */
   syncTimeoutMs?: number;
 }
 
 export const SYNC_TIMEOUT_MS = 12_000;
+/** Client-side cap on /api/sheet; the server caps each Google call at 8 s and makes up to four (token, values, meta, write). */
+export const SHEET_TIMEOUT_MS = 40_000;
+export const SHEET_FAIL = "Couldn't reach Google. Try again.";
 
 export function sessionDeps(sb: SupabaseClient): SupabaseApiDeps {
   return {
@@ -71,6 +74,34 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
 
   const requestLaunch: DataApi['requestLaunch'] = (kind, payload) =>
     exec(sb.from('launch_requests').insert({ kind, payload }));
+
+  const queueWith = async (kind: 'outreach' | 'tailor_resume', i: { job_url: string; company?: string | null; role?: string | null }) => {
+    const o = await rows<Outreach>(sb.from('outreach')
+      .insert({ job_url: i.job_url, company: i.company ?? null, role: i.role ?? null }).select().single());
+    await requestLaunch(kind, { outreach_id: o.id, job_url: o.job_url });
+    return o;
+  };
+
+  /** Calls /api/sheet as the user. Resolves to [status, body]; throws Error(short message) on network/timeout/non-JSON. */
+  const sheetCall = async (init: { query?: string; body?: unknown }): Promise<[number, Record<string, unknown>]> => {
+    const token = await deps.accessToken();
+    if (!token) throw new Error('Signed out');
+    let res: Response;
+    try {
+      res = await doFetch(`/api/sheet${init.query ?? ''}`, {
+        method: init.body ? 'POST' : 'GET',
+        headers: { Authorization: `Bearer ${token}`, ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
+        body: init.body ? JSON.stringify(init.body) : undefined,
+        signal: AbortSignal.timeout(deps.syncTimeoutMs ?? SHEET_TIMEOUT_MS),
+      });
+    } catch {
+      throw new Error(SHEET_FAIL);
+    }
+    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body) throw new Error(SHEET_FAIL);
+    return [res.status, body];
+  };
+  const sheetError = (body: Record<string, unknown>) => new Error(typeof body.error === 'string' ? body.error : SHEET_FAIL);
 
   return {
     async getSettings() {
@@ -110,25 +141,38 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
         .order('position').order('id').range(a, b)),
     addIdea: (i) => exec(sb.from('ideas').insert({ ...i, status: 'todo', source: 'me' })),
     updateIdea: (id, patch) => exec(sb.from('ideas').update(patch).eq('id', id)),
-    listApplications: () =>
-      allPages<Application>((a, b) => sb.from('applications').select('id,company,role,track,term,location,status,stage,priority,applied_on')
-        .order('id').range(a, b)),
+    async listApplications() {
+      const cols = 'id,company,role,track,term,location,status,stage,priority,applied_on';
+      const page = (select: string) => allPages<Application>((a, b) => sb.from('applications').select(select).order('id').range(a, b));
+      try {
+        return await page(`${cols},sheet_row`);
+      } catch (e) {
+        // Before migration 0005 the column doesn't exist; the app still works without it.
+        if (e instanceof Error && /sheet_row.*(does not exist|schema cache)|column.*sheet_row/i.test(e.message)) return page(cols);
+        throw e;
+      }
+    },
     listPostings: (since) =>
       allPages<Posting>((a, b) => sb.from('postings').select('id,company,title,location,url,term,posted_at,tier,starred,status,found_at')
         .in('status', ['new', 'seen']).gte('found_at', since).order('found_at', { ascending: false }).order('id').range(a, b)),
     setPostingStatus: (id, status) => exec(sb.from('postings').update({ status }).eq('id', id)),
-    listOutreach: () =>
-      allPages<Outreach>((a, b) => sb.from('outreach').select('id,job_url,company,role,resume_path,status,sent_on,follow_up_on,created_at')
-        .order('created_at', { ascending: false }).order('id').range(a, b)),
+    async listOutreach() {
+      const cols = 'id,job_url,company,role,resume_path,status,sent_on,follow_up_on,created_at';
+      const page = (select: string) => allPages<Outreach>((a, b) => sb.from('outreach').select(select)
+        .order('created_at', { ascending: false }).order('id').range(a, b));
+      try {
+        return await page(`${cols},followups`);
+      } catch (e) {
+        // Before migration 0006 the column doesn't exist; every row reads as no follow-ups sent.
+        if (e instanceof Error && /followups.*(does not exist|schema cache)|column.*followups/i.test(e.message)) return (await page(cols)).map((o) => ({ ...o, followups: 0 }));
+        throw e;
+      }
+    },
     listContacts: () =>
       allPages<Contact>((a, b) => sb.from('contacts')
         .select('id,outreach_id,name,title,linkedin_url,email_guess,email_confidence,why,draft_subject,draft_body').order('id').range(a, b)),
-    async queueOutreach(i) {
-      const o = await rows<Outreach>(sb.from('outreach')
-        .insert({ job_url: i.job_url, company: i.company ?? null, role: i.role ?? null }).select().single());
-      await requestLaunch('outreach', { outreach_id: o.id, job_url: o.job_url });
-      return o;
-    },
+    queueOutreach: (i) => queueWith('outreach', i),
+    queueTailor: (i) => queueWith('tailor_resume', i),
     updateOutreach: (id, patch) => exec(sb.from('outreach').update(patch).eq('id', id)),
     requestLaunch,
     listLaunchRequests: () =>
@@ -182,6 +226,24 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
       const body = (await res.json().catch(() => null)) as { error?: string } | SyncResult | null;
       if (!res.ok) return { status: 'error', message: (body as { error?: string } | null)?.error ?? `HTTP ${res.status}` };
       return body as SyncResult;
+    },
+    async sheetStatuses() {
+      const [status, body] = await sheetCall({ query: '?op=statuses' });
+      if (status !== 200 || !Array.isArray(body.statuses)) throw sheetError(body);
+      return body.statuses.filter((s): s is string => typeof s === 'string');
+    },
+    async setApplicationStatus(app, status) {
+      const [code, body] = await sheetCall({ body: {
+        op: 'set_status', application_id: app.id, company: app.company, role: app.role,
+        ...(app.sheet_row ? { sheet_row: app.sheet_row } : {}), status,
+      } });
+      if (code !== 200) throw sheetError(body);
+    },
+    async markApplied(i) {
+      const [code, body] = await sheetCall({ body: { op: 'applied', ...i } });
+      if (code === 409 && body.duplicate === true) return { duplicate: true };
+      if (code !== 200) throw sheetError(body);
+      return {};
     },
   };
 }

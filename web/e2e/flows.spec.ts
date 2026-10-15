@@ -16,9 +16,35 @@ test('paste a job link and see it queued for the Mac', async ({ page }) => {
   await expect(card.getByText('Queued for Mac')).toBeVisible();
 });
 
+test('a due follow-up opens a mail draft, then moves on to a week out', async ({ page }) => {
+  await page.goto('/hunt/outreach');
+  const card = page.locator('section', { has: page.getByRole('heading', { name: 'Figma' }) });
+  await expect(card.getByText('Follow up today')).toBeVisible();
+  await expect(card.getByRole('link', { name: 'Open follow-up in Outlook: Priya Nair (Figma)' })).toHaveAttribute('href', /^mailto:pnair@figma\.com\?subject=Re%3A/);
+  await card.getByRole('button', { name: 'Follow-up sent: Figma' }).click();
+  await expect(card.getByText('Check back in 7 days')).toBeVisible();
+  await expect(card.getByRole('button', { name: /^Follow-up sent/ })).toHaveCount(0);
+});
+
+test('discard a drafted outreach and reopen it from Done', async ({ page }) => {
+  await page.goto('/hunt/outreach');
+  const card = page.locator('section', { has: page.getByRole('heading', { name: 'Stripe' }) });
+  await card.getByRole('button', { name: 'Discard: Stripe' }).click();
+  await page.getByText(/^Done \(/).click();
+  await page.getByRole('button', { name: 'Reopen: Stripe' }).click();
+  await expect(card.getByRole('button', { name: 'Sent' })).toBeVisible();
+});
+
 test('cold email from a posting lands on Outreach', async ({ page }) => {
   await page.goto('/hunt/jobs');
   await page.getByRole('button', { name: 'Cold email' }).first().click();
+  await expect(page).toHaveURL(/\/hunt\/outreach$/);
+  await expect(page.getByText('Queued for Mac').first()).toBeVisible();
+});
+
+test('Tailor resume queues and lands on Outreach', async ({ page }) => {
+  await page.goto('/hunt/jobs');
+  await page.getByRole('button', { name: 'Tailor resume' }).first().click();
   await expect(page).toHaveURL(/\/hunt\/outreach$/);
   await expect(page.getByText('Queued for Mac').first()).toBeVisible();
 });
@@ -38,10 +64,22 @@ test('Work on this queues a Mac launch', async ({ page }) => {
 });
 
 test('log a prep session', async ({ page }) => {
-  await page.goto('/grind/prep');
+  // Start on Today and move in-app: the demo data lives in memory, so a reload would reset it.
+  await page.goto('/');
+  const heat = page.getByRole('img', { name: /^Activity: \d+ of \d+ days active$/ });
+  const active = async () => Number((await heat.getAttribute('aria-label'))!.match(/^Activity: (\d+)/)![1]);
+  const before = await active();
+  await page.getByRole('link', { name: 'Grind', exact: true }).first().click();
+  await page.getByRole('link', { name: 'Prep', exact: true }).click();
   await page.getByLabel('Note (optional)').fill('Sliding window drills');
   await page.getByRole('button', { name: 'Log Study' }).click();
   await expect(page.getByText('Study · 30 min · Sliding window drills')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Today', exact: true }).first().click();
+  await expect(page.getByText(/DAY STREAK/i)).toBeVisible();
+  await expect(heat).toBeVisible();
+  // Today now has a prep session, so it counts as active (it may already have been).
+  expect(await active()).toBeGreaterThanOrEqual(Math.max(before, 1));
 });
 
 test('add an event and see it in Upcoming', async ({ page }) => {
@@ -58,13 +96,36 @@ test('share card renders', async ({ page }) => {
   await expect(canvas).toBeVisible();
   // Scan the day-number band for an orange pixel instead of probing one coordinate: a single point (540, 700)
   // can land between glyphs, while any orange pixel in the band proves the card was drawn.
-  const painted = await canvas.evaluate((c: HTMLCanvasElement) => {
+  await expect.poll(() => canvas.evaluate((c: HTMLCanvasElement) => {
     const { data } = c.getContext('2d')!.getImageData(0, 560, 1080, 200);
     for (let i = 0; i < data.length; i += 4) {
       if (data[i] > 200 && data[i + 1] > 60 && data[i + 1] < 170 && data[i + 2] < 90) return true;
     }
     return false;
-  });
-  expect(painted).toBe(true);
+  }), { timeout: 5000 }).toBe(true);
   await expect(page.getByRole('button', { name: 'Copy caption' })).toBeVisible();
+});
+
+test('I applied adds a posting to the Sheet (with duplicate confirm) and it leaves the inbox', async ({ page }) => {
+  await page.goto('/hunt/jobs');
+  const ramp = page.getByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' });
+  await ramp.click();
+  await expect(ramp).toHaveCount(0);
+  // Stripe's posting is already in the Sheet: confirm inline, then add anyway.
+  await page.getByRole('button', { name: 'I applied: Stripe Software Engineer Intern, Winter 2027' }).click();
+  await expect(page.getByText('Already in your Sheet. Add anyway?')).toBeVisible();
+  await page.getByRole('button', { name: 'Add Stripe anyway' }).click();
+  await expect(page.getByRole('button', { name: /^I applied: Stripe/ })).toHaveCount(0);
+  await page.goto('/hunt/apps');
+  await page.getByRole('searchbox', { name: 'Search' }).fill('New Grad');
+  await expect(page.getByText('Software Engineer, New Grad')).toBeVisible();
+});
+
+test('change an application status from the Status select', async ({ page }) => {
+  await page.goto('/hunt/apps');
+  await page.getByRole('searchbox', { name: 'Search' }).fill('Coinbase');
+  const select = page.getByRole('combobox', { name: 'Status for Coinbase Software Engineer Intern' });
+  await expect(select).toHaveValue('Rejected after OA');
+  await select.selectOption('Rejected after interview');
+  await expect(page.getByRole('combobox', { name: 'Status for Coinbase Software Engineer Intern' })).toHaveValue('Rejected after interview');
 });

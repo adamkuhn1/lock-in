@@ -15,9 +15,9 @@ describe('demo api', () => {
   });
   it('fixture sizes match the brief', async () => {
     const api = createDemoApi(NOW);
-    expect(await api.listApplications()).toHaveLength(20);
+    expect(await api.listApplications()).toHaveLength(21);
     expect(await api.listPostings('2000-01-01T00:00:00Z')).toHaveLength(8);
-    expect(await api.listOutreach()).toHaveLength(4);
+    expect(await api.listOutreach()).toHaveLength(5);
     expect((await api.listProjects()).map((p) => p.id)).toEqual(['27b', 'showboat', 'lego']);
     expect(await api.listTopics()).toHaveLength(18);
   });
@@ -45,6 +45,14 @@ describe('demo api', () => {
     const req = (await api.listLaunchRequests()).find((r) => r.payload.outreach_id === o.id)!;
     expect(req).toMatchObject({ kind: 'outreach', status: 'queued', payload: { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/1' } });
   });
+  it('queueTailor creates a queued outreach and a tailor_resume launch request', async () => {
+    const api = createDemoApi(NOW);
+    const o = await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/2', company: 'Acme', role: 'SWE' });
+    expect(o).toMatchObject({ status: 'queued', company: 'Acme', role: 'SWE', resume_path: null });
+    expect((await api.listOutreach())[0].id).toBe(o.id);
+    const req = (await api.listLaunchRequests()).find((r) => r.payload.outreach_id === o.id)!;
+    expect(req).toMatchObject({ kind: 'tailor_resume', status: 'queued', payload: { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/2' } });
+  });
   it('updates ideas, postings, outreach, settings and projects', async () => {
     const api = createDemoApi(NOW);
     await api.addIdea({ project_id: '27b', text: 'New thing', size: 'M', position: 9 });
@@ -70,6 +78,40 @@ describe('demo api', () => {
   });
   it('sync is a no-op in demo mode', async () => {
     expect(await createDemoApi(NOW).syncLeetCode()).toEqual({ status: 'skipped' });
+  });
+});
+
+describe('demo sheet writes', () => {
+  it('lists statuses including Rejected after OA', async () => {
+    const api = createDemoApi();
+    expect(await api.sheetStatuses()).toContain('Rejected after OA');
+  });
+  it('setApplicationStatus updates status and stage', async () => {
+    const api = createDemoApi();
+    const app = (await api.listApplications())[0];
+    await api.setApplicationStatus(app, 'Rejected after OA');
+    const after = (await api.listApplications()).find((a) => a.id === app.id)!;
+    expect([after.status, after.stage]).toEqual(['Rejected after OA', 'closed']);
+  });
+  it('markApplied adds an application, marks the posting applied, and guards duplicates', async () => {
+    const api = createDemoApi();
+    const before = (await api.listApplications()).length;
+    const known = new Set((await api.listApplications()).map((a) => `${a.company}|${a.role}`));
+    const p = (await api.listPostings('1970-01-01')).find((x) => !known.has(`${x.company}|${x.title}`))!;
+    expect(await api.markApplied({ posting_id: p.id })).toEqual({});
+    const apps = await api.listApplications();
+    expect(apps).toHaveLength(before + 1);
+    expect(apps.at(-1)).toMatchObject({ company: p.company, role: p.title, status: 'Applied', stage: 'applied', priority: 'Unranked' });
+    expect((await api.listPostings('1970-01-01')).some((x) => x.id === p.id)).toBe(false);
+    expect(await api.markApplied({ posting_id: p.id })).toEqual({ duplicate: true });
+    expect(await api.markApplied({ posting_id: p.id, force: true })).toEqual({});
+    expect(await api.listApplications()).toHaveLength(before + 2);
+  });
+  it('markApplied from an outreach row uses its company and role', async () => {
+    const api = createDemoApi();
+    const o = (await api.listOutreach()).find((x) => x.company === 'Palantir')!;
+    expect(await api.markApplied({ outreach_id: o.id })).toEqual({});
+    expect((await api.listApplications()).at(-1)).toMatchObject({ company: 'Palantir', role: o.role });
   });
 });
 

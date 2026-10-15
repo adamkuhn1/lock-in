@@ -131,7 +131,7 @@ export default function Calendar() {
                 const its = byDay.get(d) ?? [];
                 const k = dotKind(its);
                 return (
-                  <button key={j} type="button" data-day={d} className={d === day ? 'month-day is-today' : 'month-day'} aria-pressed={picked === d}
+                  <button key={j} type="button" data-day={d} className={d === day ? 'month-day is-today' : 'month-day'} aria-current={d === day ? 'date' : undefined} aria-pressed={picked === d}
                     aria-label={`${shortDate(d)}${its.length ? `, ${its.length} ${its.length === 1 ? 'item' : 'items'}` : ''}`}
                     onClick={() => setPicked(picked === d ? null : d)}>
                     <span>{Number(d.slice(8))}</span>{k && <i className={`cal-dot k-${k}`} aria-hidden="true" />}

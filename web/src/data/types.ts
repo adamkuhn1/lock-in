@@ -4,10 +4,10 @@ export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type Level = 'locked' | 'available' | 'learning' | 'practicing' | 'solid' | 'mastered';
 export type Stage = 'applied' | 'oa' | 'interview' | 'offer' | 'closed' | 'other';
 export type IdeaStatus = 'todo' | 'today' | 'in_progress' | 'done' | 'dropped';
-export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach';
+export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach' | 'applied';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {
@@ -96,7 +96,10 @@ export interface Application {
   stage: Stage;
   priority: string | null;
   applied_on: string | null;
+  /** 1-based row in the Sheet, set by the worker's sync (null/absent until then). */
+  sheet_row?: number | null;
 }
+export interface MarkAppliedInput { posting_id?: string; outreach_id?: string; force?: boolean }
 export interface Posting {
   id: string;
   company: string;
@@ -119,9 +122,11 @@ export interface Outreach {
   status: OutreachStatus;
   sent_on: string | null;
   follow_up_on: string | null;
+  /** Follow-ups sent so far (migration 0006; reads as 0 before it is applied). */
+  followups: number;
   created_at: string;
 }
-export type OutreachPatch = Partial<Pick<Outreach, 'status' | 'sent_on' | 'follow_up_on'>>;
+export type OutreachPatch = Partial<Pick<Outreach, 'status' | 'sent_on' | 'follow_up_on' | 'followups'>>;
 export interface Contact {
   id: string;
   outreach_id: string;

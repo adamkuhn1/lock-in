@@ -63,7 +63,7 @@ def map_rows(values: list[list[str]]) -> list[dict]:
         if key and key not in cols:
             cols[key] = j
     out = []
-    for row in values[header_i + 1:]:
+    for i, row in enumerate(values[header_i + 1:], start=header_i + 2):
         get = lambda k: (row[cols[k]].strip() or None) if k in cols and cols[k] < len(row) else None
         company = get("company")
         if not company:
@@ -72,6 +72,8 @@ def map_rows(values: list[list[str]]) -> list[dict]:
         rec["applied_on"] = _date(get("applied_on"))
         rec["stage"] = status_stage(rec["status"])
         rec["row_hash"] = hashlib.sha1("\x1f".join(str(c) for c in row).encode()).hexdigest()
+        # 1-based Sheet row (RANGE starts at A1); not part of row_hash, so a moved row keeps its hash.
+        rec["sheet_row"] = i
         out.append(rec)
     return out
 

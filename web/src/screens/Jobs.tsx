@@ -1,15 +1,17 @@
-import { ExternalLink as ExternalIcon, Mail } from 'lucide-react';
+import { ExternalLink as ExternalIcon, FileText, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useNow, usePostings, useQueueOutreach, useSetPostingStatus } from '../data/hooks';
+import { useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useSetPostingStatus } from '../data/hooks';
 import type { Posting, PostingStatus } from '../data/types';
 import { NO_FILTERS, filterPostings, sortPostings, termsOf, topLocations, type JobFilters } from '../lib/jobs';
 import { relativeTime } from '../lib/time';
 import { safeHref } from '../lib/url';
+import { IApplied } from '../ui/IApplied';
 import { Button, Card, CardHead, Chip, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
-function JobRow({ p, now, busy, onOpen, onCold, onDismiss }: {
-  p: Posting; now: Date; busy: boolean; onOpen?: () => void; onCold: (href: string) => void; onDismiss: () => void;
+function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss }: {
+  p: Posting; now: Date; busy: boolean; queued: boolean; onOpen?: () => void;
+  onCold: (href: string) => void; onTailor: (href: string) => void; onDismiss: () => void;
 }) {
   const href = safeHref(p.url);
   const meta = [p.location, p.term, relativeTime(p.posted_at ?? p.found_at, now)].filter(Boolean).join(' · ');
@@ -24,8 +26,11 @@ function JobRow({ p, now, busy, onOpen, onCold, onDismiss }: {
         {!href && p.url && <p className="muted small">Link: {p.url}</p>}
       </div>
       <div className="row-actions">
-        <Button className="job-cold" disabled={!href || busy} onClick={() => { if (href) onCold(href); }}><Mail size={18} aria-hidden />Cold email</Button>
+        <Button className="job-cold" disabled={!href || busy || queued} onClick={() => { if (href) onCold(href); }}><Mail size={18} aria-hidden />Cold email</Button>
+        <Button className="job-tailor" disabled={!href || busy || queued} onClick={() => { if (href) onTailor(href); }}><FileText size={18} aria-hidden />Tailor resume</Button>
         {href && <ExternalLink className="btn" href={href} onClick={onOpen}><ExternalIcon size={16} aria-hidden />Open</ExternalLink>}
+        <IApplied input={{ posting_id: p.id }} company={p.company} role={p.title} applied={p.status === 'applied'} />
+        {queued && <span className="muted small">Already queued</span>}
         <Button variant="muted" aria-label={`Dismiss ${p.company} ${p.title}`} onClick={onDismiss}>Dismiss</Button>
       </div>
     </li>
@@ -37,6 +42,8 @@ export default function Jobs() {
   const postings = usePostings();
   const setStatus = useSetPostingStatus();
   const queue = useQueueOutreach();
+  const tailor = useQueueTailor();
+  const outreach = useOutreach();
   const navigate = useNavigate();
   const [f, setF] = useState<JobFilters>(NO_FILTERS);
   const [dismissed, setDismissed] = useState<{ p: Posting; prev: PostingStatus } | null>(null);
@@ -51,9 +58,10 @@ export default function Jobs() {
   const toggle = <K extends keyof JobFilters>(k: K, v: JobFilters[K]) => setF({ ...f, [k]: f[k] === v ? NO_FILTERS[k] : v });
 
   // Wait for the posting to leave the inbox before navigating, so coming back can't queue a second outreach for it.
-  const coldEmail = async (p: Posting, href: string) => {
+  const queuedUrls = new Set((outreach.data ?? []).filter((o) => o.status === 'queued').map((o) => o.job_url));
+  const startOutreach = async (p: Posting, href: string, mode: 'cold' | 'tailor') => {
     try {
-      await queue.mutateAsync({ job_url: href, company: p.company, role: p.title });
+      await (mode === 'tailor' ? tailor : queue).mutateAsync({ job_url: href, company: p.company, role: p.title });
       await setStatus.mutateAsync({ id: p.id, status: 'outreach' });
       navigate('/hunt/outreach');
     } catch {
@@ -67,9 +75,11 @@ export default function Jobs() {
     setStatus.mutate({ id: dismissed.p.id, status: dismissed.prev }, { onSuccess: () => setDismissed(null) });
   };
   const row = (p: Posting, markSeen: boolean) => (
-    <JobRow key={p.id} p={p} now={now} busy={queue.isPending || setStatus.isPending}
+    <JobRow key={p.id} p={p} now={now} busy={queue.isPending || tailor.isPending || setStatus.isPending}
+      queued={!!p.url && queuedUrls.has(safeHref(p.url) ?? p.url)}
       onOpen={markSeen ? () => setStatus.mutate({ id: p.id, status: 'seen' }) : undefined}
-      onCold={(href) => void coldEmail(p, href)}
+      onCold={(href) => void startOutreach(p, href, 'cold')}
+      onTailor={(href) => void startOutreach(p, href, 'tailor')}
       onDismiss={() => dismiss(p)} />
   );
 
@@ -94,7 +104,7 @@ export default function Jobs() {
         </Disclosure>
       )}
 
-      {(queue.isError || setStatus.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
+      {(queue.isError || tailor.isError || setStatus.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
       <div role="status" className="undo">
         {dismissed && (<>
           <span className="small">Dismissed {dismissed.p.company}</span>

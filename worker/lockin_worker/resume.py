@@ -80,11 +80,25 @@ def _exists(path: Path) -> bool:
         return False  # e.g. PermissionError (macOS TCC) is not swallowed by Path.exists
 
 
-def ensure_local(path: Path, run=subprocess.run, sleep=time.sleep,
-                 wait: float = 15.0, interval: float = 0.5) -> bool:
-    """Best-effort `brctl download`, then poll: brctl returns before the file lands."""
+SF_DATALESS = 0x40000000  # macOS: iCloud-evicted file; it exists but reads fail with EDEADLK
+STAT = os.stat  # injectable for tests
+
+
+def is_dataless(path: Path, stat=None) -> bool:
     try:
-        if path.exists():
+        st = (stat or STAT)(path)
+    except OSError:
+        return False
+    return bool(getattr(st, "st_flags", 0) & SF_DATALESS)
+
+
+def ensure_local(path: Path, run=subprocess.run, sleep=time.sleep,
+                 wait: float = 15.0, interval: float = 0.5, force: bool = False, stat=None) -> bool:
+    """Best-effort `brctl download`, then poll: brctl returns before the file lands.
+
+    Downloads when the file is missing (placeholder), dataless, or `force` is set."""
+    try:
+        if path.exists() and not force and not is_dataless(path, stat):
             return True
     except PermissionError:
         return False  # macOS TCC denial: brctl and polling can't fix it
@@ -93,12 +107,16 @@ def ensure_local(path: Path, run=subprocess.run, sleep=time.sleep,
     try:
         run(["brctl", "download", str(path)], capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
-        return _exists(path)  # brctl missing or timed out: nothing to wait for
+        return _ready(path, stat)  # brctl missing or timed out: nothing to wait for
     for _ in range(int(wait / interval)):
-        if _exists(path):
+        if _ready(path, stat):
             return True
         sleep(interval)
-    return _exists(path)
+    return _ready(path, stat)
+
+
+def _ready(path: Path, stat=None) -> bool:
+    return _exists(path) and not is_dataless(path, stat)
 
 
 @dataclass(frozen=True)

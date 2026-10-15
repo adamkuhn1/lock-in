@@ -1,7 +1,15 @@
 import { AlreadyCountedError, type DataApi } from './api';
 import { createFixtures } from './fixtures';
 import { canRate } from './supabase';
-import type { Idea, Outreach } from './types';
+import { statusStage } from '../lib/stages';
+import { localDay } from '../lib/time';
+import type { Idea, LaunchKind, Outreach } from './types';
+
+/** Stand-in for the Sheet's Status dropdown in demo mode. */
+export const DEMO_STATUSES = [
+  'Not applied yet', 'Applied', 'Submitted', 'OA invited', 'OA - HackerRank', 'Interview - R1', 'Final round', 'Offer received',
+  'Rejected', 'Rejected after OA', 'Rejected after interview', 'No response',
+];
 
 export { demoAuth } from './auth';
 
@@ -11,6 +19,15 @@ export function createDemoApi(now: Date = new Date()): DataApi {
   let seq = 1;
   const newId = (prefix: string) => `${prefix}-demo-${seq++}`;
   const stamp = () => new Date().toISOString();
+  const queueWith = async (kind: LaunchKind, i: { job_url: string; company?: string | null; role?: string | null }) => {
+    const o: Outreach = {
+      id: newId('out'), job_url: i.job_url, company: i.company ?? null, role: i.role ?? null, resume_path: null,
+      status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: stamp(),
+    };
+    db.outreach.unshift(o);
+    db.launchRequests.unshift({ id: newId('req'), kind, payload: { outreach_id: o.id, job_url: o.job_url }, status: 'queued', error: null, created_at: o.created_at });
+    return structuredClone(o);
+  };
 
   return {
     getSettings: () => copy(db.settings),
@@ -51,15 +68,8 @@ export function createDemoApi(now: Date = new Date()): DataApi {
     },
     listOutreach: () => copy(db.outreach),
     listContacts: () => copy(db.contacts),
-    async queueOutreach(i) {
-      const o: Outreach = {
-        id: newId('out'), job_url: i.job_url, company: i.company ?? null, role: i.role ?? null, resume_path: null,
-        status: 'queued', sent_on: null, follow_up_on: null, created_at: stamp(),
-      };
-      db.outreach.unshift(o);
-      db.launchRequests.unshift({ id: newId('req'), kind: 'outreach', payload: { outreach_id: o.id, job_url: o.job_url }, status: 'queued', error: null, created_at: o.created_at });
-      return structuredClone(o);
-    },
+    queueOutreach: (i) => queueWith('outreach', i),
+    queueTailor: (i) => queueWith('tailor_resume', i),
     async updateOutreach(id, patch) {
       const o = db.outreach.find((x) => x.id === id);
       if (o) Object.assign(o, patch);
@@ -70,6 +80,28 @@ export function createDemoApi(now: Date = new Date()): DataApi {
     listLaunchRequests: () => copy(db.launchRequests),
     listSyncStatus: () => copy(db.syncStatus),
     syncLeetCode: async () => ({ status: 'skipped' }),
+    sheetStatuses: () => copy(DEMO_STATUSES),
+    async setApplicationStatus(app, status) {
+      const a = db.applications.find((x) => x.id === app.id);
+      if (!a) throw new Error("Couldn't find that row in your Sheet; it may have moved. Refresh and try again.");
+      if (!DEMO_STATUSES.includes(status)) throw new Error("That status isn't in your Sheet's Status dropdown. Add it there first.");
+      Object.assign(a, { status, stage: statusStage(status) });
+    },
+    async markApplied({ posting_id, outreach_id, force }) {
+      const p = posting_id ? db.postings.find((x) => x.id === posting_id) : undefined;
+      const o = outreach_id ? db.outreach.find((x) => x.id === outreach_id) : undefined;
+      const company = p?.company ?? o?.company;
+      const role = p?.title ?? o?.role ?? null;
+      if (!company) throw new Error("Couldn't find that job.");
+      const key = (s: string | null) => (s ?? '').trim().toLowerCase();
+      if (!force && db.applications.some((a) => key(a.company) === key(company) && key(a.role) === key(role))) return { duplicate: true };
+      db.applications.push({
+        id: Math.max(0, ...db.applications.map((a) => a.id)) + 1, company, role, track: null, term: p?.term ?? null,
+        location: p?.location ?? null, status: 'Applied', stage: 'applied', priority: 'Unranked', applied_on: localDay(new Date()), sheet_row: null,
+      });
+      if (p) p.status = 'applied';
+      return {};
+    },
     async updateProject(id, patch) { const p = db.projects.find((x) => x.id === id); if (p) Object.assign(p, patch); },
     listStories: () => copy([...db.stories].sort((a, b) => a.created_at.localeCompare(b.created_at))),
     async addStory(s) { db.stories.push({ ...s, id: newId('story'), last_practiced_on: null, created_at: stamp() }); },

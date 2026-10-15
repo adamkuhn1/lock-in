@@ -16,7 +16,7 @@ export default function Today() {
     <div className="screen today">
       <header className="today-head" data-primary>
         <p className="label today-line">
-          {s.dateLine}{s.streak > 0 && <> · <span className="streak-chip">🔥 {s.streak} day streak</span></>}
+          {s.dateLine}{s.streak > 0 && <> · <span className="streak-chip"><span aria-hidden="true">🔥</span> {s.streak} day streak</span></>}
         </p>
         <h1 className="day-n" aria-label={`Day ${s.n}`}>Day <span>{shown}</span></h1>
       </header>

@@ -191,3 +191,49 @@ def test_ensure_local_permission_error_returns_false_without_brctl(monkeypatch):
     def sleep(_):
         raise AssertionError("must not poll")
     assert resume.ensure_local(Path("/x/y.pdf"), run, sleep) is False
+
+
+# --- iCloud dataless (evicted but still present) ---------------------------------------------
+
+class FakeStat:
+    def __init__(self, flags):
+        self.st_flags = flags
+
+
+def test_is_dataless_reads_flag_and_is_safe_without_st_flags(tmp_path):
+    f = tmp_path / "a.pdf"
+    f.write_bytes(b"x")
+    assert resume.is_dataless(f, stat=lambda p: FakeStat(0x40000000)) is True
+    assert resume.is_dataless(f, stat=lambda p: FakeStat(0)) is False
+    assert resume.is_dataless(f, stat=lambda p: object()) is False  # Linux: no st_flags
+    assert resume.is_dataless(tmp_path / "missing.pdf") is False
+
+
+def test_ensure_local_downloads_dataless_file(tmp_path):
+    f = tmp_path / "a.pdf"
+    f.write_bytes(b"x")
+    state, calls = {"flags": 0x40000000}, []
+
+    def run(cmd, **kw):
+        calls.append(cmd)
+        state["flags"] = 0
+
+    assert resume.ensure_local(f, run, nosleep, stat=lambda p: FakeStat(state["flags"])) is True
+    assert calls == [["brctl", "download", str(f)]]
+
+
+def test_ensure_local_dataless_that_never_lands_returns_false(tmp_path):
+    f = tmp_path / "a.pdf"
+    f.write_bytes(b"x")
+    assert resume.ensure_local(f, ok_run, nosleep, wait=2, interval=0.5,
+                               stat=lambda p: FakeStat(0x40000000)) is False
+
+
+def test_ensure_local_skips_brctl_for_local_file_unless_forced(tmp_path):
+    f = tmp_path / "a.pdf"
+    f.write_bytes(b"x")
+    calls = []
+    run = lambda cmd, **kw: calls.append(cmd)
+    assert resume.ensure_local(f, run, nosleep, stat=lambda p: FakeStat(0)) is True and calls == []
+    assert resume.ensure_local(f, run, nosleep, force=True, stat=lambda p: FakeStat(0)) is True
+    assert calls == [["brctl", "download", str(f)]]

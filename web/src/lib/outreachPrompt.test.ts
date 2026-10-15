@@ -4,7 +4,7 @@ import { copyPrompt } from './outreachPrompt';
 
 const o: Outreach = {
   id: 'o-123', job_url: 'https://jobs.lever.co/acme/1?a=1&b=2', company: null, role: null, resume_path: null,
-  status: 'queued', sent_on: null, follow_up_on: null, created_at: '2026-10-14T12:00:00Z',
+  status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: '2026-10-14T12:00:00Z',
 };
 
 describe('copyPrompt', () => {

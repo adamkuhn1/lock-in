@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { FunnelRow, FunnelStage } from '../lib/funnel';
+import { fmtPct, type FunnelRow, type FunnelStage } from '../lib/funnel';
 
 export function StatTile({ label, value, children }: { label: string; value: ReactNode; children?: ReactNode }) {
   return (
@@ -12,16 +12,20 @@ export function StatTile({ label, value, children }: { label: string; value: Rea
 
 const FUNNEL_LABEL: Record<FunnelStage, string> = { applied: 'Applications', oa: 'Online assessments', interview: 'Interviews', offer: 'Offers' };
 
+/** "2 active · 1 rejected · 67% passed" */
+export const funnelDetail = (r: FunnelRow) => `${r.active} active · ${r.rejected} rejected · ${fmtPct(r.passRate)} passed`;
+
 export function FunnelTile({ row }: { row: FunnelRow }) {
-  const rate = row.pct === null ? null : Math.round(row.pct);
-  const ref = row.refPct === null ? null : Math.round(row.refPct);
   const beats = row.pct !== null && row.refPct !== null && row.pct >= row.refPct;
   return (
     <StatTile label={FUNNEL_LABEL[row.stage]} value={row.count}>
       {row.stage !== 'applied' && (
         <span className={beats ? 'stat-rate beats' : 'stat-rate'}>
-          <span>{rate === null ? '—' : `${rate}%`}</span> <span className="muted">vs {ref}%</span>
+          <span>{fmtPct(row.pct)}</span> <span className="muted">vs {fmtPct(row.refPct)}</span>
         </span>
+      )}
+      {(row.stage === 'oa' || row.stage === 'interview') && (
+        <span className="muted small stat-sub">{funnelDetail(row)}</span>
       )}
     </StatTile>
   );

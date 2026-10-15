@@ -4,7 +4,7 @@ import type { DataApi } from './api';
 import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
-  CompanyPrepInput, Idea, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  Application, CompanyPrepInput, Idea, MarkAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
   PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
@@ -32,6 +32,7 @@ export const keys = {
   prepProgress: ['prepProgress'],
   companyPrep: ['companyPrep'],
   events: ['events'],
+  sheetStatuses: ['sheetStatuses'],
 } as const;
 
 const HOUR = 3_600_000;
@@ -79,7 +80,7 @@ export const useLaunchRequests = () => {
 };
 export const useSyncStatus = () => { const api = useApi(); return useQuery({ queryKey: keys.syncStatus, queryFn: () => api.listSyncStatus() }); };
 
-function useApiMutation<V>(fn: (api: DataApi, v: V) => Promise<unknown>, invalidate: QueryKey[]) {
+function useApiMutation<V, R = unknown>(fn: (api: DataApi, v: V) => Promise<R>, invalidate: QueryKey[]) {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
@@ -122,6 +123,9 @@ export const useSetPostingStatus = () =>
   useApiMutation((api, v: { id: string; status: PostingStatus }) => api.setPostingStatus(v.id, v.status), [keys.postings]);
 export const useQueueOutreach = () =>
   useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null }) => api.queueOutreach(v),
+    [keys.outreach, keys.launchRequests]);
+export const useQueueTailor = () =>
+  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null }) => api.queueTailor(v),
     [keys.outreach, keys.launchRequests]);
 export const useUpdateOutreach = () =>
   useApiMutation((api, v: { id: string; patch: OutreachPatch }) => api.updateOutreach(v.id, v.patch), [keys.outreach]);
@@ -201,7 +205,12 @@ export function useWorkOnIdea() {
   const m = useMutation({
     mutationFn: async (idea: Pick<Idea, 'id' | 'status'>) => {
       await api.updateIdea(idea.id, { status: 'in_progress', started_at: new Date().toISOString() });
-      await api.requestLaunch('work_on_idea', { idea_id: idea.id, prev_status: idea.status });
+      try {
+        await api.requestLaunch('work_on_idea', { idea_id: idea.id, prev_status: idea.status });
+      } catch (e) {
+        await api.updateIdea(idea.id, { status: idea.status, started_at: null }); // nothing queued: undo the start
+        throw e;
+      }
     },
     onSettled: async (_d, _e, idea) => {
       try {
@@ -219,3 +228,34 @@ export function useWorkOnIdea() {
   };
   return { ...m, mutate };
 }
+
+/** The Sheet's Status dropdown options, fetched once per screen visit. */
+export const useSheetStatuses = () => {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.sheetStatuses, queryFn: () => api.sheetStatuses(),
+    refetchOnMount: 'always', refetchOnWindowFocus: false, retry: false,
+  });
+};
+
+/** Writes Status to the Sheet. Optimistic on the applications list; reverts on error. */
+export function useSetApplicationStatus() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { app: Application; status: string }) => api.setApplicationStatus(v.app, v.status),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: keys.applications });
+      const prev = qc.getQueryData<Application[]>(keys.applications);
+      qc.setQueryData<Application[]>(keys.applications, (list) => list?.map((a) => (a.id === v.app.id ? { ...a, status: v.status } : a)));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(keys.applications, ctx.prev); },
+    // Also after errors: a client timeout can land after the Sheet write succeeded.
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.applications }),
+  });
+}
+
+/** "I applied": appends to the Sheet. Resolves {duplicate: true} when the job is already there (nothing written). */
+export const useMarkApplied = () =>
+  useApiMutation((api, v: MarkAppliedInput) => api.markApplied(v), [keys.applications, keys.postings, keys.outreach]);

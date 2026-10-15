@@ -21,6 +21,10 @@ export default function Share() {
   const [showFunnel, setShowFunnel] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  // The PNG is rendered after each draw, so share() can call navigator.share without awaiting
+  // anything first (iOS Safari drops the user gesture across an await).
+  const png = useRef<{ blob: Blob; file: File } | null>(null);
+  const [ready, setReady] = useState(false);
   const data = useMemo(() => (stats ? toCardData(stats, showFunnel) : null), [stats, showFunnel]);
   const key = data ? JSON.stringify(data) : '';
 
@@ -28,8 +32,21 @@ export default function Share() {
     if (!data || !canvas.current) return;
     let alive = true;
     const ctx = canvas.current.getContext('2d');
+    png.current = null;
+    setReady(false);
     if (!ctx) { setErr(FAIL); return; }
-    void loadFonts().then(() => { if (alive) { drawCard(ctx, data); setErr(null); } });
+    const c = canvas.current;
+    void loadFonts().then(() => {
+      if (!alive) return;
+      drawCard(ctx, data);
+      setErr(null);
+      c.toBlob((blob) => {
+        if (!alive) return;
+        if (!blob) { setErr(FAIL); return; }
+        png.current = { blob, file: new File([blob], `lock-in-day-${data.day}.png`, { type: 'image/png' }) };
+        setReady(true);
+      }, 'image/png');
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` captures `data` by value
   }, [key]);
@@ -37,23 +54,24 @@ export default function Share() {
   if (state === 'loading') return <Skeleton label="Loading card" />;
   if (state === 'error' || !stats || !data) return <LoadError what="today" onRetry={retry} />;
 
-  const share = async () => {
-    const c = canvas.current;
-    if (!c) return;
-    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/png'));
-    if (!blob) { setErr(FAIL); return; }
-    const name = `lock-in-day-${data.day}.png`;
-    const file = new File([blob], name, { type: 'image/png' });
-    if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], text: caption(data) }); } catch { /* cancelled */ }
+  const share = () => {
+    const p = png.current;
+    if (!p) return;
+    if (navigator.canShare?.({ files: [p.file] })) {
+      navigator.share({ files: [p.file], text: caption(data) }).catch((e: unknown) => {
+        if ((e as { name?: string } | null)?.name !== 'AbortError') setErr(FAIL);
+      });
       return;
     }
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(p.blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = name;
+    a.download = p.file.name;
+    document.body.appendChild(a);
     a.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    a.remove();
+    // Safari/iOS can cancel the download if the URL is revoked right after click(), so wait.
+    window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
   };
 
   return (
@@ -69,7 +87,7 @@ export default function Share() {
           <span>Show funnel</span>
         </label>
         <div className="row-actions">
-          <Button variant="primary" onClick={() => void share()}><Share2 size={18} aria-hidden />Share image</Button>
+          <Button variant="primary" disabled={!ready} onClick={share}><Share2 size={18} aria-hidden />Share image</Button>
           <CopyButton text={caption(data)} label="Copy caption" variant="ghost" />
         </div>
         <p className="muted small share-caption">{caption(data)}</p>

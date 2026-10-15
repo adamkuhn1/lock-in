@@ -11,7 +11,9 @@ function AuthGate({ auth, children }: { auth: AuthApi; children: ReactNode }) {
   const [state, setState] = useState<'loading' | 'in' | 'out'>('loading');
   useEffect(() => {
     let alive = true;
-    void auth.hasSession().then((ok) => alive && setState(ok ? 'in' : 'out'));
+    // A rejected check means the network failed, not that the user signed out: keep the app up from the cached session.
+    // Only a real "no session" answer or a SIGNED_OUT event shows sign-in.
+    void auth.hasSession().then((ok) => alive && setState(ok ? 'in' : 'out'), () => alive && setState('in'));
     const off = auth.onChange((ok) => setState(ok ? 'in' : 'out'));
     return () => { alive = false; off(); };
   }, [auth]);

@@ -22,7 +22,7 @@ describe('deploy config', () => {
     expect(re.test('/api/sync-leetcode')).toBe(false);
   });
   it('api/ holds only deployable functions (no tests)', () => {
-    expect(readdirSync(join(WEB, 'api'))).toEqual(['sync-leetcode.ts']);
+    expect(readdirSync(join(WEB, 'api')).sort()).toEqual(['sheet.ts', 'sync-leetcode.ts']);
   });
   it('no service-role key is referenced from browser code', () => {
     const hits = files(join(WEB, 'src')).filter((f) => /service_role|SERVICE_KEY/i.test(readFileSync(f, 'utf8')));

@@ -4,7 +4,7 @@ import { addMonths, calendarItems, countdown, dotKind, groupByWeek, monthGrid, u
 
 const ev = (p: Partial<CalEvent>): CalEvent => ({ id: 'e', title: 't', kind: 'other', on_date: '2026-10-14', at_time: null, company: null, url: null, created_at: '', ...p });
 const prep = (p: Partial<CompanyPrep>): CompanyPrep => ({ id: 'c', company: 'Figma', notes: '', links: '', interview_on: null, created_at: '', ...p });
-const out = (p: Partial<Outreach>): Outreach => ({ id: 'o', job_url: '', company: 'Ramp', role: null, resume_path: null, status: 'sent', sent_on: null, follow_up_on: null, created_at: '', ...p });
+const out = (p: Partial<Outreach>): Outreach => ({ id: 'o', job_url: '', company: 'Ramp', role: null, resume_path: null, status: 'sent', sent_on: null, follow_up_on: null, followups: 0, created_at: '', ...p });
 const T = '2026-10-14'; // Wednesday
 
 describe('calendar', () => {

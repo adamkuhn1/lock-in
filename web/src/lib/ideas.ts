@@ -22,8 +22,9 @@ export function moveIdea(list: Idea[], id: string, dir: -1 | 1): { id: string; p
 
 export const nextPosition = (list: Idea[]) => list.reduce((m, i) => Math.max(m, i.position + 1), 0);
 
+/** Today's idea: picked for `day`, whether still waiting, started with Work on this, or done. */
 export function todaysIdea(ideas: Idea[], day: string): Idea | null {
-  return ideas.find((i) => i.today_on === day && (i.status === 'today' || i.status === 'done')) ?? null;
+  return ideas.find((i) => i.today_on === day && (i.status === 'today' || i.status === 'in_progress' || i.status === 'done')) ?? null;
 }
 
 export function swapCandidate(ideas: Idea[], current: Idea): Idea | null {

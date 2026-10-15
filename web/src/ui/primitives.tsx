@@ -1,12 +1,12 @@
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import type { Difficulty } from '../data/types';
 import { shortError } from '../lib/errors';
 import { safeHref } from '../lib/url';
 
 type Variant = 'primary' | 'ghost' | 'quiet' | 'danger' | 'muted';
 
-export function Button({ variant = 'ghost', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+export function Button({ variant = 'ghost', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; ref?: Ref<HTMLButtonElement> }) {
   return <button type="button" className={`btn btn-${variant} ${className}`.trim()} {...props} />;
 }
 

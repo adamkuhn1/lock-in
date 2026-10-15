@@ -16,6 +16,15 @@ describe('Calendar', () => {
     expect(within(primary).getByRole('link', { name: /^Interview in 3 days: mock \+ company notes/ })).toHaveAttribute('href', '/grind/prep');
   });
 
+  it("marks today's day with aria-current=date", async () => {
+    const { container } = renderWithData(<Calendar />);
+    await screen.findByRole('region', { name: 'Upcoming' });
+    const today = container.querySelector(`.month-day[data-day="${day}"]`);
+    expect(today).toHaveAttribute('aria-current', 'date');
+    expect(today).toHaveClass('is-today');
+    expect(container.querySelectorAll('.month-day[aria-current]')).toHaveLength(1);
+  });
+
   it('Upcoming merges events, interviews and follow-ups by week with countdowns', async () => {
     renderWithData(<Calendar />);
     const up = await screen.findByRole('region', { name: 'Upcoming' });

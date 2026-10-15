@@ -23,6 +23,21 @@ title:
     - '\bprincipal\b'
     - '\bmanager\b'
     - '\bph\.?d\b'
+
+    # --- Bachelor's students only: drop advanced-degree roles ---
+    # Never a bare "master" (Scrum Master, Master Data Engineer stay allowed).
+    - '🎓'                                   # Simplify's "advanced degree required" marker
+    # Titles that also welcome bachelor's candidates ("Bachelor's or Master's") stay allowed.
+    - '^(?!.*\bbachelor).*\bmaster[''’]?s\b'  # Master's / Masters / Master’s (needs the s)
+    - '^(?!.*\bbachelor).*\bmasters?\s+(degree|student|program)'  # "Master degree", "Masters program"
+    - '^(?!.*\bbachelor).*\bmaster of (science|engineering)\b'
+    - '^(?!.*\bbachelor).*\bdoctorate\b'
+    - '^(?!.*\bbachelor).*\bpost-?grad(uate)?\b'
+    - '\bms\s*/\s*ph\.?d\b'                # MS/PhD (also caught by the PhD rule)
+    - '\bm\.?s\.?\s*/\s*ph'                 # M.S./PhD variants; never plain "ms"
+    - '\bgraduate student'                  # grad-student researcher roles
+    - '\bdoctoral\b'
+    - '\bpost-?doc'                          # postdoc / post-doctoral / postdoctoral
     - '\bsr\b\.?'
 
     # --- No Summer 2027 internships ---

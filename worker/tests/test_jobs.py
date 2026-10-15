@@ -74,6 +74,19 @@ def test_existing_posting_not_reset_to_new():
     jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
     assert [r["status"] for r in db.select("postings")] == ["dismissed"]
 
+def test_applied_posting_kept_as_is():
+    db = MemoryDB()
+    board = {"greenhouse:stripe": [], "ashby:ramp": []}
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
+    board["greenhouse:stripe"] = [J(1)]
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
+    db.update("postings", {}, {"status": "applied"})
+    st = db.select("worker_state")[0]["value"]
+    st["sources"]["greenhouse:stripe"]["seen"].clear()
+    db.update("worker_state", {"key": "jobs"}, {"value": st})
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
+    assert [r["status"] for r in db.select("postings")] == ["applied"]
+
 def test_unsafe_url_stored_as_none():
     db = MemoryDB()
     board = {"greenhouse:stripe": [], "ashby:ramp": []}

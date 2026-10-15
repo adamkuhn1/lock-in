@@ -27,7 +27,8 @@ def test_map_rows_real_layout():
     rows = sheet.map_rows(values)
     assert rows == [{"company": "Greenboard", "role": "Software Engineer - 2027 Grads", "track": "New grad",
                      "term": "2027", "location": None, "status": "Submitted - verify latest", "stage": "applied",
-                     "priority": "Unranked", "applied_on": "2026-10-07", "row_hash": rows[0]["row_hash"]}]
+                     "priority": "Unranked", "applied_on": "2026-10-07", "row_hash": rows[0]["row_hash"],
+                     "sheet_row": 6}]
     assert len(rows[0]["row_hash"]) == 40
 
 def test_map_rows_header_moved_and_reordered():
@@ -58,3 +59,22 @@ def test_sync_replaces_table(monkeypatch):
     monkeypatch.setattr(sheet, "fetch_values", lambda *a: [HEADER, ["New", "r", "", "", "", "OA invited", "", ""]])
     assert sheet.sync(db, None, "sid", {}) == {"rows": 1}
     assert [r["company"] for r in db.select("applications")] == ["New"]
+
+
+def test_map_rows_sheet_row_is_one_based_sheet_row_and_skips_blank_rows():
+    hdr = ["Status", "Company", "Applied date", "Role / title"]
+    values = [[], hdr, ["OA invited", "Edgehog Trading", "2026-10-01", "SWE"], [], ["", "", "", ""], ["Applied", "Ramp", "", "SWE"]]
+    rows = sheet.map_rows(values)
+    assert [(r["company"], r["sheet_row"]) for r in rows] == [("Edgehog Trading", 3), ("Ramp", 6)]
+
+def test_row_hash_ignores_sheet_row():
+    a = sheet.map_rows([HEADER, ["Visa", "SWE"]])[0]
+    b = sheet.map_rows([[], [], HEADER, ["Visa", "SWE"]])[0]
+    assert a["sheet_row"] == 2 and b["sheet_row"] == 4
+    assert a["row_hash"] == b["row_hash"]
+
+def test_sync_persists_sheet_row(monkeypatch):
+    db = MemoryDB()
+    monkeypatch.setattr(sheet, "fetch_values", lambda *a: TITLE + [HEADER, ["New", "r", "", "", "", "OA invited", "", ""]])
+    sheet.sync(db, None, "sid", {})
+    assert db.select("applications")[0]["sheet_row"] == 6

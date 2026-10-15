@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useUpdateOutreach,
+  useApplications, useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useUpdateOutreach,
 } from '../data/hooks';
 import type { Contact, Outreach as OutreachRow } from '../data/types';
-import { PHASE_LABEL, followUpOn, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
+import { FOLLOW_UP_RETRY_DAYS, PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, isPlainEmail, latestRequest, mailtoHref, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
 import { copyPrompt } from '../lib/outreachPrompt';
-import { localDay, shortDate } from '../lib/time';
+import { addDays, localDay } from '../lib/time';
 import { hostOf, isJobUrl, safeHref } from '../lib/url';
+import { IApplied } from '../ui/IApplied';
 import { Badge, Button, Card, CardHead, CopyButton, Disclosure, Empty, ErrorDetail, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
 const TONE: Record<Phase['kind'], 'accent' | 'warn' | 'danger' | 'muted'> = {
-  not_queued: 'warn', queued: 'muted', on_mac: 'muted', failed: 'danger', drafted: 'accent',
+  not_queued: 'warn', queued: 'muted', on_mac: 'muted', failed: 'danger', drafted: 'accent', resume_ready: 'accent',
   sent: 'muted', due: 'warn', replied: 'accent', closed: 'muted',
 };
 const CONFIDENCE_TONE = { verified: 'accent', pattern: 'muted', guess: 'warn' } as const;
 
-function ContactBlock({ c }: { c: Contact }) {
+function ContactBlock({ c, o, name, followUp, original }: { c: Contact; o: OutreachRow; name: string; followUp: boolean; original: boolean }) {
+  const plain = !!c.email_guess && isPlainEmail(c.email_guess);
+  const fu = followUp ? followUpDraft(o, c) : null;
   return (
     <div className="contact">
       <p className="contact-name">{c.name}{c.title && <span className="muted small"> · {c.title}</span>}</p>
@@ -25,6 +28,28 @@ function ContactBlock({ c }: { c: Contact }) {
           {c.email_confidence && <Badge tone={CONFIDENCE_TONE[c.email_confidence]}>{c.email_confidence}</Badge>}
           <CopyButton text={c.email_guess} label="Copy email" variant="ghost" />
         </div>
+      )}
+      {original && plain && (
+        <div className="row-actions">
+          <a className="btn" aria-label={`Open in Outlook: ${c.name} (${name})`}
+            href={mailtoHref(c.email_guess!, c.draft_subject ?? '', c.draft_body ?? '')}>Open in Outlook</a>
+        </div>
+      )}
+      {fu && plain && (
+        <div className="row-actions">
+          <a className="btn btn-primary" aria-label={`Open follow-up in Outlook: ${c.name} (${name})`}
+            href={mailtoHref(c.email_guess!, fu.subject, fu.body)}>Open follow-up</a>
+        </div>
+      )}
+      {fu && (
+        <Disclosure summary="Follow-up draft">
+          <p><b>{fu.subject}</b></p>
+          <pre className="draft-body">{fu.body}</pre>
+          <div className="row-actions">
+            <CopyButton text={fu.subject} label="Copy subject" />
+            <CopyButton text={fu.body} label="Copy body" />
+          </div>
+        </Disclosure>
       )}
       <Disclosure summary="Draft">
         {c.draft_subject && <p><b>{c.draft_subject}</b></p>}
@@ -69,33 +94,47 @@ export function PromptButton({ build }: { build: () => string }) {
   );
 }
 
-function OutreachCard({ o, phase, contacts, prompt, busy, onSent, onReplied, onClose, onRetry }: {
-  o: OutreachRow; phase: Phase; contacts: Contact[]; prompt: () => string; busy: boolean;
-  onSent: () => void; onReplied: () => void; onClose: () => void; onRetry: () => void;
+function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry }: {
+  o: OutreachRow; phase: Phase; today: string; contacts: Contact[]; prompt: () => string; busy: boolean; contactsLoaded: boolean; applied: boolean;
+  onSent: () => void; onFollowedUp: () => void; onReplied: () => void; onClose: () => void; onReopen: () => void; onRetry: () => void;
 }) {
   const headId = `out-${o.id}`;
   const waiting = phase.kind === 'queued' || phase.kind === 'on_mac' || phase.kind === 'failed' || phase.kind === 'not_queued';
-  const followUp = (phase.kind === 'sent' || phase.kind === 'due') && o.follow_up_on ? `Follow up ${shortDate(o.follow_up_on)}` : null;
+  const label = followUpLabel(o, today);
+  const name = o.company ?? hostOf(o.job_url);
+  const discardable = phase.kind === 'drafted' || phase.kind === 'resume_ready' || phase.kind === 'not_queued' || phase.kind === 'failed';
+  const firstFollowUp = phase.kind === 'due' && o.followups === 0;
+  const closeSuggested = phase.kind === 'due' && o.followups >= 1;
   return (
     <Card aria-labelledby={headId}>
       <CardHead id={headId} title={o.company ?? hostOf(o.job_url)}>
         <Badge tone={TONE[phase.kind]}>{PHASE_LABEL[phase.kind]}</Badge>
       </CardHead>
-      {(o.role || followUp) && <p className="muted small">{[o.role, followUp].filter(Boolean).join(' · ')}</p>}
+      {(o.role || label) && (
+        <p className="muted small">
+          {o.role}{o.role && label && ' · '}{label && <span className={phase.kind === 'due' ? 'warn' : undefined}>{label}</span>}
+        </p>
+      )}
       {phase.kind === 'failed' && <ErrorDetail error={phase.error} />}
       <div className="row-actions">
         {(phase.kind === 'failed' || phase.kind === 'not_queued') && <Button onClick={onRetry} disabled={busy}>Try again</Button>}
         {waiting && <PromptButton build={prompt} />}
         {phase.kind === 'drafted' && <Button variant="primary" onClick={onSent} disabled={busy}>Sent</Button>}
+        {firstFollowUp && <Button variant="primary" aria-label={`Follow-up sent: ${name}`} onClick={onFollowedUp} disabled={busy}>Follow-up sent</Button>}
         {(phase.kind === 'sent' || phase.kind === 'due') && (
           <>
-            <Button variant="primary" onClick={onReplied} disabled={busy}>Replied</Button>
-            <Button variant="quiet" onClick={onClose} disabled={busy}>Close</Button>
+            <Button variant={firstFollowUp ? 'quiet' : 'primary'} aria-label={`Replied: ${name}`} onClick={onReplied} disabled={busy}>Replied</Button>
+            <Button variant={closeSuggested ? 'primary' : 'quiet'} aria-label={`Close: ${name}`} onClick={onClose} disabled={busy}>Close</Button>
           </>
         )}
+        {discardable && <Button variant="quiet" aria-label={`Discard: ${name}`} onClick={onClose} disabled={busy}>Discard</Button>}
+        {phase.kind === 'closed' && <Button variant="quiet" aria-label={`Reopen: ${name}`} onClick={onReopen} disabled={busy || !contactsLoaded}>Reopen</Button>}
         <ExternalLink className="btn btn-quiet" href={o.job_url}>Posting</ExternalLink>
+        {safeHref(o.job_url) && <IApplied input={{ outreach_id: o.id }} company={name} role={o.role} applied={applied} />}
       </div>
-      {contacts.map((c) => <ContactBlock key={c.id} c={c} />)}
+      {o.resume_path && <p className="muted small resume-path">Resume: {o.resume_path}</p>}
+      {phase.kind === 'resume_ready' && contacts.length === 0 && <p className="muted small">No recruiter found yet.</p>}
+      {contacts.map((c) => <ContactBlock key={c.id} c={c} o={o} name={name} followUp={firstFollowUp} original={phase.kind !== 'sent' && phase.kind !== 'due'} />)}
     </Card>
   );
 }
@@ -105,6 +144,7 @@ export default function Outreach() {
   const today = localDay(now);
   const outreach = useOutreach();
   const contacts = useContacts();
+  const apps = useApplications();
   const requests = useLaunchRequests();
   const queue = useQueueOutreach();
   const update = useUpdateOutreach();
@@ -113,6 +153,10 @@ export default function Outreach() {
   const [err, setErr] = useState<string | null>(null);
 
   const reqs = requests.data ?? [];
+  // Same normalization as /api/sheet's norm (trim, lowercase, collapse whitespace).
+  const n = (s: string | null) => (s ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+  const key = (company: string | null, role: string | null) => `${n(company)}|${n(role)}`;
+  const inSheet = new Set((apps.data ?? []).map((a) => key(a.company, a.role)));
   const list = sortOutreach(outreach.data ?? [], reqs, today);
   const active = list.filter((o) => o.status !== 'replied' && o.status !== 'closed');
   const finished = list.filter((o) => o.status === 'replied' || o.status === 'closed');
@@ -129,13 +173,17 @@ export default function Outreach() {
   };
 
   const card = (o: OutreachRow) => (
-    <OutreachCard key={o.id} o={o} phase={outreachPhase(o, reqs, today)}
+    <OutreachCard key={o.id} o={o} today={today} phase={outreachPhase(o, reqs, today)}
       contacts={(contacts.data ?? []).filter((c) => c.outreach_id === o.id)}
-      prompt={() => copyPrompt(o)} busy={update.isPending || launch.isPending}
-      onSent={() => update.mutate({ id: o.id, patch: { status: 'sent', sent_on: today, follow_up_on: followUpOn(today) } })}
+      prompt={() => copyPrompt(o)} busy={update.isPending || launch.isPending} contactsLoaded={contacts.isSuccess} applied={!!o.company && inSheet.has(key(o.company, o.role))}
+      onSent={() => update.mutate({ id: o.id, patch: { status: 'sent', sent_on: today, follow_up_on: followUpOn(today), followups: 0 } })}
+      onFollowedUp={() => update.mutate({ id: o.id, patch: { followups: o.followups + 1, follow_up_on: addDays(today, FOLLOW_UP_RETRY_DAYS) } })}
       onReplied={() => update.mutate({ id: o.id, patch: { status: 'replied' } })}
       onClose={() => update.mutate({ id: o.id, patch: { status: 'closed' } })}
-      onRetry={() => launch.mutate({ kind: 'outreach', payload: { outreach_id: o.id, job_url: o.job_url } })} />
+      onReopen={() => update.mutate({ id: o.id, patch: { status: o.sent_on !== null ? 'sent' : (contacts.data ?? []).some((c) => c.outreach_id === o.id) ? 'drafted' : 'queued' } })}
+      onRetry={() => launch.mutate({
+        kind: latestRequest(o, reqs)?.kind ?? 'outreach', payload: { outreach_id: o.id, job_url: o.job_url },
+      })} />
   );
 
   return (
