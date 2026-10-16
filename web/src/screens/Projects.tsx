@@ -4,7 +4,7 @@ import {
   useAddIdea, useCommits, useIdeas, useLaunchRequests, useNow, useProjects, useReorderIdeas, useRequestLaunch, useUpdateIdea, useWorkOnIdea,
 } from '../data/hooks';
 import type { Commit, Idea, LaunchRequest, Project } from '../data/types';
-import { commitStrip, doneIdeas, moveIdea, nextPosition, suggestState, visibleIdeas, workState } from '../lib/ideas';
+import { commitStrip, doneIdeas, moveIdea, nextPosition, suggestState, visibleIdeas, workPrevStatus, workState } from '../lib/ideas';
 import { localDay, relativeTime } from '../lib/time';
 import { IdeaCard } from '../ui/IdeaCard';
 import { Button, Card, CardHead, Disclosure, Empty, ErrorDetail, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
@@ -116,6 +116,8 @@ function ProjectCard({ project, primary, now, commits, ideas, requests }: {
           {list.map((idea, i) => (
             <IdeaCard key={idea.id} idea={idea} state={workState(requests, idea.id, now)} busy={work.isPending}
               onWork={() => work.mutate({ id: idea.id, status: idea.status })}
+              resending={launch.isPending}
+              onResend={() => launch.mutate({ kind: 'work_on_idea', payload: { idea_id: idea.id, prev_status: workPrevStatus(requests, idea.id) } })}
               onDone={() => leave(i, { status: 'done', done_at: new Date().toISOString() })}
               menu={<IdeaMenu label={idea.text} first={i === 0} last={i === list.length - 1}
                 onMove={(dir) => reorder.mutate(moveIdea(list, idea.id, dir))}

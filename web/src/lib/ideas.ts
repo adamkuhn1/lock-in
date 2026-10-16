@@ -63,5 +63,13 @@ export const suggestState = (requests: LaunchRequest[], projectId: string, now: 
   launchState(requests, (r) => r.kind === 'suggest_ideas' && r.payload.project_id === projectId, now);
 export const workState = (requests: LaunchRequest[], ideaId: string, now: Date = new Date()) =>
   launchState(requests, (r) => r.kind === 'work_on_idea' && r.payload.idea_id === ideaId, now);
+/** What a resend should revert to if it fails: the status the idea had before the first Work on this. */
+export function workPrevStatus(requests: LaunchRequest[], ideaId: string): string {
+  const r = requests
+    .filter((x) => x.kind === 'work_on_idea' && x.payload.idea_id === ideaId)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  const prev = r?.payload.prev_status;
+  return typeof prev === 'string' && prev !== 'in_progress' ? prev : 'todo';
+}
 export const mockState = (requests: LaunchRequest[], now: Date = new Date()) =>
   launchState(requests, (r) => r.kind === 'mock_interview', now);

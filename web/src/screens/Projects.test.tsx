@@ -114,6 +114,21 @@ describe('ProjectsList', () => {
     expect(idea.started_at).not.toBeNull();
   });
 
+  it('Send again re-queues an in-progress idea without resetting its status or clock', async () => {
+    const api = createDemoApi();
+    await api.updateIdea('i2', { status: 'in_progress', started_at: '2026-10-14T15:00:00Z' });
+    await api.requestLaunch('work_on_idea', { idea_id: 'i2', prev_status: 'todo' });
+    const [req] = await api.listLaunchRequests();
+    req.status = 'launched'; // listLaunchRequests hands out copies, so serve this launched one from now on
+    vi.spyOn(api, 'listLaunchRequests').mockImplementation(async () => [req]);
+    const launch = vi.spyOn(api, 'requestLaunch');
+    const update = vi.spyOn(api, 'updateIdea');
+    renderWithData(<ProjectsList />, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'Send again: Cache weather API responses' }));
+    expect(launch).toHaveBeenCalledWith('work_on_idea', { idea_id: 'i2', prev_status: 'todo' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('LEGO shows No repo linked and no GitHub link', async () => {
     renderWithData(<ProjectsList />);
     const card = (await screen.findByRole('heading', { name: 'LEGO' })).closest('section')!;

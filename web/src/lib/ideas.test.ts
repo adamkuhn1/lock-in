@@ -95,3 +95,13 @@ it('visibleIdeas keeps in_progress ideas', () => {
   const i = { id: 'x', project_id: 'p', text: 't', size: 'S' as const, status: 'in_progress' as const, source: 'me' as const, position: 0, today_on: null, done_at: null, started_at: null, created_at: '' };
   expect(vis([i], 'p')).toHaveLength(1);
 });
+
+import { workPrevStatus } from './ideas';
+it('workPrevStatus reuses the newest request\'s prev_status so a failed resend reverts correctly', () => {
+  const req = (id: string, prev: unknown, at: string, idea = 'i1') =>
+    ({ id, kind: 'work_on_idea' as const, payload: { idea_id: idea, prev_status: prev }, status: 'launched' as const, error: null, created_at: at });
+  expect(workPrevStatus([], 'i1')).toBe('todo');
+  expect(workPrevStatus([req('a', 'todo', '2026-10-14T15:00:00Z'), req('b', 'today', '2026-10-14T16:00:00Z')], 'i1')).toBe('today');
+  expect(workPrevStatus([req('a', 'in_progress', '2026-10-14T15:00:00Z')], 'i1')).toBe('todo');
+  expect(workPrevStatus([req('a', 'today', '2026-10-14T15:00:00Z', 'i2')], 'i1')).toBe('todo');
+});

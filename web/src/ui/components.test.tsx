@@ -74,6 +74,12 @@ describe('components', () => {
     rerender(<IdeaCard idea={{ ...idea, status: 'in_progress' }} state={{ kind: 'launched' }} busy={false} onWork={onWork} onDone={() => {}} />);
     expect(screen.getByText('In progress')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Work on this/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Send again/ })).toBeNull();
+    const onResend = vi.fn();
+    rerender(<IdeaCard idea={{ ...idea, status: 'in_progress' }} state={{ kind: 'launched' }} busy={false} onWork={onWork} onResend={onResend} onDone={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Send again: Add Chicago' }));
+    expect(onResend).toHaveBeenCalledOnce();
+    expect(onWork).toHaveBeenCalledOnce();
     rerender(<IdeaCard idea={idea} state={{ kind: 'failed', error: 'LaunchError: Project folder not found' }} busy={false} onWork={onWork} onDone={() => {}} />);
     expect(screen.getByText(/Project folder not found/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Work on this: Add Chicago' })).toBeEnabled();
