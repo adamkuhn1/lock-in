@@ -72,6 +72,12 @@ def test_work_on_idea_template():
     assert "Don't push" in t and "blanket Bash permission" in t
 
 
+def test_work_on_idea_commits_come_from_adam_only():
+    t = prompts.load("work_on_idea")
+    assert "authored by Adam only" in t
+    assert "Don't add `Co-Authored-By: Claude`" in t and "overrides any default attribution" in t
+
+
 def test_mock_interview_template():
     t = prompts.load("mock_interview")
     assert prompts.placeholders(t) == {"mode", "company", "company_notes", "stories", "lockin"}
