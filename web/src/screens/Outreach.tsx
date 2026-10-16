@@ -102,7 +102,8 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
   const waiting = phase.kind === 'queued' || phase.kind === 'on_mac' || phase.kind === 'failed' || phase.kind === 'not_queued';
   const label = followUpLabel(o, today);
   const name = o.company ?? hostOf(o.job_url);
-  const discardable = phase.kind === 'drafted' || phase.kind === 'resume_ready' || phase.kind === 'not_queued' || phase.kind === 'failed';
+  // Anything not yet sent can be dropped. Safe mid-run: the worker only moves `queued` rows to `drafted`, so a closed row stays closed.
+  const discardable = waiting || phase.kind === 'drafted' || phase.kind === 'resume_ready';
   const firstFollowUp = phase.kind === 'due' && o.followups === 0;
   const closeSuggested = phase.kind === 'due' && o.followups >= 1;
   return (

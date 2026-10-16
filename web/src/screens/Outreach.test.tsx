@@ -118,12 +118,23 @@ describe('Outreach', () => {
     await cardFor('Stripe');
     expect(container.querySelector('a[href^="javascript"]')).toBeNull();
   });
-  it('a launched request shows Opened on Mac', async () => {
+  it('a launched request shows Opened on Mac, and can still be discarded', async () => {
+    const user = userEvent.setup();
     const api = createDemoApi();
     const reqs = await api.listLaunchRequests();
     api.listLaunchRequests = async () => reqs.map((r) => ({ ...r, status: 'launched' as const }));
+    const spy = vi.spyOn(api, 'updateOutreach');
     renderWithData(<Outreach />, { api });
-    expect(within(await cardFor('Ramp')).getByText('Opened on Mac')).toBeInTheDocument();
+    const card = await cardFor('Ramp');
+    expect(within(card).getByText('Opened on Mac')).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Discard: Ramp' }));
+    expect(spy).toHaveBeenCalledWith('o2', { status: 'closed' });
+  });
+  it('a request still queued for the Mac can be discarded', async () => {
+    renderWithData(<Outreach />);
+    const card = await cardFor('Ramp');
+    expect(within(card).getByText('Queued for Mac')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Discard: Ramp' })).toBeInTheDocument();
   });
   it('failed launch shows the error and Try again', async () => {
     const api = createDemoApi();
