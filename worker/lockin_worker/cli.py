@@ -116,10 +116,11 @@ def validate_ideas(data: Any) -> list[dict]:
             errors.append(f"{p}: must be an object")
             continue
         text = _str(idea, "text", p, errors, required=True, max_len=200)
+        details = _str(idea, "details", p, errors, max_len=1000)
         size = idea.get("size", "S")
         if size not in SIZES:
             errors.append(f"{p}.size: must be S or M")
-        out.append({"text": text, "size": size})
+        out.append({"text": text, "size": size, **({"details": details} if details else {})})
     if errors:
         raise InputError("\n".join(errors))
     return out
@@ -161,8 +162,11 @@ def save_ideas(db, project_id: str, ideas: list[dict]) -> tuple[int, int]:
         if key in seen:
             continue
         seen.add(key)
-        new.append({"project_id": project_id, "text": idea["text"], "size": idea["size"],
-                    "status": "todo", "source": "claude", "position": pos})
+        row = {"project_id": project_id, "text": idea["text"], "size": idea["size"],
+               "status": "todo", "source": "claude", "position": pos}
+        if idea.get("details"):
+            row["details"] = idea["details"]  # needs migration 0007
+        new.append(row)
         pos += 1
     db.insert("ideas", new)
     return len(new), len(ideas) - len(new)

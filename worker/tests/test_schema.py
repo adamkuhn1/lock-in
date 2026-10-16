@@ -114,3 +114,12 @@ def test_followups_migration_adds_count_idempotently():
     sql = FOLLOWUPS.read_text()
     assert "create table" not in sql
     assert "alter table public.outreach add column if not exists followups int not null default 0" in sql
+
+
+IDEA_DETAILS = Path(__file__).parents[2] / "supabase/migrations/0007_idea_details.sql"
+
+
+def test_idea_details_migration_is_idempotent():
+    sql = IDEA_DETAILS.read_text()
+    assert "create table" not in sql
+    assert "alter table public.ideas add column if not exists details text" in sql

@@ -2,6 +2,10 @@ You're in the repo for {{project_name}} ({{repo}}), one of Adam Kuhn's portfolio
 
 > {{idea_text}} (size {{idea_size}}: S is under an hour, M is about an afternoon)
 
+Technical details:
+
+> {{idea_details}}
+
 README (first lines):
 
 ~~~~

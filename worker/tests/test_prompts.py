@@ -68,7 +68,7 @@ def test_save_blocks_are_fenced_with_terminator_at_column_0():
 
 def test_work_on_idea_template():
     t = prompts.load("work_on_idea")
-    assert prompts.placeholders(t) == {"project_name", "repo", "idea_text", "idea_size", "readme", "branch"}
+    assert prompts.placeholders(t) == {"project_name", "repo", "idea_text", "idea_details", "idea_size", "readme", "branch"}
     assert "Don't push" in t and "blanket Bash permission" in t
 
 
@@ -145,3 +145,9 @@ def test_tailor_resume_review_fixes():
 
 def test_outreach_defines_low_confidence():
     assert "Low-confidence means" in prompts.load("outreach")
+
+
+def test_suggest_ideas_asks_for_plain_title_and_technical_details():
+    t = prompts.load("suggest_ideas")
+    assert "simple, everyday English" in t and "No file names, function names" in t
+    assert '"details":' in t and '"text":' in t

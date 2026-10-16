@@ -165,6 +165,7 @@ vercel.json ships only conservative headers (nosniff, Referrer-Policy, no-cache 
   ```
 - **Ship order** when the schema changes: migrate → `make restart-launcher` → push `main` → data inserts → Vercel deploy.
 - **Work on this / Mock with Claude** use the same Mac permissions as Cold email. An idea is marked done when a commit made after you tapped the button reaches the project's main branch on GitHub (or tick it done in the app).
+- **Plain idea titles** (Suggest improvements): apply migration `0007_idea_details.sql` before the worker update. Claude saves a plain-English `text` for the app and a technical `details` brief that Work on this hands to Claude Code; `save-ideas` fails until the column exists.
 - **Tailor resume** (Hunt → Jobs): apply migration `0004_tailor.sql` and run `make restart-launcher` first. It needs the same Terminal Desktop access as Cold email, plus `tectonic` (installed at `/opt/homebrew/bin/tectonic`) and `Base_Resume/Adam_Kuhn_Resume.tex` and `.pdf` inside the resume root (default `~/Desktop/Adam_Kuhn_Resumes`). Claude works in `~/.lockin/tailor/<job>`, saves the tailored PDF and .tex into a new folder next to the others, opens the posting, and drafts one recruiter email.
 - **Open in Outlook** (Hunt → Outreach) opens a prefilled email in the default mail app. Make Outlook the default once: Outlook → Settings → General → Default email app. The card's "Resume:" line is the file to attach.
 - **Write to the Sheet** (Hunt → Jobs/Outreach **I applied**, Hunt → Applications **Status**): roll out in this order:

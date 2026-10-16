@@ -200,6 +200,21 @@ def test_work_on_idea_opens_in_project_with_prompt(tmp_path):
     assert db.select("ideas", {"id": "i1"})[0]["status"] == "in_progress"
 
 
+def test_work_on_idea_passes_technical_details(tmp_path):
+    db, _ = work_db(tmp_path)
+    db.update("ideas", {"id": "i1"}, {"details": "Add 'Chicago' to CITIES in src/cities.ts"})
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert "Add 'Chicago' to CITIES in src/cities.ts" in op.calls[0][1]
+
+
+def test_work_on_idea_without_details_says_so(tmp_path):
+    db, _ = work_db(tmp_path)
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert "None beyond the title above." in op.calls[0][1]
+
+
 def test_work_on_idea_without_readme(tmp_path):
     db, _ = work_db(tmp_path, readme=False)
     op = Opener()

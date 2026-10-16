@@ -106,6 +106,18 @@ def test_save_ideas_appends_with_positions_and_skips_duplicates():
         ("Cache API calls", "M", 5, "claude", "todo"), ("Add a test", "S", 6, "claude", "todo")]
 
 
+def test_save_ideas_keeps_details_only_when_given():
+    db = db_with_outreach()
+    ideas = [{"text": "Make aiming easier", "details": "Ghost ball in drawAim", "size": "S"}, {"text": "Add a test"}]
+    code, out, _ = run(db, ["save-ideas", "--project", "27b"], json.dumps(ideas))
+    assert code == 0 and out.strip() == "Saved 2 ideas"
+    rows = {i["text"]: i for i in db.select("ideas")}
+    assert rows["Make aiming easier"]["details"] == "Ghost ball in drawAim"
+    assert "details" not in rows["Add a test"]
+    code, _, err = run(db, ["save-ideas", "--project", "27b"], json.dumps([{"text": "x", "details": "d" * 1001}]))
+    assert code == 2 and "$[0].details: longer than 1000 characters" in err
+
+
 def test_save_ideas_validation():
     code, _, err = run(db_with_outreach(), ["save-ideas", "--project", "27b"],
                        json.dumps([{"text": ""}, {"text": "x", "size": "L"}, "plain string"]))

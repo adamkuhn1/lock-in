@@ -124,6 +124,8 @@ def build_work(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
     text = prompts.render(prompts.load("work_on_idea"), {
         "project_name": p["name"], "repo": p.get("repo") or "no GitHub repo yet",
         "idea_text": idea["text"], "idea_size": idea.get("size") or "S",
+        # Ideas saved before migration 0007, or added by hand, have no details: the title is all there is.
+        "idea_details": idea.get("details") or "None beyond the title above.",
         "readme": readme_head(cwd), "branch": f"idea/{slugify(idea['text'])}",
     })
     return cwd, text
