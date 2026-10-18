@@ -95,3 +95,66 @@ def test_unsafe_url_stored_as_none():
     board["greenhouse:stripe"] = [bad]
     jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
     assert db.select("postings")[0]["url"] is None
+
+
+def test_new_company_brings_its_recent_matches_only():
+    db = MemoryDB()
+    recent = Job("Stripe", "Software Engineer Intern", "New York, NY", "https://x/r", "2026-10-01T00:00:00Z", "r")
+    old = Job("Stripe", "New Grad Engineer", "New York, NY", "https://x/o", "2026-06-01T00:00:00Z", "o")
+    unknown = J(3)
+    out = jobs.collect(db, sources(), FILTERS, None, NOW,
+                       fetch=fake({"greenhouse:stripe": [recent, old, unknown], "ashby:ramp": []}))
+    assert out["new"] == 1 and [r["title"] for r in db.select("postings")] == ["Software Engineer Intern"]
+    # all three are now seen: a later run doesn't bring the old ones back
+    out = jobs.collect(db, sources(), FILTERS, None, NOW,
+                       fetch=fake({"greenhouse:stripe": [recent, old, unknown], "ashby:ramp": []}))
+    assert out["new"] == 0
+
+
+def test_new_github_list_still_seeds_silently():
+    from job_radar.config import GitHubList
+    srcs = build_sources([], [GitHubList(name="List", repo="a/b")])
+    row = Job("Acme", "Software Engineer Intern", "NY", "https://x/1", "2026-10-13T00:00:00Z", "1")
+    db = MemoryDB()
+    out = jobs.collect(db, srcs, FILTERS, None, NOW, fetch=lambda s, sess, sha: ([row], "sha1"))
+    assert out["new"] == 0 and db.select("postings") == []
+
+
+def test_failing_board_alerts_once_after_six_runs_then_again_after_recovery():
+    db = MemoryDB()
+    ok = {"greenhouse:stripe": [], "ashby:ramp": []}
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(ok))
+    bad = {"greenhouse:stripe": FetchError("HTTP 404"), "ashby:ramp": []}
+    alerts = [jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(bad))["alert"] for _ in range(8)]
+    assert alerts[:5] == [[]] * 5 and alerts[5] == ["Stripe: HTTP 404"] and alerts[6:] == [[], []]
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(ok))  # recovers
+    again = [jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(bad))["alert"] for _ in range(6)]
+    assert again[-1] == ["Stripe: HTTP 404"]
+
+
+def test_same_title_in_two_cities_is_two_postings():
+    db = MemoryDB()
+    board = {"greenhouse:stripe": [], "ashby:ramp": []}
+    jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))
+    sf = Job("Stripe", "Software Engineer Intern", "San Francisco, CA", "https://x/sf", None, "sf")
+    board["greenhouse:stripe"] = [J(1), sf]
+    assert jobs.collect(db, sources(), FILTERS, None, NOW, fetch=fake(board))["new"] == 2
+
+
+def test_list_rows_for_companies_with_their_own_board_are_skipped():
+    from job_radar.config import GitHubList
+    srcs = build_sources([Company("Stripe", "greenhouse", "stripe", "A")], [GitHubList(name="List", repo="a/b")])
+    board = {"greenhouse:stripe": [], "github:a/b": []}
+    fetch = lambda s, sess, sha: (board[s.key], None)
+    db = MemoryDB()
+    jobs.collect(db, srcs, FILTERS, None, NOW, fetch=fetch)
+    board["github:a/b"] = [J(1, company="Stripe"), J(2, company="Acme")]
+    out = jobs.collect(db, srcs, FILTERS, None, NOW, fetch=fetch)
+    assert out["new"] == 1 and [r["company"] for r in db.select("postings")] == ["Acme"]
+
+
+def test_new_undated_company_brings_all_its_matches():
+    srcs = build_sources([Company("Meta", "meta", "meta", "A")], [])
+    db = MemoryDB()
+    out = jobs.collect(db, srcs, FILTERS, None, NOW, fetch=lambda s, sess, sha: ([J(1, company="Meta")], None))
+    assert out["new"] == 1

@@ -55,6 +55,41 @@ title:
     - '\bdirector\b'
     - '\bvp\b'
 
+    # --- Not software roles: these early-career tracks show up at every company ---
+    - '\bmba\b'
+    - '\bsales\b|\baccount (executive|manager|representative)\b|\bbusiness development\b'
+    - '^(?!.*\b(engineer|developer|software)\b).*\bmarketing\b'
+    - '^(?!.*\b(engineer|developer|software)\b).*\bdesign(er)?\b'   # keeps "Software Design Engineer"
+    - '\brecruit(er|ing|ment)\b'
+    - '\b(legal|counsel|paralegal)\b'
+    - '\b(accountant|accounting|tax|audit)\b'
+    - '\bstrategist\b'
+    # Security-clearance roles (CTJ = Clearance Jobs, Poly = polygraph, TS/SCI): out of reach for a new grad
+    - '\bctj\b|\bpoly(graph)?\b|\bts\s*/\s*sci\b|\b(security )?clearance (required|needed)\b|\bactive (secret|ts) clearance\b'
+
+# Software-ish work. Required only for companies marked `software_only` in
+# companies.yaml (on by default for Workday and SmartRecruiters boards), where
+# early-career titles also cover hardware, manufacturing, finance and so on.
+role:
+  include:
+    - '\bsoftware\b'
+    - '\bdevelop(er|ment engineer)\b'
+    - '\bswe\b'
+    - '\bsde\b'
+    - '\b(full|front|back)[- ]?end\b|\bfull[- ]?stack\b'
+    - '\bweb\b'
+    - '\b(mobile|ios|android)\b'
+    - '\bdata (engineer|scien|analy)'
+    - '\bmachine learning\b|\bml\b|\bai\b|\bdeep learning\b'
+    - '\b(cloud|platform|infrastructure|systems?) engineer'
+    - '\bdevops\b|\bsite reliability\b|\bsre\b'
+    - '\b(cyber ?)?security engineer|\bcybersecurity\b'
+    - '\bcomputer (science|engineer)'
+    - '\bprogramm(er|ing)\b'
+    - '\btechnology (development )?program\b|\btdp\b'
+    - '\b(product|solutions|forward[- ]deployed) engineer'
+    - '\bquant(itative)? (developer|engineer|research)'
+
 # Where the job is. Checked against the posting's location plus any office /
 # country info the job board provides (see job_radar/location.py).
 location:

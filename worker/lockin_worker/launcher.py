@@ -255,7 +255,7 @@ def find_tailored(o: dict, root: Path, hint: str) -> Path | None:
     return max(pdfs, key=lambda p: p.stat().st_mtime) if pdfs else None
 
 
-def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] | None:
+def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] | dict:
     oid = payload.get("outreach_id")
     rows = db.select("outreach", {"id": oid}) if oid else []
     if not rows:
@@ -277,7 +277,7 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] 
             OPEN_RUN(["open", "-R", str(done)], check=False)
             OPEN_RUN(["open", job_url], check=False)
             log(f"retailor {oid}: resume already at {done}")
-            return None
+            return {"result": "reused"}
     base_dir = root / BASE_RESUME
     base_tex, base_pdf = base_dir / f"{RESUME_STEM}.tex", base_dir / f"{RESUME_STEM}.pdf"
     for base in (base_tex, base_pdf):
@@ -323,7 +323,8 @@ def process(db, req: dict, opener, lockin: str, find=resume.find_resume) -> str:
         if builder is None:
             raise LaunchError(f"unknown kind {req.get('kind')!r}")
         built = builder(db, req.get("payload") or {}, lockin, find=find)
-        if built is None:  # handled on the Mac without opening Claude
+        if isinstance(built, dict):  # handled on the Mac without opening Claude; tell the app what happened
+            db.update("launch_requests", {"id": rid}, {"payload": {**(req.get("payload") or {}), **built}})
             return "launched"
         cwd, text = built
         opener(cwd, text, rid)

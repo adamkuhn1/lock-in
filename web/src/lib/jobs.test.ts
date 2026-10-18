@@ -33,6 +33,14 @@ describe('jobs', () => {
     const ps = [J('old', { posted_at: '2026-10-10T00:00:00Z' }), J('new', { posted_at: '2026-10-14T00:00:00Z' }), J('star', { starred: true, posted_at: '2026-10-01T00:00:00Z' })];
     expect(sortPostings(ps).map((p) => p.id)).toEqual(['star', 'new', 'old']);
   });
+  it('sorts by tier first (A, B, C, then untiered), then starred, then newest', () => {
+    const ps = [
+      J('c', { tier: 'C', starred: true }), J('none', { tier: null }), J('b-old', { tier: 'B', posted_at: '2026-10-01T00:00:00Z' }),
+      J('a', { tier: 'A', posted_at: '2026-09-01T00:00:00Z' }), J('b-new', { tier: 'B', posted_at: '2026-10-13T00:00:00Z' }),
+    ];
+    expect(sortPostings(ps).map((p) => p.id)).toEqual(['a', 'b-new', 'b-old', 'c', 'none']);
+    expect(filterPostings(ps, { ...NO_FILTERS, topTier: true }).map((p) => p.id)).toEqual(['a']);
+  });
   it('topLocations and termsOf', () => {
     const ps = [J('1'), J('2'), J('3', { location: 'Ann Arbor, MI', term: null })];
     expect(topLocations(ps)).toEqual(['Detroit, MI', 'Ann Arbor, MI']);

@@ -1,38 +1,242 @@
-# One entry per company board. See README "Adding a company".
-#   ats:   greenhouse | lever | ashby
+# One entry per company board. Every token below was checked against the live board.
+#   ats:   greenhouse | lever | ashby | workday | smartrecruiters | eightfold | oracle
+#          | amazon | google | apple | meta | ibm (their own sites)
 #   token: the board slug from the careers URL
-#   tier:  A = high-priority push, B/C = normal push
+#          workday: "<tenant>.<wdN>/<site>" from https://<tenant>.<wdN>.myworkdayjobs.com/<site>
+#          eightfold: "<host>/<domain>", e.g. apply.careers.microsoft.com/microsoft.com
+#          oracle: "<host>/<site>/<US location id>" (Oracle Recruiting Cloud)
+#          amazon / google / apple / meta / ibm: their own sites; the token is just the name
+#   tier:  A = top targets (sort first in Jobs, high-priority push), B = strong, C = also worth a look
+#   software_only: the title must also look like software work (filters.yaml `role`).
+#          On by default for workday and smartrecruiters; set it for hardware-heavy companies.
 companies:
+  # --- Big tech, on their own career sites (job_radar/fetchers/amazon.py, google.py, apple.py, eightfold.py)
+  - { name: Google,    ats: google,    token: google,    tier: A }
+  - { name: Apple,     ats: apple,     token: apple,     tier: A }
+  - { name: Amazon,    ats: amazon,    token: amazon,    tier: A }
+  - { name: Microsoft, ats: eightfold, token: apply.careers.microsoft.com/microsoft.com, tier: A }
+  - { name: Meta,      ats: meta,      token: meta,      tier: A }
+  - { name: Netflix,   ats: eightfold, token: explore.jobs.netflix.net/netflix.com, tier: A }
+  - { name: Uber,      ats: oracle,    token: iaziqy.fa.ocs.oraclecloud.com/CX_1/300000000484560, tier: A }
+  - { name: JPMorgan Chase, ats: oracle, token: jpmc.fa.oraclecloud.com/CX_1001/300000000289738, tier: B }
+  - { name: Qualcomm,  ats: eightfold, token: careers.qualcomm.com/qualcomm.com, tier: B }
+  - { name: IBM,       ats: ibm,       token: ibm,       tier: C }
+
   # --- Greenhouse: boards-api.greenhouse.io/v1/boards/<token>/jobs
-  - { name: Stripe,     ats: greenhouse, token: stripe,     tier: A }
-  - { name: Databricks, ats: greenhouse, token: databricks, tier: A }
-  - { name: Anthropic,  ats: greenhouse, token: anthropic,  tier: A }
-  - { name: Figma,      ats: greenhouse, token: figma,      tier: A }
-  - { name: Airbnb,     ats: greenhouse, token: airbnb,     tier: B }
-  - { name: Robinhood,  ats: greenhouse, token: robinhood,  tier: B }
-  - { name: Discord,    ats: greenhouse, token: discord,    tier: B }
-  - { name: Cloudflare, ats: greenhouse, token: cloudflare, tier: B }
-  - { name: Datadog,    ats: greenhouse, token: datadog,    tier: B }
-  - { name: Pinterest,  ats: greenhouse, token: pinterest,  tier: B }
-  - { name: Reddit,     ats: greenhouse, token: reddit,     tier: B }
-  - { name: Lyft,       ats: greenhouse, token: lyft,       tier: B }
-  - { name: Instacart,  ats: greenhouse, token: instacart,  tier: C }
-  - { name: Scale AI,   ats: greenhouse, token: scaleai,    tier: B }
-  - { name: Asana,      ats: greenhouse, token: asana,      tier: C }
-  - { name: Dropbox,    ats: greenhouse, token: dropbox,    tier: C }
-  - { name: GitLab,     ats: greenhouse, token: gitlab,     tier: C }
+  # AI and developer tools
+  - { name: Anthropic,       ats: greenhouse, token: anthropic,       tier: A }
+  - { name: Databricks,      ats: greenhouse, token: databricks,      tier: A }
+  - { name: Scale AI,        ats: greenhouse, token: scaleai,         tier: B }
+  - { name: Together AI,     ats: greenhouse, token: togetherai,      tier: B }
+  - { name: CoreWeave,       ats: greenhouse, token: coreweave,       tier: B }
+  - { name: Snorkel AI,      ats: greenhouse, token: snorkelai,       tier: C }
+  - { name: Vercel,          ats: greenhouse, token: vercel,          tier: B }
+  - { name: MongoDB,         ats: greenhouse, token: mongodb,         tier: B }
+  - { name: Elastic,         ats: greenhouse, token: elastic,         tier: B }
+  - { name: Cloudflare,      ats: greenhouse, token: cloudflare,      tier: B }
+  - { name: Datadog,         ats: greenhouse, token: datadog,         tier: B }
+  - { name: GitLab,          ats: greenhouse, token: gitlab,          tier: C }
+  - { name: Fivetran,        ats: greenhouse, token: fivetran,        tier: C }
+  - { name: Cockroach Labs,  ats: greenhouse, token: cockroachlabs,   tier: C }
+  - { name: PlanetScale,     ats: greenhouse, token: planetscale,     tier: C }
+  - { name: SingleStore,     ats: greenhouse, token: singlestore,     tier: C }
+  - { name: Neo4j,           ats: greenhouse, token: neo4j,           tier: C }
+  - { name: Fastly,          ats: greenhouse, token: fastly,          tier: C }
+  - { name: PagerDuty,       ats: greenhouse, token: pagerduty,       tier: C }
+  - { name: New Relic,       ats: greenhouse, token: newrelic,        tier: C }
+  - { name: LaunchDarkly,    ats: greenhouse, token: launchdarkly,    tier: C }
+  - { name: Okta,            ats: greenhouse, token: okta,            tier: B }
+  - { name: Zscaler,         ats: greenhouse, token: zscaler,         tier: B }
+  - { name: Twilio,          ats: greenhouse, token: twilio,          tier: B }
+  - { name: Rubrik,          ats: greenhouse, token: rubrik,          tier: B }
+  - { name: Samsara,         ats: greenhouse, token: samsara,         tier: B }
+  - { name: Verkada,         ats: greenhouse, token: verkada,         tier: B }
+  - { name: Netlify,         ats: greenhouse, token: netlify,         tier: C }
+  # Product and consumer
+  - { name: Figma,           ats: greenhouse, token: figma,           tier: A }
+  - { name: Airbnb,          ats: greenhouse, token: airbnb,          tier: A }
+  - { name: Roblox,          ats: greenhouse, token: roblox,          tier: A }
+  - { name: DoorDash,        ats: greenhouse, token: doordashusa,     tier: A }
+  - { name: Duolingo,        ats: greenhouse, token: duolingo,        tier: A }
+  - { name: Discord,         ats: greenhouse, token: discord,         tier: B }
+  - { name: Pinterest,       ats: greenhouse, token: pinterest,       tier: B }
+  - { name: Reddit,          ats: greenhouse, token: reddit,          tier: B }
+  - { name: Lyft,            ats: greenhouse, token: lyft,            tier: B }
+  - { name: Instacart,       ats: greenhouse, token: instacart,       tier: B }
+  - { name: Twitch,          ats: greenhouse, token: twitch,          tier: B }
+  - { name: Epic Games,      ats: greenhouse, token: epicgames,       tier: B }
+  - { name: Riot Games,      ats: greenhouse, token: riotgames,       tier: B }
+  - { name: Roku,            ats: greenhouse, token: roku,            tier: B }
+  - { name: Asana,           ats: greenhouse, token: asana,           tier: C }
+  - { name: Dropbox,         ats: greenhouse, token: dropbox,         tier: C }
+  - { name: Airtable,        ats: greenhouse, token: airtable,        tier: C }
+  - { name: Squarespace,     ats: greenhouse, token: squarespace,     tier: C }
+  - { name: Nextdoor,        ats: greenhouse, token: nextdoor,        tier: C }
+  - { name: Peloton,         ats: greenhouse, token: peloton,         tier: C }
+  - { name: Tripadvisor,     ats: greenhouse, token: tripadvisor,     tier: C }
+  - { name: Faire,           ats: greenhouse, token: faire,           tier: C }
+  - { name: Intercom,        ats: greenhouse, token: intercom,        tier: C }
+  - { name: Smartsheet,      ats: greenhouse, token: smartsheet,      tier: C }
+  - { name: Qualtrics,       ats: greenhouse, token: qualtrics,       tier: C }
+  - { name: Anaplan,         ats: greenhouse, token: anaplan,         tier: C }
+  - { name: Toast,           ats: greenhouse, token: toast,           tier: C }
+  - { name: Klaviyo,         ats: greenhouse, token: klaviyo,         tier: C }
+  - { name: Braze,           ats: greenhouse, token: braze,           tier: C }
+  - { name: Mixpanel,        ats: greenhouse, token: mixpanel,        tier: C }
+  - { name: StockX,          ats: greenhouse, token: stockx,          tier: C }
+  - { name: Groupon,         ats: greenhouse, token: groupon,         tier: C }
+  - { name: Coursera,        ats: greenhouse, token: coursera,        tier: C }
+  - { name: ZipRecruiter,    ats: greenhouse, token: ziprecruiter,    tier: C }
+  - { name: Zocdoc,          ats: greenhouse, token: zocdoc,          tier: C }
+  - { name: Oscar Health,    ats: greenhouse, token: oscar,           tier: C }
+  - { name: Oura,            ats: greenhouse, token: oura,            tier: C }
+  - { name: The Trade Desk,  ats: greenhouse, token: thetradedesk,    tier: B }
+  - { name: AppLovin,        ats: greenhouse, token: applovin,        tier: C }
+  - { name: Moloco,          ats: greenhouse, token: moloco,          tier: C }
+  - { name: Taboola,         ats: greenhouse, token: taboola,         tier: C }
+  - { name: PubMatic,        ats: greenhouse, token: pubmatic,        tier: C }
+  # Fintech
+  - { name: Stripe,          ats: greenhouse, token: stripe,          tier: A }
+  - { name: Coinbase,        ats: greenhouse, token: coinbase,        tier: A }
+  - { name: Robinhood,       ats: greenhouse, token: robinhood,       tier: B }
+  - { name: Brex,            ats: greenhouse, token: brex,            tier: B }
+  - { name: Affirm,          ats: greenhouse, token: affirm,          tier: B }
+  - { name: Block,           ats: greenhouse, token: block,           tier: B }
+  - { name: Chime,           ats: greenhouse, token: chime,           tier: B }
+  - { name: Mercury,         ats: greenhouse, token: mercury,         tier: B }
+  - { name: Gusto,           ats: greenhouse, token: gusto,           tier: C }
+  - { name: Carta,           ats: greenhouse, token: carta,           tier: C }
+  - { name: SoFi,            ats: greenhouse, token: sofi,            tier: C }
+  - { name: Upstart,         ats: greenhouse, token: upstart,         tier: C }
+  - { name: Betterment,      ats: greenhouse, token: betterment,      tier: C }
+  - { name: Gemini,          ats: greenhouse, token: gemini,          tier: C }
+  # Trading
+  - { name: Jane Street,           ats: greenhouse, token: janestreet,           tier: A }
+  - { name: Hudson River Trading,  ats: greenhouse, token: wehrtyou,             tier: A }
+  - { name: Jump Trading,          ats: greenhouse, token: jumptrading,          tier: A }
+  - { name: IMC Trading,           ats: greenhouse, token: imc,                  tier: A }
+  - { name: Optiver,               ats: greenhouse, token: optiverus,            tier: A }
+  - { name: Tower Research Capital, ats: greenhouse, token: towerresearchcapital, tier: A }
+  - { name: DRW,                   ats: greenhouse, token: drweng,               tier: A }
+  - { name: Akuna Capital,         ats: greenhouse, token: akunacapital,         tier: B }
+  - { name: Point72,               ats: greenhouse, token: point72,              tier: B }
+  - { name: Virtu Financial,       ats: greenhouse, token: virtu,                tier: C }
+  # Hardware, cars and space: software roles only
+  - { name: SpaceX,          ats: greenhouse, token: spacex,          tier: A, software_only: true }
+  - { name: Waymo,           ats: greenhouse, token: waymo,           tier: A, software_only: true }
+  - { name: Nuro,            ats: greenhouse, token: nuro,            tier: B, software_only: true }
+  - { name: Lucid Motors,    ats: greenhouse, token: lucidmotors,     tier: C, software_only: true }
+  - { name: Relativity Space, ats: greenhouse, token: relativity,     tier: C, software_only: true }
+  - { name: Flexport,        ats: greenhouse, token: flexport,        tier: C }
 
   # --- Lever: api.lever.co/v0/postings/<token>?mode=json
-  - { name: Palantir,   ats: lever, token: palantir, tier: A }
-  - { name: Spotify,    ats: lever, token: spotify,  tier: B }
+  - { name: Palantir,          ats: lever, token: palantir,          tier: A }
+  - { name: Spotify,           ats: lever, token: spotify,           tier: B }
+  - { name: Zoox,              ats: lever, token: zoox,              tier: B, software_only: true }
+  - { name: Shield AI,         ats: lever, token: shieldai,          tier: B, software_only: true }
+  - { name: Veeva Systems,     ats: lever, token: veeva,             tier: C }
+  - { name: Wealthfront,       ats: lever, token: wealthfront,       tier: C }
+  - { name: Belvedere Trading, ats: lever, token: belvederetrading,  tier: C }
 
   # --- Ashby: api.ashbyhq.com/posting-api/job-board/<token>
-  - { name: OpenAI,     ats: ashby, token: openai,     tier: A }
-  - { name: Ramp,       ats: ashby, token: ramp,       tier: A }
-  - { name: Notion,     ats: ashby, token: notion,     tier: B }
-  - { name: Linear,     ats: ashby, token: linear,     tier: B }
-  - { name: Cursor,     ats: ashby, token: cursor,     tier: B }
-  - { name: Perplexity, ats: ashby, token: perplexity, tier: B }
-  - { name: Replit,     ats: ashby, token: replit,     tier: C }
-  - { name: Vanta,      ats: ashby, token: vanta,      tier: C }
-  - { name: Snowflake,  ats: ashby, token: snowflake,  tier: B }
+  - { name: OpenAI,      ats: ashby, token: openai,      tier: A }
+  - { name: Ramp,        ats: ashby, token: ramp,        tier: A }
+  - { name: Cursor,      ats: ashby, token: cursor,      tier: A }
+  - { name: Perplexity,  ats: ashby, token: perplexity,  tier: A }
+  - { name: Snowflake,   ats: ashby, token: snowflake,   tier: A }
+  - { name: Plaid,       ats: ashby, token: plaid,       tier: A }
+  - { name: Notion,      ats: ashby, token: notion,      tier: B }
+  - { name: Linear,      ats: ashby, token: linear,      tier: B }
+  - { name: Cohere,      ats: ashby, token: cohere,      tier: B }
+  - { name: Harvey,      ats: ashby, token: harvey,      tier: B }
+  - { name: Sierra,      ats: ashby, token: sierra,      tier: B }
+  - { name: ElevenLabs,  ats: ashby, token: elevenlabs,  tier: B }
+  - { name: Cerebras,    ats: ashby, token: cerebras,    tier: B }
+  - { name: Baseten,     ats: ashby, token: baseten,     tier: B }
+  - { name: Modal,       ats: ashby, token: modal,       tier: B }
+  - { name: Supabase,    ats: ashby, token: supabase,    tier: B }
+  - { name: ClickHouse,  ats: ashby, token: clickhouse,  tier: B }
+  - { name: Temporal,    ats: ashby, token: temporal,    tier: C }
+  - { name: Sentry,      ats: ashby, token: sentry,      tier: C }
+  - { name: LangChain,   ats: ashby, token: langchain,   tier: C }
+  - { name: Crusoe,      ats: ashby, token: crusoe,      tier: C }
+  - { name: Skydio,      ats: ashby, token: skydio,      tier: C, software_only: true }
+  - { name: Replit,      ats: ashby, token: replit,      tier: C }
+  - { name: Vanta,       ats: ashby, token: vanta,       tier: C }
+  - { name: Benchling,   ats: ashby, token: benchling,   tier: C }
+  - { name: Webflow,     ats: ashby, token: webflow,     tier: C }
+  - { name: Watershed,   ats: ashby, token: watershed,   tier: C }
+  - { name: Amplitude,   ats: ashby, token: amplitude,   tier: C }
+  - { name: Thumbtack,   ats: ashby, token: thumbtack,   tier: C }
+  - { name: Whoop,       ats: ashby, token: whoop,       tier: C }
+  - { name: Strava,      ats: ashby, token: strava,      tier: C }
+  - { name: Render,      ats: ashby, token: render,      tier: C }
+  - { name: Redis,       ats: ashby, token: redis,       tier: C }
+  - { name: Commure,     ats: ashby, token: commure,     tier: C }
+  - { name: Abridge,     ats: ashby, token: abridge,     tier: C }
+  - { name: NerdWallet,  ats: ashby, token: nerdwallet,  tier: C }
+
+  # --- Workday: <tenant>.<wdN>.myworkdayjobs.com/<site>. A few early-career searches per run; software roles only.
+  - { name: NVIDIA,          ats: workday, token: nvidia.wd5/NVIDIAExternalCareerSite, tier: A }
+  - { name: Salesforce,      ats: workday, token: salesforce.wd12/External_Career_Site, tier: B }
+  - { name: Palo Alto Networks, ats: workday, token: paloaltonetworks.wd5/panwexternalcareers, tier: B }
+  - { name: Expedia,         ats: workday, token: expedia.wd108/search,                tier: B }
+  - { name: Adobe,           ats: workday, token: adobe.wd5/external_experienced,      tier: B }
+  - { name: Snap,            ats: workday, token: snapchat.wd1/snap,                   tier: B }
+  - { name: Workday,         ats: workday, token: workday.wd5/Workday,                 tier: B }
+  - { name: CrowdStrike,     ats: workday, token: crowdstrike.wd5/crowdstrikecareers,  tier: B }
+  - { name: Capital One,     ats: workday, token: capitalone.wd12/Capital_One,         tier: B }
+  - { name: Intel,           ats: workday, token: intel.wd1/External,                  tier: B }
+  - { name: Cisco,           ats: workday, token: cisco.wd5/Cisco_Careers,             tier: B }
+  - { name: PayPal,          ats: workday, token: paypal.wd1/jobs,                     tier: B }
+  - { name: Visa,            ats: workday, token: visa.wd5/Visa,                       tier: B }
+  - { name: Mastercard,      ats: workday, token: mastercard.wd1/CorporateCareers,     tier: B }
+  - { name: Autodesk,        ats: workday, token: autodesk.wd1/Ext,                    tier: B }
+  - { name: Zillow,          ats: workday, token: zillow.wd5/Zillow_Group_External,    tier: B }
+  - { name: eBay,            ats: workday, token: ebay.wd5/apply,                      tier: B }
+  - { name: Broadcom,        ats: workday, token: broadcom.wd1/External_Career,        tier: B }
+  - { name: Red Hat,         ats: workday, token: redhat.wd5/jobs,                     tier: B }
+  - { name: Zoom,            ats: workday, token: zoom.wd5/Zoom,                       tier: B }
+  - { name: Disney,          ats: workday, token: disney.wd5/disneycareer,             tier: B }
+  - { name: General Motors,  ats: workday, token: generalmotors.wd5/Careers_GM,        tier: B }
+  - { name: Fidelity,        ats: workday, token: fmr.wd1/FidelityCareers,             tier: B }
+  - { name: BlackRock,       ats: workday, token: blackrock.wd1/BlackRock_Professional, tier: B }
+  - { name: CME Group,       ats: workday, token: cmegroup.wd1/cme_careers,            tier: B }
+  - { name: Micron,          ats: workday, token: micron.wd1/External,                 tier: C }
+  - { name: HP,              ats: workday, token: hp.wd5/ExternalCareerSite,           tier: C }
+  - { name: Boeing,          ats: workday, token: boeing.wd1/EXTERNAL_CAREERS,         tier: C }
+  - { name: Analog Devices,  ats: workday, token: analogdevices.wd1/External,          tier: C }
+  - { name: Ciena,           ats: workday, token: ciena.wd5/Careers,                   tier: C }
+  - { name: Motorola Solutions, ats: workday, token: motorolasolutions.wd5/Careers,    tier: C }
+  - { name: T-Mobile,        ats: workday, token: tmobile.wd1/External,                tier: C }
+  - { name: Yahoo,           ats: workday, token: ouryahoo.wd5/careers,                tier: C }
+  - { name: Sony,            ats: workday, token: sonyglobal.wd1/SonyGlobalCareers,    tier: C }
+  - { name: Nike,            ats: workday, token: nike.wd1/nke,                        tier: C }
+  - { name: Chewy,           ats: workday, token: chewy.wd5/External,                  tier: C }
+  - { name: Target,          ats: workday, token: target.wd5/targetcareers,            tier: C }
+  - { name: The Home Depot,  ats: workday, token: homedepot.wd5/CareerDepot,           tier: C }
+  - { name: "Lowe's",        ats: workday, token: lowes.wd5/LWS_External_CS,           tier: C }
+  - { name: Procter & Gamble, ats: workday, token: pg.wd5/1000,                        tier: C }
+  - { name: 3M,              ats: workday, token: 3m.wd1/Search,                       tier: C }
+  - { name: GE Aerospace,    ats: workday, token: geaerospace.wd5/GE_ExternalSite,     tier: C }
+  - { name: Stryker,         ats: workday, token: stryker.wd1/StrykerCareers,          tier: C }
+  - { name: Medtronic,       ats: workday, token: medtronic.wd1/MedtronicCareers,      tier: C }
+  - { name: Abbott,          ats: workday, token: abbott.wd5/abbottcareers,            tier: C }
+  - { name: Johnson & Johnson, ats: workday, token: jj.wd5/JJ,                         tier: C }
+  - { name: Humana,          ats: workday, token: humana.wd5/Humana_External_Career_Site, tier: C }
+  - { name: Elevance Health, ats: workday, token: elevancehealth.wd1/ANT,              tier: C }
+  - { name: CVS Health,      ats: workday, token: cvshealth.wd1/CVS_Health_Careers,    tier: C }
+  - { name: U.S. Bank,       ats: workday, token: usbank.wd1/US_Bank_Careers,          tier: C }
+  - { name: PNC,             ats: workday, token: pnc.wd5/External,                    tier: C }
+  - { name: State Street,    ats: workday, token: statestreet.wd1/Global,              tier: C }
+  - { name: Vanguard,        ats: workday, token: vanguard.wd5/vanguard_external,      tier: C }
+  - { name: Nasdaq,          ats: workday, token: nasdaq.wd1/Global_External_Site,     tier: C }
+  - { name: Fiserv,          ats: workday, token: fiserv.wd5/EXT,                      tier: C }
+  - { name: Morningstar,     ats: workday, token: morningstar.wd5/Americas,            tier: C }
+  - { name: Accenture,       ats: workday, token: accenture.wd103/AccentureCareers,    tier: C }
+
+  # --- SmartRecruiters: api.smartrecruiters.com/v1/companies/<token>/postings (US only); software roles only
+  - { name: ServiceNow,      ats: smartrecruiters, token: ServiceNow,     tier: B }
+  - { name: Canva,           ats: smartrecruiters, token: Canva,          tier: B }
+  - { name: Experian,        ats: smartrecruiters, token: Experian,       tier: C }
+  - { name: Western Digital, ats: smartrecruiters, token: WesternDigital, tier: C }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   useApplications, useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useUpdateOutreach,
 } from '../data/hooks';
-import type { Contact, Outreach as OutreachRow } from '../data/types';
+import type { Contact, LaunchRequest, Outreach as OutreachRow } from '../data/types';
 import { FOLLOW_UP_RETRY_DAYS, PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, isPlainEmail, latestRequest, mailtoHref, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
 import { copyPrompt } from '../lib/outreachPrompt';
 import { addDays, localDay } from '../lib/time';
@@ -94,11 +94,13 @@ export function PromptButton({ build }: { build: () => string }) {
   );
 }
 
-function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry, onRetailor }: {
+function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry, onRetailor, note }: {
   o: OutreachRow; phase: Phase; today: string; contacts: Contact[]; prompt: () => string; busy: boolean; contactsLoaded: boolean; applied: boolean;
   onSent: () => void; onFollowedUp: () => void; onReplied: () => void; onClose: () => void; onReopen: () => void; onRetry: () => void;
   /** Tailor cards only: the Mac reuses a resume already saved for this card, or tailors again; either way the posting reopens. */
   onRetailor?: () => void;
+  /** What the Mac did with the last Retailor resume, if anything. */
+  note?: string | null;
 }) {
   const headId = `out-${o.id}`;
   const waiting = phase.kind === 'queued' || phase.kind === 'on_mac' || phase.kind === 'failed' || phase.kind === 'not_queued';
@@ -119,6 +121,7 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
         </p>
       )}
       {phase.kind === 'failed' && <ErrorDetail error={phase.error} />}
+      {note && <p className="muted small" role="status">{note}</p>}
       <div className="row-actions">
         {(phase.kind === 'failed' || phase.kind === 'not_queued') && <Button onClick={onRetry} disabled={busy}>Try again</Button>}
         {waiting && <PromptButton build={prompt} />}
@@ -133,7 +136,12 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
             <Button variant={closeSuggested ? 'primary' : 'quiet'} aria-label={`Close: ${name}`} onClick={onClose} disabled={busy}>Close</Button>
           </>
         )}
-        {discardable && <Button variant="quiet" aria-label={`Discard: ${name}`} onClick={onClose} disabled={busy}>Discard</Button>}
+        {discardable && (applied ? (
+          // Applied and nothing left to send: the card is finished, so make Done the obvious next step.
+          <Button variant={contacts.length === 0 && waiting ? 'primary' : 'quiet'} aria-label={`Done: ${name}`} onClick={onClose} disabled={busy}>Done</Button>
+        ) : (
+          <Button variant="quiet" aria-label={`Discard: ${name}`} onClick={onClose} disabled={busy}>Discard</Button>
+        ))}
         {phase.kind === 'closed' && <Button variant="quiet" aria-label={`Reopen: ${name}`} onClick={onReopen} disabled={busy || !contactsLoaded}>Reopen</Button>}
         <ExternalLink className="btn btn-quiet" href={o.job_url}>Posting</ExternalLink>
         {safeHref(o.job_url) && <IApplied input={{ outreach_id: o.id }} company={name} role={o.role} applied={applied} />}
@@ -143,6 +151,14 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
       {contacts.map((c) => <ContactBlock key={c.id} c={c} o={o} name={name} followUp={firstFollowUp} original={phase.kind !== 'sent' && phase.kind !== 'due'} />)}
     </Card>
   );
+}
+
+/** The Mac's answer to Retailor resume: it reused a saved resume, or found none and started Claude again. */
+export function retailorNote(r: LaunchRequest | null): string | null {
+  if (!r || r.kind !== 'tailor_resume' || r.payload.retailor !== true || r.status !== 'launched') return null;
+  return r.payload.result === 'reused'
+    ? 'Your tailored resume was already saved. It opened in Finder, along with the posting.'
+    : 'No saved resume for this card, so Claude is tailoring it again on your Mac.';
 }
 
 export default function Outreach() {
@@ -190,6 +206,7 @@ export default function Outreach() {
       onRetry={() => launch.mutate({
         kind: latestRequest(o, reqs)?.kind ?? 'outreach', payload: { outreach_id: o.id, job_url: o.job_url },
       })}
+      note={retailorNote(latestRequest(o, reqs))}
       onRetailor={(o.status === 'queued' || o.status === 'drafted') && latestRequest(o, reqs)?.kind === 'tailor_resume' ? () => launch.mutate({
         kind: 'tailor_resume', payload: { outreach_id: o.id, job_url: o.job_url, retailor: true },
       }) : undefined} />

@@ -8,8 +8,9 @@ import yaml
 
 from . import location as loc
 
-ATS_TYPES = ("greenhouse", "lever", "ashby")
+ATS_TYPES = ("greenhouse", "lever", "ashby", "workday", "smartrecruiters", "amazon", "eightfold", "google", "apple", "meta", "oracle", "ibm")
 TIERS = ("A", "B", "C")
+BROAD_ATS = ("workday", "smartrecruiters", "amazon", "eightfold", "google", "apple", "meta", "oracle", "ibm")  # software_only defaults on for these
 
 
 class ConfigError(Exception):
@@ -22,6 +23,9 @@ class Company:
     ats: str
     token: str
     tier: str
+    # Big employers (Workday/SmartRecruiters, hardware-heavy companies) post every kind of early-career
+    # role; for them the title must also match filters.yaml `role` (software-ish work).
+    software_only: bool = False
 
     @property
     def key(self) -> str:
@@ -64,9 +68,12 @@ class Filters:
     include: re.Pattern
     exclude: re.Pattern
     location: LocationRules = LocationRules()
+    role: re.Pattern | None = None  # required only for software_only companies
 
-    def matches(self, title: str, *, check_include: bool = True) -> bool:
+    def matches(self, title: str, *, check_include: bool = True, software_only: bool = False) -> bool:
         if self.exclude.search(title):
+            return False
+        if software_only and self.role is not None and not self.role.search(title):
             return False
         return not check_include or bool(self.include.search(title))
 
@@ -104,7 +111,8 @@ def load_companies(path: Path) -> list[Company]:
             raise ConfigError(f"{where} ({name}): ats must be one of {ATS_TYPES}, got {ats!r}")
         if tier not in TIERS:
             raise ConfigError(f"{where} ({name}): tier must be one of {TIERS}, got {tier!r}")
-        company = Company(name=name, ats=ats, token=token, tier=tier)
+        software_only = bool(raw.get("software_only", ats in BROAD_ATS))
+        company = Company(name=name, ats=ats, token=token, tier=tier, software_only=software_only)
         if company.key in keys:
             raise ConfigError(f"{where} ({name}): duplicate {company.key}")
         keys.add(company.key)
@@ -149,6 +157,7 @@ def load_filters(path: Path) -> Filters:
         include=_compile(title.get("include") or [], "include"),
         exclude=_compile(title.get("exclude") or [], "exclude"),
         location=_location_rules(data.get("location") or {}),
+        role=_compile((data.get("role") or {}).get("include") or [], "role.include") if (data.get("role") or {}).get("include") else None,
     )
 
 

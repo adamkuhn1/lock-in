@@ -14,12 +14,20 @@ const tree = (
 );
 
 describe('Jobs', () => {
-  it('lists new postings with starred first', async () => {
+  it('lists new postings by tier, starred first within a tier', async () => {
     const { container } = renderWithData(tree);
     await screen.findAllByRole('button', { name: 'Cold email' });
-    const titles = [...container.querySelectorAll('[data-primary] .job-title')].map((n) => n.textContent);
+    const titles = [...container.querySelectorAll('[data-primary] .job-title')].map((n) => n.textContent ?? '');
     expect(titles).toHaveLength(8);
-    expect(titles.slice(0, 3).every((t) => t?.includes('Starred'))).toBe(true);
+    const company = (t: string) => t.replace(/^.*?Starred: /, '').split(' · ')[0];
+    // Tier A (Stripe starred, then Ramp, Cloudflare, Datadog, Robinhood newest first), then tier B (Ford and Rocket starred, then Duolingo)
+    expect(titles.map(company)).toEqual(['Stripe', 'Ramp', 'Cloudflare', 'Datadog', 'Robinhood', 'Ford', 'Rocket Companies', 'Duolingo']);
+    expect(screen.getAllByText(/^Tier A · /)).toHaveLength(5);
+  });
+  it('Tier A chip shows only top-tier companies', async () => {
+    renderWithData(tree);
+    await userEvent.click(await screen.findByRole('button', { name: 'Tier A' }));
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(5);
   });
   it('filters by star and clears', async () => {
     renderWithData(tree);

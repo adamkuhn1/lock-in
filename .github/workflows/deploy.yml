@@ -1,0 +1,36 @@
+name: deploy
+# Deploys the web app to Vercel after ci passes on a push to main.
+# The deploy is git-free (the .git folder is removed first): this Vercel account isn't linked to the
+# GitHub identity, so Hobby rejects deploys that carry git metadata. See docs/setup.md.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+concurrency: { group: deploy-web, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  web:
+    # Only our own pushes: never a fork's pull request whose branch happens to be called main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Deploy (git-free)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          rm -rf .git
+          npx -y vercel@64.0.2 deploy --prod --yes

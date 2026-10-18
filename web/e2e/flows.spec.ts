@@ -26,10 +26,10 @@ test('a due follow-up opens a mail draft, then moves on to a week out', async ({
   await expect(card.getByRole('button', { name: /^Follow-up sent/ })).toHaveCount(0);
 });
 
-test('discard a drafted outreach and reopen it from Done', async ({ page }) => {
+test('close an applied drafted outreach with Done and reopen it', async ({ page }) => {
   await page.goto('/hunt/outreach');
   const card = page.locator('section', { has: page.getByRole('heading', { name: 'Stripe' }) });
-  await card.getByRole('button', { name: 'Discard: Stripe' }).click();
+  await card.getByRole('button', { name: 'Done: Stripe' }).click(); // Stripe is already in the Sheet, so Discard reads Done
   await page.getByText(/^Done \(/).click();
   await page.getByRole('button', { name: 'Reopen: Stripe' }).click();
   await expect(card.getByRole('button', { name: 'Sent' })).toBeVisible();

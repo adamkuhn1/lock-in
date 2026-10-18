@@ -14,7 +14,7 @@ function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss, onA
   onCold: (href: string) => void; onTailor: (href: string) => void; onDismiss: () => void;
 }) {
   const href = safeHref(p.url);
-  const meta = [p.location, p.term, relativeTime(p.posted_at ?? p.found_at, now)].filter(Boolean).join(' · ');
+  const meta = [p.tier && `Tier ${p.tier}`, p.location, p.term, relativeTime(p.posted_at ?? p.found_at, now)].filter(Boolean).join(' · ');
   return (
     <li className="job">
       <div>
@@ -56,7 +56,7 @@ export default function Jobs() {
   const opened = sortPostings(all.filter((p) => p.status === 'seen'));
   const terms = termsOf(fresh);
   const places = topLocations(fresh);
-  const filtering = f.starred || f.track !== null || f.term !== null || f.location !== null;
+  const filtering = f.starred || f.topTier || f.track !== null || f.term !== null || f.location !== null;
   const toggle = <K extends keyof JobFilters>(k: K, v: JobFilters[K]) => setF({ ...f, [k]: f[k] === v ? NO_FILTERS[k] : v });
 
   // Wait for the posting to leave the inbox before navigating, so coming back can't queue a second outreach for it.
@@ -105,6 +105,7 @@ export default function Jobs() {
       </header>
 
       <div className="chips" role="group" aria-label="Filters">
+        <Chip pressed={f.topTier} onToggle={() => setF({ ...f, topTier: !f.topTier })}>Tier A</Chip>
         <Chip pressed={f.starred} onToggle={() => setF({ ...f, starred: !f.starred })}>⭐ Starred</Chip>
         <Chip pressed={f.track === 'internship'} onToggle={() => toggle('track', 'internship')}>Internship</Chip>
         <Chip pressed={f.track === 'new_grad'} onToggle={() => toggle('track', 'new_grad')}>New grad</Chip>

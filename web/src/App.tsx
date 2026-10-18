@@ -5,6 +5,7 @@ import type { DataApi } from './data/api';
 import type { AuthApi } from './data/auth';
 import { DataProvider } from './data/context';
 import { AppRoutes } from './routes';
+import { UpdateBanner } from './ui/UpdateBanner';
 import { SignIn } from './ui/SignIn';
 
 function AuthGate({ auth, children }: { auth: AuthApi; children: ReactNode }) {
@@ -29,6 +30,7 @@ export default function App({ api, auth }: { api: DataApi; auth: AuthApi }) {
       <AuthGate auth={auth}>
         <QueryClientProvider client={qc}>
           <BrowserRouter>
+            <UpdateBanner />
             <AppRoutes />
           </BrowserRouter>
         </QueryClientProvider>

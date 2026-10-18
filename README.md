@@ -4,11 +4,17 @@ A personal training app for internship and new-grad recruiting season. It tracks
 
 I built it for myself and use it every day. It's not a hosted product: you'd need your own Supabase project, Google Sheet and Mac to run it.
 
+<p>
+  <img src="docs/screens/today.png" alt="Today: Day 21, a 17-day streak, the activity heatmap, weekly rings and the season funnel" width="49%">
+  <img src="docs/screens/jobs.png" alt="Jobs: new postings sorted by company tier, with Cold email, Tailor resume and I applied on each" width="49%">
+</p>
+<sub>Screens from demo mode (made-up data).</sub>
+
 ## What it does
 
 - **Today**: Day N of the season, an any-work streak, a GitHub-style activity heatmap, weekly rings (LeetCode, applications, emails) and an application funnel compared against a benchmark season.
 - **Grind**: a daily LeetCode set chosen by spaced repetition across a problem roadmap, plus interview prep (a story bank, a fundamentals checklist, company prep and mock interviews).
-- **Hunt**: new job postings pulled from company career boards, applications synced from my tracking Sheet, and outreach cards that follow each recruiter email from draft to follow-up.
+- **Hunt**: new early-career postings from about 200 companies' career sites, sorted by how much I want each company, applications synced from my tracking Sheet, and outreach cards that follow each recruiter email from draft to follow-up.
 - **Projects**: commit strips for my side projects and an idea list. **Work on this** opens a briefed Claude Code session in that project's folder.
 - **Tailor resume**: the Mac copies my base LaTeX resume, has Claude tailor it to the posting, compiles it with tectonic, checks it's exactly one page, saves it next to my other resumes, then drafts one recruiter email for me to review and send.
 - **Calendar**, a shareable progress card, and phone nudges through ntfy.
@@ -32,7 +38,7 @@ flowchart LR
 - **`web/`**: React 19, TypeScript, TanStack Query and Vite. It's installable as a PWA, with no UI kit or chart library. `web/api/` holds two Vercel functions (LeetCode sync, Sheet writes).
 - **`worker/`**: Python 3.12.
   - `lockin_worker` handles the scheduled sync, streaks, the daily set, nudges and the Mac launcher.
-  - `job_radar` fetches postings from career boards.
+  - `job_radar` fetches postings from 214 companies: job boards (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Eightfold, Oracle) and the career sites of Google, Apple, Amazon, Meta and IBM, plus community GitHub lists.
 - **`prompts/`**: the briefs each Claude Code session starts from.
 - **`supabase/migrations/`**: the schema, with row-level security on every table.
 

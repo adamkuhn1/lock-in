@@ -1,12 +1,14 @@
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt + UpdateBanner: tell Adam a new build is ready instead of silently running the old one.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg'],
       manifest: {
         name: 'Lock In',
@@ -36,5 +38,6 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],
     css: false,
+    alias: { 'virtual:pwa-register/react': fileURLToPath(new URL('./src/test/pwa-register-react.ts', import.meta.url)) },
   },
 });

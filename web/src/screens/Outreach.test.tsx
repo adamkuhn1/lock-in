@@ -5,7 +5,7 @@ import { createDemoApi } from '../data/demo';
 import { followUpOn } from '../lib/outreach';
 import { addDays, localDay } from '../lib/time';
 import { renderWithData } from '../test/render';
-import Outreach, { PromptButton } from './Outreach';
+import Outreach, { PromptButton, retailorNote } from './Outreach';
 
 const cardFor = async (name: string) => (await screen.findByRole('heading', { level: 2, name })).closest('section') as HTMLElement;
 
@@ -122,6 +122,15 @@ describe('Outreach', () => {
     await userEvent.click(within(card).getByRole('button', { name: 'Retailor resume: Acme' }));
     expect(spy).toHaveBeenCalledWith('tailor_resume', { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3', retailor: true });
   });
+  it('says what the Mac did with Retailor resume', () => {
+    const r = (payload: Record<string, unknown>, status: 'queued' | 'launched' = 'launched') =>
+      ({ id: 'r', kind: 'tailor_resume' as const, payload: { outreach_id: 'o', retailor: true, ...payload }, status, error: null, created_at: '' });
+    expect(retailorNote(r({ result: 'reused' }))).toMatch(/already saved/);
+    expect(retailorNote(r({}))).toMatch(/tailoring it again/);
+    expect(retailorNote(r({}, 'queued'))).toBeNull();
+    expect(retailorNote({ ...r({}), payload: { outreach_id: 'o' } })).toBeNull(); // a first tailor, not a retailor
+    expect(retailorNote(null)).toBeNull();
+  });
   it('no Retailor resume on Cold email cards or while queued', async () => {
     const api = createDemoApi();
     await api.queueOutreach({ job_url: 'https://jobs.lever.co/cold/1', company: 'Coldco', role: 'SWE' });
@@ -147,14 +156,14 @@ describe('Outreach', () => {
     renderWithData(<Outreach />, { api });
     const card = await cardFor('Ramp');
     expect(within(card).getByText('Opened on Mac')).toBeInTheDocument();
-    await user.click(within(card).getByRole('button', { name: 'Discard: Ramp' }));
+    await user.click(within(card).getByRole('button', { name: 'Done: Ramp' }));
     expect(spy).toHaveBeenCalledWith('o2', { status: 'closed' });
   });
   it('a request still queued for the Mac can be discarded', async () => {
     renderWithData(<Outreach />);
     const card = await cardFor('Ramp');
     expect(within(card).getByText('Queued for Mac')).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Discard: Ramp' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Done: Ramp' })).toBeInTheDocument();
   });
   it('failed launch shows the error and Try again', async () => {
     const api = createDemoApi();
@@ -224,22 +233,32 @@ describe('Outreach', () => {
     const card = await cardFor('Palantir');
     expect(await within(card).findByText('Applied ✓')).toBeInTheDocument();
   });
-  it('Discard closes a drafted card and moves it into Done; Reopen brings it back', async () => {
+  it('Done closes an applied drafted card and moves it into Done; Reopen brings it back', async () => {
     const user = userEvent.setup();
     const api = createDemoApi();
     const spy = vi.spyOn(api, 'updateOutreach');
     renderWithData(<Outreach />, { api });
     const card = await cardFor('Stripe');
-    const discard = within(card).getByRole('button', { name: 'Discard: Stripe' });
-    expect(discard).toHaveTextContent('Discard');
+    const discard = within(card).getByRole('button', { name: 'Done: Stripe' });
+    expect(discard).toHaveTextContent('Done'); // Stripe is already in the Sheet
+    expect(discard).not.toHaveClass('btn-primary'); // it has drafts: Sent stays the main action
     await user.click(discard);
     expect(spy).toHaveBeenCalledWith('o1', { status: 'closed' });
     const done = (await screen.findByText(/^Done \(/)).closest('details') as HTMLElement;
     const closed = within(done).getByRole('heading', { level: 2, name: 'Stripe' }).closest('section') as HTMLElement;
-    expect(within(closed).queryByRole('button', { name: /^Discard/ })).toBeNull();
+    expect(within(closed).queryByRole('button', { name: /^(Discard|Done):/ })).toBeNull();
     await user.click(within(closed).getByRole('button', { name: 'Reopen: Stripe' }));
     expect(spy).toHaveBeenLastCalledWith('o1', { status: 'drafted' });
     expect(within(await cardFor('Stripe')).getByRole('button', { name: 'Sent' })).toBeInTheDocument();
+  });
+  it('Discard on cards not yet applied; Done (primary when nothing is drafted) once applied', async () => {
+    const api = createDemoApi();
+    await api.queueOutreach({ job_url: 'https://jobs.lever.co/newco/1', company: 'Newco', role: 'SWE' });
+    renderWithData(<Outreach />, { api });
+    const fresh = await cardFor('Newco');
+    expect(within(fresh).getByRole('button', { name: 'Discard: Newco' })).toBeInTheDocument();
+    expect(within(fresh).queryByRole('button', { name: 'Done: Newco' })).toBeNull();
+    expect(within(await cardFor('Ramp')).getByRole('button', { name: 'Done: Ramp' })).toHaveClass('btn-primary');
   });
   it('Reopen goes back to queued when there are no contacts', async () => {
     const user = userEvent.setup();
@@ -247,7 +266,7 @@ describe('Outreach', () => {
     api.listLaunchRequests = async () => [];
     const spy = vi.spyOn(api, 'updateOutreach');
     renderWithData(<Outreach />, { api });
-    await user.click(within(await cardFor('Ramp')).getByRole('button', { name: 'Discard: Ramp' }));
+    await user.click(within(await cardFor('Ramp')).getByRole('button', { name: 'Done: Ramp' }));
     const done = (await screen.findByText(/^Done \(/)).closest('details') as HTMLElement;
     await user.click(within(done).getByRole('button', { name: 'Reopen: Ramp' }));
     expect(spy).toHaveBeenLastCalledWith('o2', { status: 'queued' });

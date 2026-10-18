@@ -572,6 +572,7 @@ def test_retailor_with_saved_resume_reopens_posting_without_claude(tmp_path, ope
     assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
     assert op.calls == []
     assert opened == [["open", "-R", str(pdf)], ["open", "https://boards.greenhouse.io/stripe/jobs/1"]]
+    assert status(db, "tr1")["payload"]["result"] == "reused"
 
 
 def test_retailor_finds_suffixed_folder_saved_before_the_tab_closed(tmp_path, opened):

@@ -214,6 +214,7 @@ input[type="number"] { max-width: 10rem; }
 /* Undo bar (Jobs dismiss) */
 .undo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tap); padding: 0 4px 0 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .undo:empty { display: none; }
+.update-banner { position: fixed; z-index: 50; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(480px, calc(100% - 32px)); box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); }
 
 /* Desktop: two independent cards sit side by side; the primary card stays first and on the left. */
 @media (min-width: 1100px) {

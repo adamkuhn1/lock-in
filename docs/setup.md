@@ -158,7 +158,7 @@ vercel.json ships only conservative headers (nosniff, Referrer-Policy, no-cache 
 
 ## 10. v2 (2026-10-14)
 - Migration `0003_v2.sql` is applied (prep, calendar, `day_activity` view); `shared/prep_items.json` is loaded into `prep_items`; LEGO is a project with no repo. Link it in Me → Settings → Projects → Edit LEGO once `adamkuhn1/lego` exists.
-- **Deploying the web app:** this Vercel account isn't linked to the `adamkuhn1` GitHub identity, so Hobby blocks deploys that carry git metadata ("commit author doesn't have permission"). Deploy a git-free copy instead:
+- **Deploying the web app:** automatic. `.github/workflows/deploy.yml` deploys a git-free copy after `ci` passes on a push to `main` (secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`; run it by hand from the Actions tab). Git-free because this Vercel account isn't linked to the `adamkuhn1` GitHub identity, so Hobby blocks deploys that carry git metadata ("commit author doesn't have permission"). To deploy from the Mac instead:
   ```bash
   D=$(mktemp -d) && git archive main | tar -x -C "$D" && mkdir "$D/.vercel" && cp .vercel/project.json "$D/.vercel/"
   (cd "$D" && VERCEL_TOKEN="$(security find-generic-password -s lockin -a vercel_token -w)" npx -y vercel@64.0.2 deploy --prod --yes)

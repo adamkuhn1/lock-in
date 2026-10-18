@@ -113,7 +113,7 @@ def test_repo_config_loads():
 
 def test_bad_ats_rejected(tmp_path):
     p = tmp_path / "c.yaml"
-    p.write_text("companies:\n  - {name: X, ats: workday, token: x, tier: A}\n")
+    p.write_text("companies:\n  - {name: X, ats: icims, token: x, tier: A}\n")
     with pytest.raises(ConfigError, match="ats must be"):
         load_companies(p)
 
@@ -130,3 +130,21 @@ def test_duplicate_rejected(tmp_path):
     p.write_text("companies:\n  - {name: X, ats: lever, token: x}\n  - {name: Y, ats: lever, token: x}\n")
     with pytest.raises(ConfigError, match="duplicate"):
         load_companies(p)
+
+
+def test_software_only_companies_need_a_software_role(tmp_path):
+    from job_radar.config import load_companies, load_filters
+    from pathlib import Path
+    cfg = Path(__file__).resolve().parents[2] / "config"
+    f = load_filters(cfg / "filters.yaml")
+    assert f.matches("Software Engineer - New College Grad 2027", software_only=True)
+    assert f.matches("Data Scientist, New Grad 2027", software_only=True)
+    assert not f.matches("ASIC Design Engineer - New College Grad 2027", software_only=True)
+    assert not f.matches("2027 Co-op – Mechanical Engineer", software_only=True)
+    assert f.matches("ASIC Design Engineer - New College Grad 2027")  # other companies keep today's rules
+    p = tmp_path / "c.yaml"
+    p.write_text("companies:\n"
+                 "  - { name: NVIDIA, ats: workday, token: nvidia.wd5/Site, tier: A }\n"
+                 "  - { name: Stripe, ats: greenhouse, token: stripe, tier: A }\n"
+                 "  - { name: SpaceX, ats: greenhouse, token: spacex, tier: A, software_only: true }\n")
+    assert [c.software_only for c in load_companies(p)] == [True, False, True]

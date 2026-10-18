@@ -70,6 +70,15 @@ def default_steps(env: dict):
             print("job sources failing:", sorted(out["errors"]))
             if len(out["errors"]) == len(srcs):
                 raise RuntimeError("all job sources failed")
+        topic = _settings(db).get("ntfy_topic") or env.get("NTFY_TOPIC")
+        if out.get("alert") and topic:
+            try:
+                nudges.send(session, topic, nudges.Nudge(
+                    "jobs_failing", f"Job boards failing ({len(out['alert'])})",
+                    "\n".join(out["alert"]) + "\n\nFix the token in worker/config/companies.yaml, or remove the company.",
+                    "low"))
+            except Exception as exc:  # the alert is best effort; the postings are already saved
+                print(f"FAILED job board alert: {_safe_err(exc)}", file=sys.stderr)
         return out
 
     return [("leetcode", lc), ("github", gh), ("sheet", sh), ("jobs", jb)]

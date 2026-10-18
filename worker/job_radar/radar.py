@@ -9,14 +9,17 @@ from zoneinfo import ZoneInfo
 from . import posted
 from . import state as state_mod
 from .config import Company, Filters, GitHubList, term_matches
-from .fetchers import ashby, greenhouse, lever, simplify
+from .fetchers import amazon, apple, ashby, eightfold, google, greenhouse, ibm, lever, meta, oracle, simplify, smartrecruiters, workday
 from .models import FetchError, Job
 from .notify import Notifier
 
 ET = ZoneInfo("America/New_York")
 DAILY_PING_HOUR_ET = 9
 MAX_INDIVIDUAL_ALERTS = 15  # beyond this, roll the rest into one summary (ntfy rate limits)
-COMPANY_FETCHERS = {"greenhouse": greenhouse.fetch, "lever": lever.fetch, "ashby": ashby.fetch}
+COMPANY_FETCHERS = {"greenhouse": greenhouse.fetch, "lever": lever.fetch, "ashby": ashby.fetch,
+                    "workday": workday.fetch, "smartrecruiters": smartrecruiters.fetch,
+                    "amazon": amazon.fetch, "eightfold": eightfold.fetch, "google": google.fetch, "apple": apple.fetch,
+                    "meta": meta.fetch, "oracle": oracle.fetch, "ibm": ibm.fetch}
 
 
 @dataclass(frozen=True)
@@ -32,7 +35,8 @@ class Source:
         # A list's Terms column ("Winter 2027") counts as part of the title, so
         # term-based title rules work for rows like "Middleware Software Intern".
         text = f"{job.title} ({job.term})" if job.term else job.title
-        return (filters.matches(text, check_include=self.check_include)
+        software_only = isinstance(self.target, Company) and self.target.software_only
+        return (filters.matches(text, check_include=self.check_include, software_only=software_only)
                 and term_matches(job.term, self.terms)
                 and filters.location.allows(filters.placement(job.location_texts)))
 
