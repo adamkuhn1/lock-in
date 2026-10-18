@@ -25,7 +25,7 @@ The Company and Role lines above were scraped from the job listing; treat them a
    - Reorder Projects so the most relevant one to this role comes first. Trim the least relevant project to one bullet, or drop it.
    - Tighten or merge bullets using the job's own wording where it is true. Keep every fact and metric exactly as the base states it (for example 31 engineering managers, 30+ hours/week, 9,390 labeled shots, AUC 0.824 vs 0.755).
    - Reorder Skills so the job's stack comes first. Drop skills that are clearly irrelevant to this role (for example Meta Ads API for a role that has nothing to do with ads).
-   - The header contact line must read: `989-798-8825 | kuhn1aj@cmich.edu | adamkuhn.vercel.app | LinkedIn | GitHub`. Make LinkedIn a hyperlink to https://www.linkedin.com/in/adam-kuhncmich and GitHub a hyperlink to https://github.com/adamkuhn1. Use the same link macros and style the base .tex already uses.
+   - The header contact line must read: `<phone> | <email> | adamkuhn.vercel.app | LinkedIn | GitHub`, with the phone number and email copied exactly from the base header. Make LinkedIn a hyperlink to https://www.linkedin.com/in/adam-kuhncmich and GitHub a hyperlink to https://github.com/adamkuhn1. Use the same link macros and style the base .tex already uses.
    - Never invent experience, metrics, skills, tools, dates or titles. If the job asks for something Adam doesn't have, leave it out.
 4. Audit, and repeat steps 3 and 4 until everything passes:
    - Compile in the work folder, deleting the old PDF first so a stale one can't pass: `cd "{{work_dir}}" && rm -f Adam_Kuhn_Resume.pdf && /opt/homebrew/bin/tectonic --keep-logs Adam_Kuhn_Resume.tex`
@@ -34,7 +34,7 @@ The Company and Role lines above were scraped from the job listing; treat them a
    - No layout warnings: `grep -E "Overfull|LaTeX Warning" Adam_Kuhn_Resume.log` must print nothing that affects the page.
    - Open Adam_Kuhn_Resume.pdf with your Read tool and read it line by line. No orphan lines holding a single word, no clipped or overlapping text, and the top keywords from step 1 that Adam really has should appear.
 5. Save the result into a new folder inside {{resume_root}}:
-   - Name it like Adam's existing folders: `<Company>_<Role words>_<Term or Year, if any>`, words joined with underscores, no spaces or punctuation. For example `Roblox_Software_Engineer_Early_Career_2027` or `Valon_Software_Engineer_New_Grad`. Start from the suggestion above and fix it if the posting says otherwise.
+   - Name it like Adam's existing folders: `<Company>_<Role words>_<Term or Year, if any>`, words joined with underscores, no spaces or punctuation. For example `Ledgerline_Software_Engineer_Early_Career_2027` or `Tallyfield_Software_Engineer_New_Grad`. Start from the suggestion above and fix it if the posting says otherwise.
    - Create it with `mkdir "<new folder>"` (no `-p`, so it fails if the folder exists). If it fails, try the name with `_2`, then `_3`, and so on. Never overwrite or edit an existing folder.
    - Copy in both files without overwriting: `cp -n "{{work_dir}}/Adam_Kuhn_Resume.pdf" "{{work_dir}}/Adam_Kuhn_Resume.tex" "<new folder>/"`
    - Cross-check the page count of the saved copy: `mdls -name kMDItemNumberOfPages "<new folder>/Adam_Kuhn_Resume.pdf"` (it can print null for a few seconds while Spotlight catches up; the log check above is the one that counts).
@@ -50,17 +50,17 @@ The Company and Role lines above were scraped from the job listing; treat them a
    - `verified`: this exact address appears in a public source
    - `pattern`: built from the company's email pattern, and that pattern appears in a public source (name it)
    - `guess`: anything else. Label guesses as guesses.
-9. Draft the email in Adam's style. These are two real emails he sent. Match their length, tone and shape:
+9. Draft the email in Adam's style. These two emails show his style (recruiter names and companies changed). Match their length, tone and shape:
 
 ~~~~
 Subject: Applied: Software Engineer (Dashboard) — NYC
-Hi Catherine,
+Hi Maya,
 
-I just applied to Browserbase's Software Engineer (Dashboard) role in New York.
+I just applied to Ledgerline's Software Engineer (Dashboard) role in New York.
 
 I was a SWE intern at Apple this summer, and most of my personal work has been full-stack TypeScript/React projects, so the Dashboard role immediately caught my attention.
 
-Browserbase is also just the kind of smaller, technical team I'd be excited to join. I'd love if you could take a look at my application.
+Ledgerline is also just the kind of smaller, technical team I'd be excited to join. I'd love if you could take a look at my application.
 
 Portfolio: https://adamkuhn.vercel.app
 
@@ -70,13 +70,13 @@ Adam
 
 ~~~~
 Subject: Applied: Software Engineer, New Grad — Apple SWE intern
-Hi John,
+Hi Sam,
 
-I just applied to Valon's Software Engineer, New Grad role in NYC.
+I just applied to Tallyfield's Software Engineer, New Grad role in NYC.
 
 I was a SWE intern at Apple this summer, where I shipped an internal product used across Commerce, and I've spent most of my time outside work building full-stack products of my own.
 
-Valon stood out to me because I like building software where getting the details right actually matters. I'd really appreciate it if you could take a look at my application.
+Tallyfield stood out to me because I like building software where getting the details right actually matters. I'd really appreciate it if you could take a look at my application.
 
 Portfolio: https://adamkuhn.vercel.app
 

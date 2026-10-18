@@ -245,5 +245,9 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
       if (code !== 200) throw sheetError(body);
       return {};
     },
+    async undoApplied({ company, role, sheet_row }) {
+      const [code, body] = await sheetCall({ body: { op: 'unapply', company, role, ...(sheet_row ? { sheet_row } : {}) } });
+      if (code !== 200) throw sheetError(body);
+    },
   };
 }

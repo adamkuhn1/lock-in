@@ -222,7 +222,40 @@ def _copy_base(src: Path, dst: Path) -> None:
             resume.ensure_local(src, ICLOUD_RUN, ICLOUD_SLEEP, force=True)
 
 
-def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+OPEN_RUN = subprocess.run  # injectable for tests: opens the posting / reveals the resume without Claude
+
+
+def _created_ts(o: dict) -> float:
+    """The outreach row's creation time, so only resumes saved for this card count. 0 when unknown."""
+    try:
+        return datetime.fromisoformat(str(o.get("created_at")).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def find_tailored(o: dict, root: Path, hint: str) -> Path | None:
+    """A tailored PDF already saved for this card: its resume_path, or a `<hint>` / `<hint>_N` folder saved since."""
+    since = _created_ts(o)
+
+    def fresh(pdf: Path) -> bool:
+        try:
+            return pdf.is_file() and pdf.parent.name != BASE_RESUME and pdf.stat().st_mtime >= since
+        except OSError:
+            return False
+
+    saved = o.get("resume_path")
+    if saved and fresh(Path(os.path.expanduser(saved))):
+        return Path(os.path.expanduser(saved))
+    try:
+        dirs = [d for d in root.iterdir() if d.is_dir() and re.fullmatch(re.escape(hint) + r"(_\d+)?", d.name)]
+    except OSError:
+        return None
+    pdfs = [d / f"{RESUME_STEM}.pdf" for d in dirs]
+    pdfs = [p for p in pdfs if fresh(p)]
+    return max(pdfs, key=lambda p: p.stat().st_mtime) if pdfs else None
+
+
+def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] | None:
     oid = payload.get("outreach_id")
     rows = db.select("outreach", {"id": oid}) if oid else []
     if not rows:
@@ -234,6 +267,17 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
     role = o.get("role") or (posting or {}).get("title") or None
     settings = (db.select("settings") or [{}])[0]
     root = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT))
+    hint = folder_hint(company or resume.company_from_url(job_url), role)
+    if payload.get("retailor"):
+        done = find_tailored(o, root, hint)
+        if done is not None:
+            # Already tailored: no Claude run, just record it, show it in Finder and reopen the posting.
+            if o.get("resume_path") != str(done):
+                db.update("outreach", {"id": oid}, {"resume_path": str(done)})
+            OPEN_RUN(["open", "-R", str(done)], check=False)
+            OPEN_RUN(["open", job_url], check=False)
+            log(f"retailor {oid}: resume already at {done}")
+            return None
     base_dir = root / BASE_RESUME
     base_tex, base_pdf = base_dir / f"{RESUME_STEM}.tex", base_dir / f"{RESUME_STEM}.pdf"
     for base in (base_tex, base_pdf):
@@ -249,7 +293,6 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
         patch["role"] = posting["title"]
     if patch:
         db.update("outreach", {"id": oid}, patch)
-    hint = folder_hint(company or resume.company_from_url(job_url), role)
     TAILOR_DIR.mkdir(parents=True, exist_ok=True)
     TAILOR_DIR.chmod(0o700)
     work = TAILOR_DIR / f"{slugify(hint)}-{slugify(str(oid))[:8]}"
@@ -279,7 +322,10 @@ def process(db, req: dict, opener, lockin: str, find=resume.find_resume) -> str:
         builder = BUILDERS.get(req.get("kind"))
         if builder is None:
             raise LaunchError(f"unknown kind {req.get('kind')!r}")
-        cwd, text = builder(db, req.get("payload") or {}, lockin, find=find)
+        built = builder(db, req.get("payload") or {}, lockin, find=find)
+        if built is None:  # handled on the Mac without opening Claude
+            return "launched"
+        cwd, text = built
         opener(cwd, text, rid)
         log(f"launched {req['kind']} {rid} in {cwd}")
         return "launched"

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useApplications, useNow, useSetApplicationStatus, useSettings, useSheetStatuses } from '../data/hooks';
+import { useApplications, useNow, useSetApplicationStatus, useSettings, useSheetStatuses, useUndoApplied } from '../data/hooks';
 import type { Application } from '../data/types';
 import { STAGE_LABEL, appliedThisWeek, fmtPct, funnel, groupByStage, searchApps } from '../lib/funnel';
 import { localDay, shortDate } from '../lib/time';
 import { funnelDetail } from '../ui/StatTile';
-import { Card, CardHead, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
+import { Button, Card, CardHead, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
 const OPEN_BY_DEFAULT = new Set(['offer', 'interview', 'oa']);
 
@@ -26,6 +26,20 @@ function StatusSelect({ a, options }: { a: Application; options: string[] }) {
   );
 }
 
+/** Undo for an "I applied" from today that's still just Applied; older rows are real history and stay. */
+function UndoApplied({ a }: { a: Application }) {
+  const undo = useUndoApplied();
+  return (
+    <span className="status-edit">
+      <Button variant="quiet" disabled={undo.isPending} aria-label={`Undo I applied: ${[a.company, a.role].filter(Boolean).join(' ')}`}
+        onClick={() => undo.mutate({ company: a.company, role: a.role, sheet_row: a.sheet_row })}>
+        {undo.isPending ? 'Undoing…' : 'Undo'}
+      </Button>
+      {undo.isError && <span role="alert" className="error small">{undo.error.message}</span>}
+    </span>
+  );
+}
+
 export default function Applications() {
   const now = useNow();
   const apps = useApplications();
@@ -34,7 +48,8 @@ export default function Applications() {
   const options = statuses.data ?? [];
   const [q, setQ] = useState('');
   const list = apps.data ?? [];
-  const week = appliedThisWeek(list, localDay(now));
+  const today = localDay(now);
+  const week = appliedThisWeek(list, today);
   const target = settings.data?.weekly_app_target ?? 25;
   const rows = funnel(list);
   const searching = q.trim() !== '';
@@ -122,6 +137,7 @@ export default function Applications() {
                       <>
                         {a.applied_on && <span className="muted small">{shortDate(a.applied_on)}</span>}
                         <StatusSelect a={a} options={options} />
+                        {a.applied_on === today && a.stage === 'applied' && <UndoApplied a={a} />}
                       </>
                     ) : (
                       <span className="muted small">{[a.status, a.applied_on && shortDate(a.applied_on)].filter(Boolean).join(' · ')}</span>

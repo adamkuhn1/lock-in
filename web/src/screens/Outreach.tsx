@@ -94,9 +94,11 @@ export function PromptButton({ build }: { build: () => string }) {
   );
 }
 
-function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry }: {
+function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry, onRetailor }: {
   o: OutreachRow; phase: Phase; today: string; contacts: Contact[]; prompt: () => string; busy: boolean; contactsLoaded: boolean; applied: boolean;
   onSent: () => void; onFollowedUp: () => void; onReplied: () => void; onClose: () => void; onReopen: () => void; onRetry: () => void;
+  /** Tailor cards only: the Mac reuses a resume already saved for this card, or tailors again; either way the posting reopens. */
+  onRetailor?: () => void;
 }) {
   const headId = `out-${o.id}`;
   const waiting = phase.kind === 'queued' || phase.kind === 'on_mac' || phase.kind === 'failed' || phase.kind === 'not_queued';
@@ -120,6 +122,9 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
       <div className="row-actions">
         {(phase.kind === 'failed' || phase.kind === 'not_queued') && <Button onClick={onRetry} disabled={busy}>Try again</Button>}
         {waiting && <PromptButton build={prompt} />}
+        {onRetailor && phase.kind !== 'queued' && safeHref(o.job_url) && (
+          <Button aria-label={`Retailor resume: ${name}`} onClick={onRetailor} disabled={busy}>Retailor resume</Button>
+        )}
         {phase.kind === 'drafted' && <Button variant="primary" onClick={onSent} disabled={busy}>Sent</Button>}
         {firstFollowUp && <Button variant="primary" aria-label={`Follow-up sent: ${name}`} onClick={onFollowedUp} disabled={busy}>Follow-up sent</Button>}
         {(phase.kind === 'sent' || phase.kind === 'due') && (
@@ -184,7 +189,10 @@ export default function Outreach() {
       onReopen={() => update.mutate({ id: o.id, patch: { status: o.sent_on !== null ? 'sent' : (contacts.data ?? []).some((c) => c.outreach_id === o.id) ? 'drafted' : 'queued' } })}
       onRetry={() => launch.mutate({
         kind: latestRequest(o, reqs)?.kind ?? 'outreach', payload: { outreach_id: o.id, job_url: o.job_url },
-      })} />
+      })}
+      onRetailor={(o.status === 'queued' || o.status === 'drafted') && latestRequest(o, reqs)?.kind === 'tailor_resume' ? () => launch.mutate({
+        kind: 'tailor_resume', payload: { outreach_id: o.id, job_url: o.job_url, retailor: true },
+      }) : undefined} />
   );
 
   return (

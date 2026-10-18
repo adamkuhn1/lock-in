@@ -110,6 +110,26 @@ describe('Outreach', () => {
     await userEvent.click(within(card).getByRole('button', { name: 'Try again' }));
     expect(spy).toHaveBeenCalledWith('tailor_resume', { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3' });
   });
+  it('Retailor resume on an opened tailor card asks the Mac to check, then tailor again', async () => {
+    const api = createDemoApi();
+    const o = await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/3', company: 'Acme', role: 'SWE' });
+    const reqs = await api.listLaunchRequests();
+    api.listLaunchRequests = async () => reqs.map((r) => r.payload.outreach_id === o.id ? { ...r, status: 'launched' as const } : r);
+    const spy = vi.spyOn(api, 'requestLaunch');
+    renderWithData(<Outreach />, { api });
+    const card = await cardFor('Acme');
+    expect(within(card).getByText('Opened on Mac')).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole('button', { name: 'Retailor resume: Acme' }));
+    expect(spy).toHaveBeenCalledWith('tailor_resume', { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3', retailor: true });
+  });
+  it('no Retailor resume on Cold email cards or while queued', async () => {
+    const api = createDemoApi();
+    await api.queueOutreach({ job_url: 'https://jobs.lever.co/cold/1', company: 'Coldco', role: 'SWE' });
+    await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/3', company: 'Acme', role: 'SWE' });
+    renderWithData(<Outreach />, { api });
+    expect(within(await cardFor('Coldco')).queryByRole('button', { name: /Retailor/ })).toBeNull();
+    expect(within(await cardFor('Acme')).queryByRole('button', { name: /Retailor/ })).toBeNull();
+  });
   it('never links a non-http LinkedIn value', async () => {
     const api = createDemoApi();
     const base = await api.listContacts();

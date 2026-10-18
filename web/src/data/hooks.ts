@@ -4,7 +4,7 @@ import type { DataApi } from './api';
 import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
-  Application, CompanyPrepInput, Idea, MarkAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  Application, CompanyPrepInput, Idea, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
   PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
@@ -259,3 +259,5 @@ export function useSetApplicationStatus() {
 /** "I applied": appends to the Sheet. Resolves {duplicate: true} when the job is already there (nothing written). */
 export const useMarkApplied = () =>
   useApiMutation((api, v: MarkAppliedInput) => api.markApplied(v), [keys.applications, keys.postings, keys.outreach]);
+export const useUndoApplied = () =>
+  useApiMutation((api, v: UndoAppliedInput) => api.undoApplied(v), [keys.applications, keys.postings, keys.outreach]);

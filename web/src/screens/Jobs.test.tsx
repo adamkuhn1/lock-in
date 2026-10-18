@@ -123,6 +123,17 @@ describe('Jobs', () => {
     expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
     expect((await api.listApplications()).some((a) => a.company === 'Ramp' && a.role === 'Software Engineer, New Grad')).toBe(true);
   });
+  it('Undo after I applied removes it from the Sheet and puts the posting back', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'undoApplied');
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' }));
+    expect(await screen.findByText('Added Ramp to your Sheet')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(spy).toHaveBeenCalledWith({ company: 'Ramp', role: 'Software Engineer, New Grad' });
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+    expect((await api.listApplications()).some((a) => a.company === 'Ramp' && a.role === 'Software Engineer, New Grad')).toBe(false);
+  });
   it('I applied asks before adding a duplicate; Add anyway forces, Cancel backs out', async () => {
     const api = createDemoApi();
     const spy = vi.spyOn(api, 'markApplied');

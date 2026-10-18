@@ -33,8 +33,8 @@ def test_outreach_template_is_recruiter_only_in_adams_style():
     t = prompts.load("outreach")
     for needle in ["ONE best recruiting contact", "Add one backup only if your first pick is low-confidence",
                    "not engineering leads, managers or founders",
-                   "I just applied to Browserbase's Software Engineer (Dashboard) role in New York.",
-                   "I just applied to Valon's Software Engineer, New Grad role in NYC.",
+                   "I just applied to Ledgerline's Software Engineer (Dashboard) role in New York.",
+                   "I just applied to Tallyfield's Software Engineer, New Grad role in NYC.",
                    "Portfolio: https://adamkuhn.vercel.app", "Applied: <Role> — <Location or short hook>"]:
         assert needle in t, needle
     for gone in ["Find 2–3 real people", "the hiring manager or team lead", "under 120 words"]:
@@ -106,15 +106,15 @@ def test_tailor_resume_template_contract():
                    "/opt/homebrew/bin/tectonic", "(1 page", "mdls -name kMDItemNumberOfPages",
                    "Overfull", "orphan", "Never invent experience, metrics, skills, tools",
                    "31 engineering managers", "30+ hours/week", "9,390 labeled shots", "AUC 0.824 vs 0.755",
-                   "Meta Ads API", "989-798-8825 | kuhn1aj@cmich.edu | adamkuhn.vercel.app | LinkedIn | GitHub",
+                   "Meta Ads API", "`<phone> | <email> | adamkuhn.vercel.app | LinkedIn | GitHub`, with the phone number and email copied exactly from the base header",
                    "https://www.linkedin.com/in/adam-kuhncmich", "https://github.com/adamkuhn1",
                    "Adam_Kuhn_Resume.pdf", "Adam_Kuhn_Resume.tex", "`_2`, then `_3`",
-                   "Roblox_Software_Engineer_Early_Career_2027", "Valon_Software_Engineer_New_Grad",
+                   "Ledgerline_Software_Engineer_Early_Career_2027", "Tallyfield_Software_Engineer_New_Grad",
                    "ONE best recruiting contact", "not engineering leads, managers or founders",
                    "`verified`", "`pattern`", "`guess`", "under about 90 words",
                    "Applied: <Role> — <Location or short hook>",
-                   "I just applied to Browserbase's Software Engineer (Dashboard) role in New York.",
-                   "I just applied to Valon's Software Engineer, New Grad role in NYC.",
+                   "I just applied to Ledgerline's Software Engineer (Dashboard) role in New York.",
+                   "I just applied to Tallyfield's Software Engineer, New Grad role in NYC.",
                    "Portfolio: https://adamkuhn.vercel.app",
                    '"resume_path":', "{{lockin}} save-outreach --id {{outreach_id}} <<'JSON'",
                    "three-line summary"]:

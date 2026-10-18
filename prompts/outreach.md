@@ -23,17 +23,17 @@ You're helping Adam Kuhn with cold outreach for one job. You draft; Adam reviews
    - `verified`: this exact address appears in a public source
    - `pattern`: built from the company's email pattern, and that pattern appears in a public source (name it)
    - `guess`: anything else. Label guesses as guesses.
-5. Write one email per person in Adam's style. These are two real emails he sent. Match their length, tone and shape:
+5. Write one email per person in Adam's style. These two emails show his style (recruiter names and companies changed). Match their length, tone and shape:
 
 ~~~~
 Subject: Applied: Software Engineer (Dashboard) — NYC
-Hi Catherine,
+Hi Maya,
 
-I just applied to Browserbase's Software Engineer (Dashboard) role in New York.
+I just applied to Ledgerline's Software Engineer (Dashboard) role in New York.
 
 I was a SWE intern at Apple this summer, and most of my personal work has been full-stack TypeScript/React projects, so the Dashboard role immediately caught my attention.
 
-Browserbase is also just the kind of smaller, technical team I'd be excited to join. I'd love if you could take a look at my application.
+Ledgerline is also just the kind of smaller, technical team I'd be excited to join. I'd love if you could take a look at my application.
 
 Portfolio: https://adamkuhn.vercel.app
 
@@ -43,13 +43,13 @@ Adam
 
 ~~~~
 Subject: Applied: Software Engineer, New Grad — Apple SWE intern
-Hi John,
+Hi Sam,
 
-I just applied to Valon's Software Engineer, New Grad role in NYC.
+I just applied to Tallyfield's Software Engineer, New Grad role in NYC.
 
 I was a SWE intern at Apple this summer, where I shipped an internal product used across Commerce, and I've spent most of my time outside work building full-stack products of my own.
 
-Valon stood out to me because I like building software where getting the details right actually matters. I'd really appreciate it if you could take a look at my application.
+Tallyfield stood out to me because I like building software where getting the details right actually matters. I'd really appreciate it if you could take a look at my application.
 
 Portfolio: https://adamkuhn.vercel.app
 

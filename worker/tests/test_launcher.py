@@ -1,5 +1,6 @@
 from pathlib import Path
 import errno
+import os
 import shutil
 
 import pytest
@@ -349,7 +350,7 @@ def test_tailor_resume_happy_path(tmp_path, tailor_dir):
     assert "Stripe_Software_Engineer_New_Grad_2027" in prompt
     assert "`open https://boards.greenhouse.io/stripe/jobs/1`" in prompt
     assert "/v/bin/lockin save-outreach --id t-1 <<'JSON'" in prompt
-    assert "I just applied to Browserbase's" in prompt and "I just applied to Valon's" in prompt
+    assert "I just applied to Ledgerline's" in prompt and "I just applied to Tallyfield's" in prompt
     o = db.select("outreach", {"id": "t-1"})[0]
     assert (o["company"], o["role"]) == ("Stripe", "Software Engineer, New Grad (2027)")
 
@@ -536,3 +537,76 @@ def test_tailor_resume_placeholder_that_never_downloads_gets_icloud_message(tmp_
     monkeypatch.setattr(launcher.resume, "ensure_local", lambda *a, **k: False)
     assert launcher.poll_once(db, Opener(), "/v/bin/lockin") == [("tr1", "failed")]
     assert "in iCloud and couldn't be downloaded" in status(db, "tr1")["error"]
+
+
+# --- retailor ------------------------------------------------------------------------------
+
+@pytest.fixture
+def opened(monkeypatch):
+    calls = []
+    monkeypatch.setattr(launcher, "OPEN_RUN", lambda args, **k: calls.append(args))
+    return calls
+
+
+def retailor_db(tmp_path, **kw):
+    db, root = tailor_db(tmp_path, **kw)
+    db.update("launch_requests", {"id": "tr1"}, {"payload": {"outreach_id": "t-1", "job_url": kw.get(
+        "job_url", "https://boards.greenhouse.io/stripe/jobs/1"), "retailor": True}})
+    db.update("outreach", {"id": "t-1"}, {"created_at": "2026-10-14T12:00:00+00:00"})
+    return db, root
+
+
+def saved_pdf(root, name):
+    d = root / name
+    d.mkdir()
+    pdf = d / "Adam_Kuhn_Resume.pdf"
+    pdf.write_bytes(b"%PDF-1.4 tailored")
+    return pdf
+
+
+def test_retailor_with_saved_resume_reopens_posting_without_claude(tmp_path, opened):
+    db, root = retailor_db(tmp_path)
+    pdf = saved_pdf(root, "Stripe_Software_Engineer_New_Grad_2027")
+    db.update("outreach", {"id": "t-1"}, {"resume_path": str(pdf)})
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    assert op.calls == []
+    assert opened == [["open", "-R", str(pdf)], ["open", "https://boards.greenhouse.io/stripe/jobs/1"]]
+
+
+def test_retailor_finds_suffixed_folder_saved_before_the_tab_closed(tmp_path, opened):
+    db, root = retailor_db(tmp_path)
+    saved_pdf(root, "Stripe_Software_Engineer_New_Grad_2027")
+    newer = saved_pdf(root, "Stripe_Software_Engineer_New_Grad_2027_2")
+    os.utime(newer.parent / "Adam_Kuhn_Resume.pdf", (2e9, 2e9))
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    assert op.calls == []
+    assert db.select("outreach", {"id": "t-1"})[0]["resume_path"] == str(newer)
+
+
+def test_retailor_without_resume_runs_the_full_tailor(tmp_path, opened):
+    db, root = retailor_db(tmp_path)
+    saved_pdf(root, "Stripe_Other_Role")  # a different folder doesn't count
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("tr1", "launched")]
+    assert len(op.calls) == 1 and "`open https://boards.greenhouse.io/stripe/jobs/1`" in op.calls[0][1]
+    assert opened == []
+
+
+def test_retailor_ignores_resumes_older_than_the_card_and_the_base(tmp_path, opened):
+    db, root = retailor_db(tmp_path)
+    old = saved_pdf(root, "Stripe_Software_Engineer_New_Grad_2027")
+    os.utime(old, (1e9, 1e9))  # 2001: saved for an earlier application
+    db.update("outreach", {"id": "t-1"}, {"resume_path": str(root / "Base_Resume" / "Adam_Kuhn_Resume.pdf")})
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert len(op.calls) == 1 and opened == []
+
+
+def test_plain_tailor_never_skips_even_with_a_saved_resume(tmp_path, opened):
+    db, root = tailor_db(tmp_path)
+    saved_pdf(root, "Stripe_Software_Engineer_New_Grad_2027")
+    op = Opener()
+    launcher.poll_once(db, op, "/v/bin/lockin")
+    assert len(op.calls) == 1 and opened == []

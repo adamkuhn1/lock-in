@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMarkApplied } from '../data/hooks';
+import { useMarkApplied, useUndoApplied } from '../data/hooks';
 import type { MarkAppliedInput } from '../data/types';
 import { Button } from './primitives';
 
@@ -11,6 +11,7 @@ export function IApplied({ input, company, role, applied = false, onApplied }: {
   input: Omit<MarkAppliedInput, 'force'>; company: string; role?: string | null; applied?: boolean; onApplied?: () => void;
 }) {
   const mark = useMarkApplied();
+  const undo = useUndoApplied();
   const [state, setState] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   const label = [company, role].filter(Boolean).join(' ');
@@ -35,7 +36,29 @@ export function IApplied({ input, company, role, applied = false, onApplied }: {
     }
   };
 
-  if (applied || state === 'done') {
+  const undoNow = async () => {
+    setError(null);
+    try {
+      await undo.mutateAsync({ company, role: role ?? null });
+      setState('idle');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't reach Google. Try again.");
+    }
+  };
+
+  if (state === 'done') {
+    // Just pressed here: offer Undo for a mis-tap (the server only deletes a row that's still Applied and dated today).
+    return (
+      <>
+        <span ref={doneRef} role="status" tabIndex={-1} className="muted small applied-mark">Applied ✓</span>
+        <Button variant="quiet" disabled={undo.isPending} aria-label={`Undo I applied: ${label}`} onClick={() => void undoNow()}>
+          {undo.isPending ? 'Undoing…' : 'Undo'}
+        </Button>
+        {error && <p role="alert" className="error small">{error}</p>}
+      </>
+    );
+  }
+  if (applied) {
     return <span ref={doneRef} role="status" tabIndex={-1} className="muted small applied-mark">Applied ✓</span>;
   }
   return (

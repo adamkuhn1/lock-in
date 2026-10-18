@@ -241,7 +241,7 @@ describe('parseInput', () => {
 // ---- runOp with fakes ----
 
 function fakeSheets(values = VALUES(), meta: unknown = META, updatedRange?: string) {
-  const calls = { updates: [] as [string, string][], appends: [] as [string, Cell[]][], metaRanges: [] as string[] };
+  const calls = { updates: [] as [string, string][], appends: [] as [string, Cell[]][], metaRanges: [] as string[], deletes: [] as number[] };
   const sheets: SheetsApi = {
     values: async () => structuredClone(values),
     meta: async (r) => { calls.metaRanges.push(r); return meta; },
@@ -250,6 +250,7 @@ function fakeSheets(values = VALUES(), meta: unknown = META, updatedRange?: stri
       calls.appends.push([range, row]);
       return updatedRange ?? `Applications!A${values.length + 1}:H${values.length + 1}`;
     },
+    deleteRow: async (row) => { calls.deletes.push(row); },
   };
   return { sheets, calls };
 }
@@ -266,6 +267,7 @@ function fakeStore(over: Partial<{ apps: AppRow[]; postings: PostingRow[]; dbRow
     updated: [] as [AppMatch, StatusPatch][],
     inserted: [] as NewApplication[],
     applied: [] as string[],
+    removed: [] as [string, string | null, string][],
     failUpdate: false,
     failInsert: false,
   };
@@ -283,6 +285,7 @@ function fakeStore(over: Partial<{ apps: AppRow[]; postings: PostingRow[]; dbRow
     postingByUrl: async (url) => state.postings.find((p) => p.url === url) ?? null,
     insertApplication: async (row) => { if (state.failInsert) throw new Error('db down'); state.inserted.push(row); },
     markPostingApplied: async (id) => { state.applied.push(id); },
+    removeApplied: async (company, role, day) => { state.removed.push([company, role, day]); },
   };
   return { store, state };
 }
@@ -386,6 +389,38 @@ describe('runOp set_status', () => {
     const { sheets, calls } = fakeSheets(VALUES(), {});
     await runOp(SET('Ghosted'), { sheets, store: fakeStore().store, now: NOW });
     expect(calls.updates).toEqual([['Applications!F7', 'Ghosted']]);
+  });
+});
+
+describe('runOp unapply', () => {
+  const today = (status = 'Applied', date = '10/14/2026') =>
+    [...VALUES(), ['Stripe', 'SWE Intern', 'Internship', '', '', status, 'Unranked', date]]; // row 8
+  const UN = { op: 'unapply' as const, company: 'Stripe', role: 'SWE Intern', sheet_row: 8 };
+  it('deletes the row added today and drops the app row', async () => {
+    const { sheets, calls } = fakeSheets(today());
+    const { store, state } = fakeStore();
+    expect(await runOp(UN, { sheets, store, now: NOW })).toEqual({ code: 200, body: { ok: true, synced: true } });
+    expect(calls.deletes).toEqual([8]);
+    expect(state.removed).toEqual([['Stripe', 'SWE Intern', '2026-10-14']]);
+  });
+  it('finds the row by Company and Role when sheet_row is missing or stale', async () => {
+    const { sheets, calls } = fakeSheets(today());
+    await runOp({ ...UN, sheet_row: 6 }, { sheets, store: fakeStore().store, now: NOW });
+    expect(calls.deletes).toEqual([8]);
+  });
+  it('refuses rows from another day or past Applied, and unknown rows', async () => {
+    for (const values of [today('Applied', '10/13/2026'), today('OA invited')]) {
+      const { sheets, calls } = fakeSheets(values);
+      expect(await runOp(UN, { sheets, store: fakeStore().store, now: NOW })).toEqual({ code: 409, body: { error: MSG.undoLate } });
+      expect(calls.deletes).toEqual([]);
+    }
+    const { sheets, calls } = fakeSheets();
+    expect(await runOp(UN, { sheets, store: fakeStore().store, now: NOW })).toEqual({ code: 409, body: { error: MSG.notFound } });
+    expect(calls.deletes).toEqual([]);
+  });
+  it('parses unapply input', () => {
+    expect(parseInput('POST', {}, { op: 'unapply', company: ' Stripe ', role: null, sheet_row: 8 })).toEqual({ op: 'unapply', company: 'Stripe', role: null, sheet_row: 8 });
+    expect(parseInput('POST', {}, { op: 'unapply', role: 'x' })).toBeNull();
   });
 });
 

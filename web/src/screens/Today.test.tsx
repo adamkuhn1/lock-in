@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { createDemoApi } from '../data/demo';
+import { addDays, planDay, weekStart } from '../lib/time';
 import { renderWithData } from '../test/render';
 import Today from './Today';
 
@@ -12,7 +13,10 @@ describe('Today', () => {
     expect(screen.getByRole('img', { name: /^Activity: \d+ of 21 days active$/ })).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: /^LeetCode today: \d+ of 6$/ })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /^Applications this week: \d+ of 25$/ })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /^Emails this week: 2 of 10$/ })).toBeInTheDocument();
+    // Demo outreach was sent today (2) and 5 days ago (counts only on a weekend, when that day is still this week).
+    const day = planDay(new Date());
+    const emails = 2 + (addDays(day, -5) >= weekStart(day) ? 1 : 0);
+    expect(screen.getByRole('img', { name: `Emails this week: ${emails} of 10` })).toBeInTheDocument();
     for (const t of ['Applications', 'Online assessments', 'Interviews', 'Offers']) expect(screen.getByText(t)).toBeInTheDocument();
     expect(screen.getByText('vs 9%')).toBeInTheDocument();
     expect(screen.getByText('vs 38%')).toBeInTheDocument(); // Offers: 5/13, rounded only at display

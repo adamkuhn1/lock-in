@@ -9,6 +9,7 @@ import { statusStage } from '../src/lib/stages.js';
  *   GET  ?op=statuses                                → { statuses: string[] }  (the Status dropdown options)
  *   POST { op: 'set_status', application_id, company, role, sheet_row?, status } → writes only that row's Status cell
  *   POST { op: 'applied', posting_id? | outreach_id?, force? } → appends one row at the end of the table
+ *   POST { op: 'unapply', company, role, sheet_row? } → deletes that row, only if it's still Applied with today's date
  * The Sheet id comes only from env SHEET_ID. Supabase is used as the signed-in user (RLS).
  */
 
@@ -41,6 +42,7 @@ export const MSG = {
   missingToken: 'Missing bearer token',
   retry: 'Try again',
   layout: 'Sheet layout changed; nothing else was written.',
+  undoLate: "Only an application added today and still marked Applied can be undone here. Edit the Sheet directly.",
 } as const;
 export const TABLE_NAME = 'ApplicationsTable';
 
@@ -232,7 +234,8 @@ export function rowHash(cells: Cell[]): string {
 export type OpInput =
   | { op: 'statuses' }
   | { op: 'set_status'; application_id: number; company: string; role: string | null; sheet_row?: number; status: string }
-  | { op: 'applied'; posting_id?: string; outreach_id?: string; force?: boolean };
+  | { op: 'applied'; posting_id?: string; outreach_id?: string; force?: boolean }
+  | { op: 'unapply'; company: string; role: string | null; sheet_row?: number };
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
@@ -256,6 +259,12 @@ export function parseInput(method: string | undefined, query: Record<string, unk
     const outreach_id = str(o.outreach_id);
     if (!posting_id && !outreach_id) return null;
     return { op: 'applied', ...(posting_id ? { posting_id } : { outreach_id }), force: o.force === true };
+  }
+  if (o.op === 'unapply') {
+    const company = str(o.company);
+    if (!company || (o.role !== undefined && o.role !== null && typeof o.role !== 'string')) return null;
+    const sheetRow = Number.isSafeInteger(o.sheet_row) && (o.sheet_row as number) > 0 ? { sheet_row: o.sheet_row as number } : {};
+    return { op: 'unapply', company, role: str(o.role) ?? null, ...sheetRow };
   }
   return null;
 }
@@ -311,6 +320,8 @@ export interface SheetsApi {
   updateCell(a1: string, value: string): Promise<void>;
   /** Returns the appended range (e.g. "Applications!A42:H42"). null cells are skipped. */
   append(range: string, row: Cell[]): Promise<string | undefined>;
+  /** Deletes one whole 1-based row of the Applications tab (the Table shrinks with it). */
+  deleteRow(row: number): Promise<void>;
 }
 
 export function googleSheets(sheetId: string, token: string, fetchImpl: typeof fetch = fetch): SheetsApi {
@@ -339,6 +350,16 @@ export function googleSheets(sheetId: string, token: string, fetchImpl: typeof f
       });
       return (b?.updates as { updatedRange?: string } | undefined)?.updatedRange;
     },
+    async deleteRow(row) {
+      const props = await json(`${base}?${new URLSearchParams({ fields: 'sheets(properties(sheetId,title))' })}`);
+      const tab = ((props?.sheets ?? []) as { properties?: { sheetId?: number; title?: string } }[])
+        .map((x) => x.properties).find((x) => x?.title === TAB);
+      if (tab?.sheetId === undefined) throw new GoogleError(`no ${TAB} tab`);
+      await json(`${base}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: tab.sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row } } }] }),
+      });
+    },
   };
 }
 
@@ -363,6 +384,8 @@ export interface AppStore {
   postingByUrl(url: string): Promise<PostingRow | null>;
   insertApplication(row: NewApplication): Promise<void>;
   markPostingApplied(id: string): Promise<void>;
+  /** Undo of the two above: drops the matching app rows applied on `day` and puts applied postings back to seen. */
+  removeApplied(company: string, role: string | null, day: string): Promise<void>;
 }
 
 type PgError = { message: string } | null;
@@ -390,6 +413,12 @@ export function supabaseAppStore(sb: SupabaseClient): AppStore {
     postingByUrl: (url) => one(sb.from('postings').select(POSTING_COLS).eq('url', url).limit(1).maybeSingle()),
     async insertApplication(row) { await one(sb.from('applications').insert(row)); },
     async markPostingApplied(id) { await one(sb.from('postings').update({ status: 'applied' }).eq('id', id)); },
+    async removeApplied(company, role, day) {
+      const apps = sb.from('applications').delete().eq('company', company).eq('applied_on', day);
+      await one(role === null ? apps.is('role', null) : apps.eq('role', role));
+      const posts = sb.from('postings').update({ status: 'seen' }).eq('status', 'applied').eq('company', company);
+      await one(role === null ? posts : posts.eq('title', role));
+    },
   };
 }
 
@@ -440,6 +469,23 @@ export async function runOp(input: OpInput, { sheets, store, now }: OpDeps): Pro
       if (app) return (await store.updateApplications({ id: app.id }, patch)) > 0;
       if ((await store.updateApplications({ sheet_row: row, company }, patch)) > 0) return true;
       return (await store.updateApplications({ company, role }, patch)) > 0;
+    });
+  }
+
+  if (input.op === 'unapply') {
+    const { values, header } = await readSheet(sheets);
+    const row = resolveRow(values, header, input.sheet_row, input.company, input.role);
+    if (row === null) return { code: 409, body: { error: MSG.notFound } };
+    const cells = values[row - 1];
+    const day = detroitDay(now);
+    // Only the row "I applied" just added: still Applied, dated today. Anything older is real history.
+    const fresh = norm(cell(cells, header.cols.status)) === 'applied'
+      && norm(cell(cells, header.cols.applied_on)) === norm(formatDate(day, detectDateFormat(values, header)));
+    if (!fresh) return { code: 409, body: { error: MSG.undoLate } };
+    await sheets.deleteRow(row);
+    return syncAfterWrite('unapply', async () => {
+      await store.removeApplied(input.company, input.role, formatDate(day, 'YYYY-MM-DD'));
+      return true;
     });
   }
 

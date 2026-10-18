@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createDemoApi } from '../data/demo';
@@ -54,6 +54,18 @@ describe('Applications', () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ id: 2, company: 'Ramp', role: 'Software Engineer Intern' }), 'Applied');
     expect(await screen.findByText('Saved')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Status for Ramp Software Engineer Intern' })).toHaveValue('Applied');
+  });
+  it('Undo shows on a row applied today, not on other statuses, and removes the row', async () => {
+    const api = createDemoApi();
+    const [p] = (await api.listPostings('2000-01-01T00:00:00Z')).filter((x) => x.company === 'Ramp' && x.status === 'new');
+    await api.markApplied({ posting_id: p.id });
+    const spy = vi.spyOn(api, 'undoApplied');
+    renderWithData(<Applications />, { api });
+    const undo = await screen.findByRole('button', { name: `Undo I applied: Ramp ${p.title}` });
+    expect(screen.queryByRole('button', { name: 'Undo I applied: Ramp Software Engineer Intern' })).toBeNull(); // Submitted, not Applied
+    await userEvent.click(undo);
+    expect(spy).toHaveBeenCalledWith({ company: 'Ramp', role: p.title, sheet_row: null });
+    await waitFor(() => expect(screen.queryByRole('button', { name: `Undo I applied: Ramp ${p.title}` })).toBeNull());
   });
   it('Status select reverts and shows the short error on failure', async () => {
     const api = createDemoApi();

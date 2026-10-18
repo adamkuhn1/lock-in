@@ -118,8 +118,9 @@ describe('Settings', () => {
     const day = await screen.findByLabelText('Day 1');
     expect(day).toHaveAttribute('type', 'date');
     await userEvent.clear(day);
-    await userEvent.type(day, '2026-09-28{Enter}');
-    expect(update).toHaveBeenCalledWith({ day_one: '2026-09-28' });
+    // Not the demo's own Day 1 (today - 20), or nothing changes and nothing saves.
+    await userEvent.type(day, '1999-09-28{Enter}');
+    expect(update).toHaveBeenCalledWith({ day_one: '1999-09-28' });
     await userEvent.clear(day);
     await userEvent.type(day, 'sept 28{Enter}');
     expect(screen.getByText('Use YYYY-MM-DD.')).toBeInTheDocument();

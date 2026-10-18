@@ -1,6 +1,6 @@
 import type {
   Application, CalEvent, Commit, CompanyPrep, CompanyPrepInput, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest,
-  MarkAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
+  MarkAppliedInput, UndoAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
   PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Rating, Settings, SettingsPatch, Solve, Story,
   StoryInput, StoryPatch, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
@@ -44,6 +44,8 @@ export interface DataApi {
   setApplicationStatus(app: Pick<Application, 'id' | 'company' | 'role' | 'sheet_row'>, status: string): Promise<void>;
   /** Appends a row to the Sheet. {duplicate: true} means the job is already there and nothing was written. */
   markApplied(i: MarkAppliedInput): Promise<{ duplicate?: true }>;
+  /** Undoes I applied: deletes the Sheet row, only while it's still Applied and dated today. */
+  undoApplied(i: UndoAppliedInput): Promise<void>;
   updateProject(id: string, patch: ProjectPatch): Promise<void>;
   listStories(): Promise<Story[]>;
   addStory(s: StoryInput): Promise<void>;

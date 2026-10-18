@@ -1,7 +1,7 @@
 import { ExternalLink as ExternalIcon, FileText, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useSetPostingStatus } from '../data/hooks';
+import { useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useSetPostingStatus, useUndoApplied } from '../data/hooks';
 import type { Posting, PostingStatus } from '../data/types';
 import { NO_FILTERS, filterPostings, sortPostings, termsOf, topLocations, type JobFilters } from '../lib/jobs';
 import { relativeTime } from '../lib/time';
@@ -9,8 +9,8 @@ import { safeHref } from '../lib/url';
 import { IApplied } from '../ui/IApplied';
 import { Button, Card, CardHead, Chip, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
-function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss }: {
-  p: Posting; now: Date; busy: boolean; queued: boolean; onOpen?: () => void;
+function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss, onApplied }: {
+  p: Posting; now: Date; busy: boolean; queued: boolean; onOpen?: () => void; onApplied: () => void;
   onCold: (href: string) => void; onTailor: (href: string) => void; onDismiss: () => void;
 }) {
   const href = safeHref(p.url);
@@ -29,7 +29,7 @@ function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss }: {
         <Button className="job-cold" disabled={!href || busy || queued} onClick={() => { if (href) onCold(href); }}><Mail size={18} aria-hidden />Cold email</Button>
         <Button className="job-tailor" disabled={!href || busy || queued} onClick={() => { if (href) onTailor(href); }}><FileText size={18} aria-hidden />Tailor resume</Button>
         {href && <ExternalLink className="btn" href={href} onClick={onOpen}><ExternalIcon size={16} aria-hidden />Open</ExternalLink>}
-        <IApplied input={{ posting_id: p.id }} company={p.company} role={p.title} applied={p.status === 'applied'} />
+        <IApplied input={{ posting_id: p.id }} company={p.company} role={p.title} applied={p.status === 'applied'} onApplied={onApplied} />
         {queued && <span className="muted small">Already queued</span>}
         <Button variant="muted" aria-label={`Dismiss ${p.company} ${p.title}`} onClick={onDismiss}>Dismiss</Button>
       </div>
@@ -47,6 +47,8 @@ export default function Jobs() {
   const navigate = useNavigate();
   const [f, setF] = useState<JobFilters>(NO_FILTERS);
   const [dismissed, setDismissed] = useState<{ p: Posting; prev: PostingStatus } | null>(null);
+  const [applied, setApplied] = useState<{ p: Posting; prev: PostingStatus } | null>(null);
+  const unapply = useUndoApplied();
 
   const all = postings.data ?? [];
   const fresh = all.filter((p) => p.status === 'new');
@@ -69,10 +71,21 @@ export default function Jobs() {
     }
   };
   const dismiss = (p: Posting) =>
-    setStatus.mutate({ id: p.id, status: 'dismissed' }, { onSuccess: () => setDismissed({ p, prev: p.status }) });
+    setStatus.mutate({ id: p.id, status: 'dismissed' }, { onSuccess: () => { setApplied(null); setDismissed({ p, prev: p.status }); } });
   const undoDismiss = () => {
     if (!dismissed) return;
     setStatus.mutate({ id: dismissed.p.id, status: dismissed.prev }, { onSuccess: () => setDismissed(null) });
+  };
+  // The row leaves the inbox once it's applied, so its Undo lives here: delete today's Sheet row, then restore the posting.
+  const undoApplied = async () => {
+    if (!applied) return;
+    try {
+      await unapply.mutateAsync({ company: applied.p.company, role: applied.p.title });
+      await setStatus.mutateAsync({ id: applied.p.id, status: applied.prev });
+      setApplied(null);
+    } catch {
+      // unapply's message shows below.
+    }
   };
   const row = (p: Posting, markSeen: boolean) => (
     <JobRow key={p.id} p={p} now={now} busy={queue.isPending || tailor.isPending || setStatus.isPending}
@@ -80,7 +93,8 @@ export default function Jobs() {
       onOpen={markSeen ? () => setStatus.mutate({ id: p.id, status: 'seen' }) : undefined}
       onCold={(href) => void startOutreach(p, href, 'cold')}
       onTailor={(href) => void startOutreach(p, href, 'tailor')}
-      onDismiss={() => dismiss(p)} />
+      onDismiss={() => dismiss(p)}
+      onApplied={() => { setDismissed(null); setApplied({ p, prev: p.status }); }} />
   );
 
   return (
@@ -105,10 +119,17 @@ export default function Jobs() {
       )}
 
       {(queue.isError || tailor.isError || setStatus.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
+      {unapply.isError && <p role="alert" className="error small">{unapply.error.message}</p>}
       <div role="status" className="undo">
         {dismissed && (<>
           <span className="small">Dismissed {dismissed.p.company}</span>
           <Button variant="quiet" disabled={setStatus.isPending} onClick={undoDismiss}>Undo</Button>
+        </>)}
+        {applied && (<>
+          <span className="small">Added {applied.p.company} to your Sheet</span>
+          <Button variant="quiet" disabled={unapply.isPending || setStatus.isPending} onClick={() => void undoApplied()}>
+            {unapply.isPending ? 'Undoing…' : 'Undo'}
+          </Button>
         </>)}
       </div>
 

@@ -102,6 +102,14 @@ export function createDemoApi(now: Date = new Date()): DataApi {
       if (p) p.status = 'applied';
       return {};
     },
+    async undoApplied({ company, role }) {
+      const key = (s: string | null) => (s ?? '').trim().toLowerCase();
+      const today = localDay(new Date());
+      const hit = db.applications.find((a) => key(a.company) === key(company) && key(a.role) === key(role) && a.applied_on === today && a.stage === 'applied');
+      if (!hit) throw new Error('Only an application added today and still marked Applied can be undone here. Edit the Sheet directly.');
+      db.applications = db.applications.filter((a) => a !== hit);
+      for (const p of db.postings) if (p.status === 'applied' && key(p.company) === key(company) && key(p.title) === key(role)) p.status = 'seen';
+    },
     async updateProject(id, patch) { const p = db.projects.find((x) => x.id === id); if (p) Object.assign(p, patch); },
     listStories: () => copy([...db.stories].sort((a, b) => a.created_at.localeCompare(b.created_at))),
     async addStory(s) { db.stories.push({ ...s, id: newId('story'), last_practiced_on: null, created_at: stamp() }); },

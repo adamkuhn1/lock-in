@@ -100,6 +100,7 @@ export interface Application {
   sheet_row?: number | null;
 }
 export interface MarkAppliedInput { posting_id?: string; outreach_id?: string; force?: boolean }
+export interface UndoAppliedInput { company: string; role: string | null; sheet_row?: number | null }
 export interface Posting {
   id: string;
   company: string;
