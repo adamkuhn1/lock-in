@@ -1,13 +1,15 @@
 import template from '../../../prompts/outreach.md?raw';
 import type { Outreach } from '../data/types';
+import { promptValues, type Profile } from './profile';
 import { renderTemplate } from './prompt';
 
 // Same template and placeholders as the launcher (Plan 3). Values fixed by the contract with Plan 3.
 export const WEB_RESUME_PATH = '(your Mac will pick the resume)';
 export const WEB_LOCKIN = '~/.lockin/venv/bin/lockin';
 
-export function copyPrompt(o: Outreach): string {
+export function copyPrompt(o: Outreach, profile?: Profile | null): string {
   return renderTemplate(template, {
+    ...promptValues(profile),
     outreach_id: o.id,
     job_url: o.job_url,
     company: o.company ?? 'unknown (read it from the posting)',

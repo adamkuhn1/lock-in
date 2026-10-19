@@ -1,0 +1,33 @@
+{
+  "_comment": "Profile → prompt values. Read by worker/tests/test_profile.py and web/src/lib/profile.test.ts so both render the same text.",
+  "cases": [
+    {
+      "name": "defaults",
+      "profile": {},
+      "out": {
+        "who": "- CS student at Central Michigan University (CMU) in Mount Pleasant, Michigan. Bachelor's in Computer Science, graduating May 2027.\n- SWE intern at Apple this summer.\n- Looking for new-grad roles and winter or spring 2027 internships or co-ops. For the right role he will push graduation to December 2027.\n- CMU is a non-target school, so a short, specific note beats a polished generic one.",
+        "grad": "May 2027",
+        "grad_late": "December 2027",
+        "targets": "new-grad roles and winter or spring 2027 internships or co-ops"
+      }
+    },
+    {
+      "name": "edited; blanks fall back; a late date equal to grad is not repeated; locations",
+      "profile": {
+        "grad": " December 2027 ",
+        "grad_late": "",
+        "experience": "  ",
+        "locations": "NYC, Chicago or remote",
+        "notes": "",
+        "targets": "new-grad SWE roles",
+        "unknown": "ignored"
+      },
+      "out": {
+        "who": "- CS student at Central Michigan University (CMU) in Mount Pleasant, Michigan. Bachelor's in Computer Science, graduating December 2027.\n- SWE intern at Apple this summer.\n- Looking for new-grad SWE roles.\n- Prefers NYC, Chicago or remote.\n- CMU is a non-target school, so a short, specific note beats a polished generic one.",
+        "grad": "December 2027",
+        "grad_late": "December 2027",
+        "targets": "new-grad SWE roles"
+      }
+    }
+  ]
+}

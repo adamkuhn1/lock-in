@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Dumbbell, Flame, RefreshCw, Target, User } from 'lucide-react';
+import { CalendarDays, Dumbbell, Flame, FolderGit2, RefreshCw, Target, User } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { useNow, useSyncOnOpen, useSyncStatus } from '../data/hooks';
@@ -9,6 +9,7 @@ const TABS = [
   { to: '/', label: 'Today', Icon: Flame, end: true },
   { to: '/grind', label: 'Grind', Icon: Dumbbell, end: false },
   { to: '/hunt', label: 'Hunt', Icon: Target, end: false },
+  { to: '/projects', label: 'Projects', Icon: FolderGit2, end: false },
   { to: '/calendar', label: 'Calendar', Icon: CalendarDays, end: false },
   { to: '/me', label: 'Me', Icon: User, end: false },
 ];

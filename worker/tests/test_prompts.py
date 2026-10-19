@@ -18,11 +18,15 @@ def test_render_ignores_extra_values():
 
 def test_outreach_template_placeholders():
     t = prompts.load("outreach")
-    assert prompts.placeholders(t) == {"outreach_id", "job_url", "company", "resume_path", "resume_note", "lockin"}
+    assert prompts.placeholders(t) == {"outreach_id", "job_url", "company", "resume_path", "resume_note", "lockin",
+                                       "who", "grad", "grad_late", "targets"}
 
 
 def test_outreach_template_has_guardrails_and_context():
-    t = prompts.load("outreach")
+    from lockin_worker import profile
+    t = prompts.render(prompts.load("outreach"), {**profile.prompt_values(None), "outreach_id": "o", "job_url": "u", "company": "c",
+                                                  "resume_path": "r", "resume_note": "", "lockin": "{{lockin}}"})
+    t = t.replace("save-outreach --id o", "save-outreach --id {{outreach_id}}")
     for needle in ["Never send", "Public information only", "Central Michigan University (CMU)",
                    "May 2027", "December 2027", "under about 90 words", "`verified`", "`pattern`", "`guess`",
                    "{{lockin}} save-outreach --id {{outreach_id}} <<'JSON'", "Saved N contacts"]:
@@ -95,7 +99,7 @@ def test_work_on_idea_completion_copy_is_honest():
 def test_tailor_resume_template_placeholders():
     t = prompts.load("tailor_resume")
     assert prompts.placeholders(t) == {"outreach_id", "job_url", "job_url_shell", "company", "role", "resume_root",
-                                       "base_tex", "base_pdf", "work_dir", "folder_hint", "lockin"}
+                                       "base_tex", "base_pdf", "work_dir", "folder_hint", "lockin", "who", "grad", "grad_late", "targets"}
     assert "open {{job_url_shell}}" in t and 'open "{{job_url}}"' not in t
 
 
@@ -163,7 +167,8 @@ def test_fit_check_comes_first_and_can_skip_the_job(name, next_heading):
     t = prompts.load(name)
     assert t.index("## First: check the fit") < t.index(next_heading)
     fit = _fit_section(t)
-    for needle in ["PhD or Master's", "\"Bachelor's or Master's\"", "May 2027", "December 2027", "summer 2027 internship",
+    for needle in ["PhD or Master's", "\"Bachelor's or Master's\"", "neither {{grad}} nor {{grad_late}} fits", "{{targets}}",
+                   "starts after he graduates in {{grad}}",
                    "2 or more years", "active security clearance", "Want me to drop this from Lock In?",
                    "Only if he says yes", "{{lockin}} skip-job --id {{outreach_id}} --reason", "no resume, no recruiter search, no email"]:
         assert needle in fit, needle
@@ -172,3 +177,13 @@ def test_fit_check_comes_first_and_can_skip_the_job(name, next_heading):
 
 def test_fit_check_is_identical_in_both_prompts():
     assert _fit_section(prompts.load("tailor_resume")) == _fit_section(prompts.load("outreach"))
+
+
+def test_profile_reaches_both_prompts():
+    from lockin_worker import profile
+    vals = profile.prompt_values({"grad": "December 2027", "targets": "new-grad SWE roles", "locations": "NYC or Chicago"})
+    for name in ("outreach", "tailor_resume"):
+        t = prompts.render(prompts.load(name), {k: "x" for k in prompts.placeholders(prompts.load(name))} | vals)
+        assert "graduating December 2027" in t and "Looking for new-grad SWE roles." in t and "Prefers NYC or Chicago." in t
+        assert "neither December 2027 nor December 2027 fits" in t and "what he's looking for: new-grad SWE roles" in t
+        assert "{{" not in t

@@ -20,3 +20,12 @@ describe('copyPrompt', () => {
     expect(copyPrompt({ ...o, company: 'Acme' })).toContain('Company (best guess, confirm it on the posting): Acme');
   });
 });
+
+describe('copyPrompt profile', () => {
+  it('fills Who Adam is and the fit check from the profile', () => {
+    const p = copyPrompt(o, { grad: 'December 2027', targets: 'new-grad SWE roles' });
+    expect(p).toContain("Bachelor's in Computer Science, graduating December 2027.");
+    expect(p).toContain("what he's looking for: new-grad SWE roles");
+    expect(copyPrompt(o)).toContain('graduating May 2027');
+  });
+});

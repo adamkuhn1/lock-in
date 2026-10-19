@@ -58,7 +58,7 @@ test('Today shows rings and the season funnel', async ({ page }) => {
 });
 
 test('Work on this queues a Mac launch', async ({ page }) => {
-  await page.goto('/me');
+  await page.goto('/projects');
   await page.getByRole('button', { name: 'Work on this: Cache weather API responses' }).click();
   await expect(page.getByRole('button', { name: 'Queued for Mac: Cache weather API responses' })).toBeDisabled();
 });

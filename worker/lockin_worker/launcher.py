@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from . import creds, prompts, resume, terminal
+from . import creds, profile, prompts, resume, terminal
 
 POLL_SECONDS = 10
 DEFAULT_ROOT = "~/Desktop/Adam_Kuhn_Resumes"
@@ -71,6 +71,7 @@ def build_outreach(db, payload: dict, lockin: str, find=resume.find_resume) -> t
         "outreach_id": oid, "job_url": job_url,
         "company": display_company or match_company or "unknown (read it from the posting)",
         "resume_path": str(choice.path), "resume_note": choice.note, "lockin": shlex.quote(lockin),
+        **profile.prompt_values(settings.get("profile")),
     })
     OUTREACH_DIR.mkdir(parents=True, exist_ok=True)
     OUTREACH_DIR.chmod(0o700)
@@ -305,6 +306,7 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] 
         "role": role or "unknown (read it from the posting)",
         "resume_root": str(root), "base_tex": str(base_tex), "base_pdf": str(base_pdf),
         "work_dir": str(work), "folder_hint": hint, "lockin": shlex.quote(lockin),
+        **profile.prompt_values(settings.get("profile")),
     })
     return work, text
 

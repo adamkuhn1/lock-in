@@ -8,6 +8,7 @@ import { commitStrip, doneIdeas, moveIdea, nextPosition, suggestState, visibleId
 import { localDay, relativeTime } from '../lib/time';
 import { IdeaCard } from '../ui/IdeaCard';
 import { Button, Card, CardHead, Disclosure, Empty, ErrorDetail, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
+import { TodayIdeaCard } from './TodayIdea';
 
 /** The row's "…" menu: closes after an action, on Escape and on a click outside, and hands focus back to its toggle. */
 function IdeaMenu({ label, first, last, onMove, onDrop }: {
@@ -162,5 +163,16 @@ export function ProjectsList() {
           commits={commits.data ?? []} ideas={ideas.data ?? []} requests={requests.data ?? []} />
       ))}
     </>
+  );
+}
+
+/** The Projects tab: today's idea, then every active project with its ideas. */
+export default function Projects() {
+  return (
+    <div className="screen">
+      <header className="screen-head"><h1>Projects</h1></header>
+      <TodayIdeaCard />
+      <ProjectsList />
+    </div>
   );
 }

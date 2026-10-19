@@ -8,6 +8,7 @@ const SCREENS = [
   { name: 'hunt-jobs', path: '/hunt/jobs', heading: 'Jobs' },
   { name: 'hunt-apps', path: '/hunt/apps', heading: 'Applications' },
   { name: 'hunt-outreach', path: '/hunt/outreach', heading: 'Outreach' },
+  { name: 'projects', path: '/projects', heading: 'Projects' },
   { name: 'calendar', path: '/calendar', heading: 'Calendar' },
   { name: 'me', path: '/me', heading: 'Me' },
   { name: 'share', path: '/me/share', heading: 'Share' },
@@ -55,7 +56,7 @@ for (const s of SCREENS) {
 
 test('every tab is reachable from the navigation', async ({ page }) => {
   await page.goto('/');
-  for (const [label, path] of [['Grind', '/grind/leetcode'], ['Hunt', '/hunt/jobs'], ['Calendar', '/calendar'], ['Me', '/me'], ['Today', '/']] as const) {
+  for (const [label, path] of [['Grind', '/grind/leetcode'], ['Hunt', '/hunt/jobs'], ['Projects', '/projects'], ['Calendar', '/calendar'], ['Me', '/me'], ['Today', '/']] as const) {
     // The demo data has a stale Sheet sync, so the Me tab's accessible name is "Me (a sync is stale)" there.
     const name = label === 'Me' ? /^Me( \(a sync is stale\))?$/ : label;
     await page.getByRole('link', { name, exact: label !== 'Me' }).first().click();

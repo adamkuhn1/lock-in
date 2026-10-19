@@ -9,7 +9,7 @@ describe('routes', () => {
 
   it.each([
     ['/', /^Day \d+$/], ['/grind', 'LeetCode'], ['/grind/prep', 'Prep'], ['/hunt', 'Jobs'], ['/hunt/apps', 'Applications'],
-    ['/hunt/outreach', 'Outreach'], ['/calendar', 'Calendar'], ['/me', 'Me'], ['/me/share', 'Share'], ['/me/settings', 'Settings'],
+    ['/hunt/outreach', 'Outreach'], ['/projects', 'Projects'], ['/calendar', 'Calendar'], ['/me', 'Me'], ['/me/share', 'Share'], ['/me/settings', 'Settings'],
   ])('%s shows its screen', async (route, heading) => {
     renderWithData(<AppRoutes />, { route });
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
@@ -23,10 +23,10 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: names[to] })).toBeInTheDocument();
   });
 
-  it('the tab bar has the five tabs', async () => {
+  it('the tab bar has the six tabs', async () => {
     renderWithData(<AppRoutes />, { route: '/' });
     const tabs = await screen.findByRole('navigation', { name: 'Tabs' });
-    expect(within(tabs).getAllByRole('link').map((a) => a.textContent)).toEqual(['Today', 'Grind', 'Hunt', 'Calendar', 'Me']);
+    expect(within(tabs).getAllByRole('link').map((a) => a.textContent)).toEqual(['Today', 'Grind', 'Hunt', 'Projects', 'Calendar', 'Me']);
   });
 
   it('Hunt shows badges for new postings and follow-ups due', async () => {

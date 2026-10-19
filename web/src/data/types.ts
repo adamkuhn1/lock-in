@@ -1,3 +1,4 @@
+import type { Profile } from '../lib/profile';
 export type Rating = 'nailed' | 'struggled' | 'help';
 export type Slot = 'new' | 'review' | 'mystery' | 'spot';
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
@@ -24,9 +25,11 @@ export interface Settings {
   app_url: string | null;
   day_one: string;
   weekly_email_target: number;
+  /** Adam's profile, edited on Me (migration 0008). Absent before the migration. */
+  profile?: Profile;
 }
 export type SettingsPatch = Partial<
-  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target'>
+  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target' | 'profile'>
 >;
 
 export interface SetItem { slug: string; slot: Slot; order: number; done: boolean }

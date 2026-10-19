@@ -8,6 +8,7 @@ import LeetCode from './screens/LeetCode';
 import Me from './screens/Me';
 import Outreach from './screens/Outreach';
 import Prep from './screens/Prep';
+import Projects from './screens/Projects';
 import SettingsScreen from './screens/Settings';
 import Share from './screens/Share';
 import Today from './screens/Today';
@@ -15,7 +16,7 @@ import { AppShell } from './ui/AppShell';
 
 /** v1 paths (bookmarks, ntfy links) → v2 homes. */
 export const LEGACY: [string, string][] = [
-  ['leetcode', '/grind/leetcode'], ['projects', '/me'], ['apps', '/hunt/apps'],
+  ['leetcode', '/grind/leetcode'], ['apps', '/hunt/apps'],
   ['jobs', '/hunt/jobs'], ['outreach', '/hunt/outreach'], ['settings', '/me/settings'],
 ];
 
@@ -35,6 +36,7 @@ export function AppRoutes() {
           <Route path="apps" element={<Applications />} />
           <Route path="outreach" element={<Outreach />} />
         </Route>
+        <Route path="projects" element={<Projects />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="me" element={<Me />} />
         <Route path="me/share" element={<Share />} />

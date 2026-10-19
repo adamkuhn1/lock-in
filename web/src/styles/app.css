@@ -24,7 +24,7 @@ button, a, summary, label { -webkit-tap-highlight-color: transparent; touch-acti
 .main { display: block; width: 100%; max-width: 760px; margin: 0 auto; padding: 8px 16px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); outline: none; }
 .topbar { display: flex; justify-content: flex-end; gap: 4px; padding: calc(4px + env(safe-area-inset-top)) 8px 0; }
 .sidebar { display: none; }
-.bottom-nav { position: fixed; inset: auto 0 0 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+.bottom-nav { position: fixed; inset: auto 0 0 0; z-index: 20; display: grid; grid-template-columns: repeat(6, 1fr); background: var(--surface); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
 .nav-link { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: var(--nav-h); border: 0; background: none; color: var(--muted); font-size: 0.72rem; text-decoration: none; cursor: pointer; }
 .nav-link[aria-current="page"] { color: var(--accent); }
 .icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--tap); height: var(--tap); border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
@@ -214,6 +214,15 @@ input[type="number"] { max-width: 10rem; }
 /* Undo bar (Jobs dismiss) */
 .undo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--tap); padding: 0 4px 0 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .undo:empty { display: none; }
+.profile { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.profile dt { color: var(--muted); font-size: 0.85rem; padding-top: 2px; }
+.profile dd { margin: 0; }
+.record { display: grid; gap: var(--gap); }
+.record-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--gap); }
+.resume-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.resume-row > .resume-path { grid-column: 1; overflow-wrap: anywhere; }
+.resume-row > :last-child { grid-column: 2; grid-row: 1 / span 3; }
+@media (max-width: 480px) { .profile { grid-template-columns: 1fr; gap: 2px; } .profile dd { margin-bottom: 8px; } }
 .update-banner { position: fixed; z-index: 50; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(480px, calc(100% - 32px)); box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); }
 
 /* Desktop: two independent cards sit side by side; the primary card stays first and on the left. */

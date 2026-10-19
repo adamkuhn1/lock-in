@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  useApplications, useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useUpdateOutreach,
+  useApplications, useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useSettings, useUpdateOutreach,
 } from '../data/hooks';
 import type { Contact, LaunchRequest, Outreach as OutreachRow } from '../data/types';
 import { FOLLOW_UP_RETRY_DAYS, PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, isPlainEmail, latestRequest, mailtoHref, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
@@ -173,6 +173,7 @@ export default function Outreach() {
   const queue = useQueueOutreach();
   const update = useUpdateOutreach();
   const launch = useRequestLaunch();
+  const settings = useSettings();
   const [url, setUrl] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
@@ -199,7 +200,7 @@ export default function Outreach() {
   const card = (o: OutreachRow) => (
     <OutreachCard key={o.id} o={o} today={today} phase={outreachPhase(o, reqs, today)}
       contacts={(contacts.data ?? []).filter((c) => c.outreach_id === o.id)}
-      prompt={() => copyPrompt(o)} busy={update.isPending || launch.isPending} contactsLoaded={contacts.isSuccess} applied={!!o.company && inSheet.has(key(o.company, o.role))}
+      prompt={() => copyPrompt(o, settings.data?.profile)} busy={update.isPending || launch.isPending} contactsLoaded={contacts.isSuccess} applied={!!o.company && inSheet.has(key(o.company, o.role))}
       onSent={() => update.mutate({ id: o.id, patch: { status: 'sent', sent_on: today, follow_up_on: followUpOn(today), followups: 0 } })}
       onFollowedUp={() => update.mutate({ id: o.id, patch: { followups: o.followups + 1, follow_up_on: addDays(today, FOLLOW_UP_RETRY_DAYS) } })}
       onReplied={() => update.mutate({ id: o.id, patch: { status: 'replied' } })}
