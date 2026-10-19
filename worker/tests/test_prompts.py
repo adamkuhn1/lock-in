@@ -151,3 +151,15 @@ def test_suggest_ideas_asks_for_plain_title_and_technical_details():
     t = prompts.load("suggest_ideas")
     assert "simple, everyday English" in t and "No file names, function names" in t
     assert '"details":' in t and '"text":' in t
+
+
+def test_tailor_resume_checks_fit_before_tailoring():
+    t = prompts.load("tailor_resume")
+    fit, tailor = t.index("## Part 0: check the fit first"), t.index("## Part 1: tailor the resume")
+    assert fit < tailor
+    part0 = t[fit:tailor]
+    for needle in ["PhD or Master's", "\"Bachelor's or Master's\"", "May 2027", "December 2027", "summer 2027 internship",
+                   "2 or more years", "active security clearance", "Want me to drop this from Lock In?",
+                   "Only if he says yes", "{{lockin}} skip-job --id {{outreach_id}} --reason", "Do not tailor the resume"]:
+        assert needle in part0, needle
+    assert "skip-job command in Part 0 (only after Adam says yes)" in t

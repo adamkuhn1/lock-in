@@ -278,3 +278,27 @@ def test_email_guess_rejects_anything_but_a_plain_address(email):
     code, _, err = run(db_with_outreach(), ["save-outreach", "--id", OID],
                        json.dumps({"contacts": [{**CONTACT, "email_guess": email}]}))
     assert code == 2 and "$.contacts[0].email_guess: not an email address" in err
+
+
+def test_skip_job_closes_card_dismisses_posting_and_keeps_the_reason():
+    db = db_with_outreach()
+    db.insert("postings", [{"id": "p1", "url": "https://x/1", "status": "outreach"}, {"id": "p2", "url": "https://x/2", "status": "new"},
+                           {"id": "p3", "url": "https://x/1", "status": "applied"}])
+    db.insert("launch_requests", [{"id": "r1", "kind": "tailor_resume", "payload": {"outreach_id": OID}, "created_at": "2026-10-19T10:00:00Z"},
+                                  {"id": "r0", "kind": "outreach", "payload": {"outreach_id": OID}, "created_at": "2026-10-18T10:00:00Z"}])
+    code, out, _ = run(db, ["skip-job", "--id", OID, "--reason", "  PhD required\n(posting says PhD candidates only) "], "")
+    assert code == 0 and out.strip() == "Skipped: card moved to Done, 1 posting dismissed"
+    assert db.select("outreach", {"id": OID})[0]["status"] == "closed"
+    assert {p["id"]: p["status"] for p in db.select("postings")} == {"p1": "dismissed", "p2": "new", "p3": "applied"}
+    assert db.select("launch_requests", {"id": "r1"})[0]["payload"]["skipped"] == "PhD required (posting says PhD candidates only)"
+    assert "skipped" not in db.select("launch_requests", {"id": "r0"})[0]["payload"]
+
+
+def test_skip_job_refuses_emailed_cards_and_blank_reasons():
+    db = db_with_outreach(status="sent")
+    code, _, err = run(db, ["skip-job", "--id", OID, "--reason", "PhD"], "")
+    assert code == 2 and "already emailed" in err and db.select("outreach", {"id": OID})[0]["status"] == "sent"
+    code, _, err = run(db_with_outreach(), ["skip-job", "--id", OID, "--reason", "   "], "")
+    assert code == 2 and "--reason is required" in err
+    code, _, err = run(db_with_outreach(), ["skip-job", "--id", "nope", "--reason", "x"], "")
+    assert code == 2 and "no outreach request" in err

@@ -130,6 +130,7 @@ describe('Outreach', () => {
     expect(retailorNote(r({}, 'queued'))).toBeNull();
     expect(retailorNote({ ...r({}), payload: { outreach_id: 'o' } })).toBeNull(); // a first tailor, not a retailor
     expect(retailorNote(null)).toBeNull();
+    expect(retailorNote({ ...r({}), payload: { outreach_id: 'o', skipped: 'PhD required' } })).toBe('Skipped after the fit check: PhD required');
   });
   it('no Retailor resume on Cold email cards or while queued', async () => {
     const api = createDemoApi();

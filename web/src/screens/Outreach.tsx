@@ -153,8 +153,10 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
   );
 }
 
-/** The Mac's answer to Retailor resume: it reused a saved resume, or found none and started Claude again. */
+/** What the Mac did: Claude skipped the role at the fit check, or (Retailor resume) reused a saved resume or started again. */
 export function retailorNote(r: LaunchRequest | null): string | null {
+  // Claude's fit check ruled the role out (lockin skip-job): say why on the card in Done.
+  if (r && typeof r.payload.skipped === 'string' && r.payload.skipped) return `Skipped after the fit check: ${r.payload.skipped}`;
   if (!r || r.kind !== 'tailor_resume' || r.payload.retailor !== true || r.status !== 'launched') return null;
   return r.payload.result === 'reused'
     ? 'Your tailored resume was already saved. It opened in Finder, along with the posting.'

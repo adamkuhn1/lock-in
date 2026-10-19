@@ -172,6 +172,33 @@ def save_ideas(db, project_id: str, ideas: list[dict]) -> tuple[int, int]:
     return len(new), len(ideas) - len(new)
 
 
+SKIP_REASON_MAX = 300
+
+
+def skip_job(db, outreach_id: str, reason: str) -> int:
+    """Claude's fit check said no: close the outreach card, dismiss the posting, keep the reason for the app.
+
+    Returns how many postings were dismissed. A card already emailed is left alone."""
+    reason = " ".join(reason.split())[:SKIP_REASON_MAX]
+    if not reason:
+        raise InputError("--reason is required: one line on why the role doesn't fit")
+    rows = db.select("outreach", {"id": outreach_id})
+    if not rows:
+        raise InputError(f"no outreach request with id {outreach_id}")
+    o = rows[0]
+    if o.get("status") in ("sent", "replied"):
+        raise InputError("this card was already emailed; close it in the app instead")
+    db.update("outreach", {"id": outreach_id}, {"status": "closed"})
+    reqs = [r for r in db.select("launch_requests") if (r.get("payload") or {}).get("outreach_id") == outreach_id]
+    if reqs:
+        last = max(reqs, key=lambda r: str(r.get("created_at") or ""))
+        db.update("launch_requests", {"id": last["id"]}, {"payload": {**(last.get("payload") or {}), "skipped": reason}})
+    posts = [p for p in db.select("postings", {"url": o["job_url"]}) if p.get("status") != "applied"] if o.get("job_url") else []
+    for p in posts:
+        db.update("postings", {"id": p["id"]}, {"status": "dismissed"})
+    return len(posts)
+
+
 def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
@@ -184,6 +211,9 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
     so.add_argument("--id", required=True, help="outreach id from the prompt")
     si = sub.add_parser("save-ideas", help="read ideas JSON list on stdin")
     si.add_argument("--project", required=True, help="project id, e.g. 27b")
+    sk = sub.add_parser("skip-job", help="the role doesn't fit: close the outreach card and dismiss the posting")
+    sk.add_argument("--id", required=True, help="outreach id from the prompt")
+    sk.add_argument("--reason", required=True, help="one line, e.g. 'PhD required'")
     sub.add_parser("doctor", help="check Keychain credentials and the database connection")
     lp = sub.add_parser("log-prep", help="log a prep session (used by Mock with Claude)")
     lp.add_argument("--kind", required=True, choices=["oa", "mock", "study", "story"])
@@ -197,6 +227,10 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             db.select("settings")
             queued = len(db.select("launch_requests", {"status": "queued"}))
             print(f"OK: connected to Supabase, {_plural(queued, 'queued launch request')}", file=stdout)
+            return 0
+        if args.cmd == "skip-job":
+            n = skip_job(db_factory(), args.id, args.reason)
+            print(f"Skipped: card moved to Done, {_plural(n, 'posting')} dismissed", file=stdout)
             return 0
         if args.cmd == "log-prep":
             if args.minutes is not None and not 1 <= args.minutes <= 600:
