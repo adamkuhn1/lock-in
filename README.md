@@ -51,3 +51,7 @@ Buttons in the app never run code on the Mac directly. They insert a row into `l
 - Full setup (Supabase, the Sheet, GitHub secrets, the Mac launcher, Vercel): [docs/setup.md](docs/setup.md)
 
 Design notes and build plans are in [docs/](docs/).
+
+## License
+
+[MIT](LICENSE)
