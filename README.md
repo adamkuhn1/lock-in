@@ -16,7 +16,8 @@ I built it for myself and use it every day. It's not a hosted product: you'd nee
 - **Grind**: a daily LeetCode set chosen by spaced repetition across a problem roadmap, plus interview prep (a story bank, a fundamentals checklist, company prep and mock interviews).
 - **Hunt**: new early-career postings from about 200 companies' career sites, sorted by how much I want each company, applications synced from my tracking Sheet, and outreach cards that follow each recruiter email from draft to follow-up.
 - **Projects**: commit strips for my side projects and an idea list. **Work on this** opens a briefed Claude Code session in that project's folder.
-- **Tailor resume**: the Mac copies my base LaTeX resume, has Claude tailor it to the posting, compiles it with tectonic, checks it's exactly one page, saves it next to my other resumes, then drafts one recruiter email for me to review and send.
+- **Tailor resume**: Claude first checks the fit (degree level, graduation date, role type) and stops early if the posting isn't for me, offering to drop it from the app. Otherwise the Mac copies my base LaTeX resume, has Claude tailor it to the posting, compiles it with tectonic, checks it's exactly one page, saves it next to my other resumes, then drafts one recruiter email for me to review and send.
+- **Me**: my profile (which the Claude prompts read), a season record, and every tailored resume with its path.
 - **Calendar**, a shareable progress card, and phone nudges through ntfy.
 
 Claude never sends, applies or pushes anything on its own. Every session is interactive, and I approve each command.
