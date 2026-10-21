@@ -390,25 +390,57 @@ def test_check_link_classifies_responses():
     from lockin_worker import picks
     import requests as rq
 
+    PUBLIC = lambda host, port, **kw: [(2, 1, 6, "", ("93.184.216.34", port))]
+
     class Resp:
-        def __init__(self, code, url):
-            self.status_code, self.url = code, url
+        def __init__(self, code, location=None):
+            self.status_code, self.headers = code, ({"Location": location} if location else {})
 
         def close(self):
             pass
 
     class Session:
-        def __init__(self, resp=None, exc=None):
-            self.resp, self.exc = resp, exc
+        def __init__(self, *resps, exc=None):
+            self.resps, self.exc, self.urls = list(resps), exc, []
 
         def get(self, url, **kw):
+            assert kw["allow_redirects"] is False
+            self.urls.append(url)
             if self.exc:
                 raise self.exc
-            return self.resp
+            return self.resps.pop(0)
 
     u = "https://boards.greenhouse.io/x/jobs/1"
-    assert picks.check_link(u, Session(Resp(200, u)))[0] == "ok"
-    assert picks.check_link(u, Session(Resp(404, u)))[0] == "dead"
-    assert picks.check_link(u, Session(Resp(200, "https://boards.greenhouse.io/x?error=true")))[0] == "dead"
-    assert picks.check_link(u, Session(Resp(403, u)))[0] == "unverified"
-    assert picks.check_link(u, Session(exc=rq.ConnectionError("dns")))[0] == "dead"
+    check = lambda *resps, exc=None: picks.check_link(u, Session(*resps, exc=exc), resolve=PUBLIC)[0]
+    assert check(Resp(200)) == "ok"
+    assert check(Resp(404)) == "dead"
+    assert check(Resp(302, "/x?error=true"), Resp(200)) == "dead"
+    assert check(Resp(403)) == "unverified"
+    assert check(exc=rq.ConnectionError("dns")) == "dead"
+    s = Session(Resp(301, "https://job-boards.greenhouse.io/x/jobs/1"), Resp(200))
+    assert picks.check_link(u, s, resolve=PUBLIC)[0] == "ok" and s.urls[-1] == "https://job-boards.greenhouse.io/x/jobs/1"
+
+
+def test_check_link_refuses_private_addresses_and_odd_ports():
+    from lockin_worker import picks
+    at = lambda ip: (lambda host, port, **kw: [(2, 1, 6, "", (ip, port))])
+
+    class Never:
+        def get(self, url, **kw):
+            raise AssertionError(f"fetched {url}")
+
+    for ip in ("127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1", "fd00::1"):
+        assert picks.check_link("https://evil.example/x", Never(), resolve=at(ip))[0] == "dead", ip
+    assert picks.check_link("https://evil.example:8080/x", Never(), resolve=at("93.184.216.34"))[0] == "dead"
+
+    class RedirectToLan:
+        def get(self, url, **kw):
+            class R:
+                status_code, headers = 302, {"Location": "http://192.168.1.1/admin"}
+                def close(self):
+                    pass
+            return R()
+
+    def resolve(host, port, **kw):
+        return [(2, 1, 6, "", ("192.168.1.1" if host == "192.168.1.1" else "93.184.216.34", port))]
+    assert picks.check_link("https://jobs.example/1", RedirectToLan(), resolve=resolve) == ("dead", "isn't a public web address")

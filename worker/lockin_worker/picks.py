@@ -7,10 +7,12 @@ never reaches the app. Each save replaces the previous shortlist.
 
 from __future__ import annotations
 
+import ipaddress
+import socket
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import requests
 
@@ -30,6 +32,8 @@ BLOCKED_HOSTS = ("linkedin.com", "indeed.com", "glassdoor.com", "ziprecruiter.co
                  "monster.com", "simplyhired.com", "google.com", "bing.com", "jobright.ai")
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
+MAX_REDIRECTS = 8
+
 LinkCheck = Callable[[str], tuple[str, str]]
 
 
@@ -37,18 +41,48 @@ class PickError(Exception):
     pass
 
 
-def check_link(url: str, session=None) -> tuple[str, str]:
+def _public_host(url: str, resolve=socket.getaddrinfo) -> bool:
+    """Only http(s) on the default ports, to a host whose every address is public.
+
+    Links come from web pages Claude read, so never let them reach this Mac, the LAN or cloud metadata."""
+    u = urlsplit(url)
+    if u.scheme not in ("http", "https") or not u.hostname:
+        return False
+    try:
+        port = u.port
+    except ValueError:
+        return False
+    if port not in (None, 80, 443):
+        return False
+    try:
+        infos = resolve(u.hostname, port or (443 if u.scheme == "https" else 80), type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError):
+        return False
+    addrs = {ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos}
+    return bool(addrs) and all(a.is_global for a in addrs)
+
+
+def check_link(url: str, session=None, resolve=socket.getaddrinfo) -> tuple[str, str]:
     """("ok" | "unverified" | "dead", note). Dead = gone for sure; unverified = the site blocks scripts."""
     s = session or requests
-    try:
-        r = s.get(url, timeout=15, allow_redirects=True, headers={"User-Agent": USER_AGENT}, stream=True)
-        r.close()
-    except requests.RequestException as exc:
-        return "dead", f"couldn't load it ({type(exc).__name__})"
-    final = str(getattr(r, "url", "") or url)
+    for _ in range(MAX_REDIRECTS + 1):
+        if not _public_host(url, resolve):
+            return "dead", "isn't a public web address"
+        try:
+            r = s.get(url, timeout=15, allow_redirects=False, headers={"User-Agent": USER_AGENT}, stream=True)
+            r.close()
+        except requests.RequestException as exc:
+            return "dead", f"couldn't load it ({type(exc).__name__})"
+        location = (getattr(r, "headers", None) or {}).get("Location")
+        if r.status_code in (301, 302, 303, 307, 308) and location:
+            url = urljoin(url, location)  # follow each hop ourselves so every one is checked
+            continue
+        break
+    else:
+        return "dead", "too many redirects"
     if r.status_code in (404, 410):
         return "dead", f"HTTP {r.status_code}, the posting is gone"
-    if "error=true" in final:  # Greenhouse sends closed postings back to the board with ?error=true
+    if "error=true" in url:  # Greenhouse sends closed postings back to the board with ?error=true
         return "dead", "redirects to the job board, so the posting is closed"
     if r.status_code >= 400:
         return "unverified", f"HTTP {r.status_code} (the site blocks scripts)"
