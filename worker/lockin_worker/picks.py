@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urljoin, urlsplit
 
-import requests
+import certifi
+import urllib3
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
+from urllib3.exceptions import NewConnectionError
+from urllib3.util import parse_url
 
 from job_radar.config import GitHubList
 from job_radar.notify import safe_click_url
@@ -41,51 +46,103 @@ class PickError(Exception):
     pass
 
 
-def _public_host(url: str, resolve=socket.getaddrinfo) -> bool:
-    """Only http(s) on the default ports, to a host whose every address is public.
+class BlockedAddress(Exception):
+    """The link's host resolves to this Mac, the LAN, cloud metadata or another non-public address."""
 
-    Links come from web pages Claude read, so never let them reach this Mac, the LAN or cloud metadata."""
-    u = urlsplit(url)
-    if u.scheme not in ("http", "https") or not u.hostname:
+
+def _public_addresses(host: str, port: int, resolve) -> list:
+    infos = resolve(host, port, type=socket.SOCK_STREAM)
+    if not infos or not all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos):
+        raise BlockedAddress(host)
+    return infos
+
+
+def _pinned(base, resolve):
+    """A urllib3 connection that resolves the host once, refuses non-public addresses, and connects to exactly
+    those addresses. No second DNS lookup can swap in another one (DNS rebinding), and the host checked is the
+    one urllib3 parsed (no parser differential). HTTPS still verifies the certificate against the hostname."""
+
+    class Pinned(base):
+        def _new_conn(self):
+            err: OSError | None = None
+            for family, kind, proto, _, addr in _public_addresses(self._dns_host, self.port, resolve):
+                sock = socket.socket(family, kind, proto)
+                try:
+                    for opt in self.socket_options or ():
+                        sock.setsockopt(*opt)
+                    if isinstance(self.timeout, (int, float)):
+                        sock.settimeout(self.timeout)
+                    sock.connect(addr)
+                    return sock
+                except OSError as exc:
+                    err = exc
+                    sock.close()
+            raise NewConnectionError(self, f"Failed to establish a new connection: {err}")
+
+    return Pinned
+
+
+def _pool_manager(resolve) -> urllib3.PoolManager:
+    class HTTPPool(HTTPConnectionPool):
+        ConnectionCls = _pinned(HTTPConnection, resolve)
+
+    class HTTPSPool(HTTPSConnectionPool):
+        ConnectionCls = _pinned(HTTPSConnection, resolve)
+
+    # urllib3 directly, not requests: no proxy settings from the environment can route around the check.
+    pm = urllib3.PoolManager(retries=False, timeout=urllib3.Timeout(connect=15, read=15),
+                             cert_reqs="CERT_REQUIRED", ca_certs=certifi.where())
+    pm.pool_classes_by_scheme = {"http": HTTPPool, "https": HTTPSPool}
+    return pm
+
+
+def _allowed_url(url: str) -> bool:
+    """Plain http(s) on ports 80/443, as urllib3 itself parses it, with no characters parsers disagree on."""
+    if not safe_click_url(url) or any(c in url for c in "\\@") or any(ord(c) < 0x21 or ord(c) == 0x7F for c in url):
         return False
     try:
-        port = u.port
+        u = parse_url(url)
     except ValueError:
         return False
-    if port not in (None, 80, 443):
-        return False
-    try:
-        infos = resolve(u.hostname, port or (443 if u.scheme == "https" else 80), type=socket.SOCK_STREAM)
-    except (OSError, UnicodeError):
-        return False
-    addrs = {ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos}
-    return bool(addrs) and all(a.is_global for a in addrs)
+    return u.scheme in ("http", "https") and bool(u.host) and u.port in (None, 80, 443)
 
 
-def check_link(url: str, session=None, resolve=socket.getaddrinfo) -> tuple[str, str]:
-    """("ok" | "unverified" | "dead", note). Dead = gone for sure; unverified = the site blocks scripts."""
-    s = session or requests
+def check_link(url: str, fetch: Callable[[str], tuple[int, str | None]] | None = None,
+               resolve=socket.getaddrinfo) -> tuple[str, str]:
+    """("ok" | "unverified" | "dead", note). Dead = gone for sure; unverified = the site blocks scripts.
+
+    Links come from web pages Claude read, so every hop must be a public web address (see _pinned)."""
+    if fetch is None:
+        pm = _pool_manager(resolve)
+
+        def fetch(u: str) -> tuple[int, str | None]:
+            r = pm.request("GET", u, redirect=False, preload_content=False, headers={"User-Agent": USER_AGENT})
+            try:
+                return r.status, r.headers.get("Location")
+            finally:
+                r.close()
+
     for _ in range(MAX_REDIRECTS + 1):
-        if not _public_host(url, resolve):
+        if not _allowed_url(url):
             return "dead", "isn't a public web address"
         try:
-            r = s.get(url, timeout=15, allow_redirects=False, headers={"User-Agent": USER_AGENT}, stream=True)
-            r.close()
-        except requests.RequestException as exc:
+            status, location = fetch(url)
+        except BlockedAddress:
+            return "dead", "isn't a public web address"
+        except (urllib3.exceptions.HTTPError, OSError, ValueError) as exc:
             return "dead", f"couldn't load it ({type(exc).__name__})"
-        location = (getattr(r, "headers", None) or {}).get("Location")
-        if r.status_code in (301, 302, 303, 307, 308) and location:
+        if status in (301, 302, 303, 307, 308) and location:
             url = urljoin(url, location)  # follow each hop ourselves so every one is checked
             continue
         break
     else:
         return "dead", "too many redirects"
-    if r.status_code in (404, 410):
-        return "dead", f"HTTP {r.status_code}, the posting is gone"
+    if status in (404, 410):
+        return "dead", f"HTTP {status}, the posting is gone"
     if "error=true" in url:  # Greenhouse sends closed postings back to the board with ?error=true
         return "dead", "redirects to the job board, so the posting is closed"
-    if r.status_code >= 400:
-        return "unverified", f"HTTP {r.status_code} (the site blocks scripts)"
+    if status >= 400:
+        return "unverified", f"HTTP {status} (the site blocks scripts)"
     return "ok", ""
 
 

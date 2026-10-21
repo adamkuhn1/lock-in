@@ -1,4 +1,5 @@
 import io
+import socket
 import json
 import pytest
 from lockin_worker import cli
@@ -388,59 +389,81 @@ def test_save_picks_validation(picks, msg):
 
 def test_check_link_classifies_responses():
     from lockin_worker import picks
-    import requests as rq
+    import urllib3
 
-    PUBLIC = lambda host, port, **kw: [(2, 1, 6, "", ("93.184.216.34", port))]
+    def fetcher(*responses, exc=None):
+        seen = []
 
-    class Resp:
-        def __init__(self, code, location=None):
-            self.status_code, self.headers = code, ({"Location": location} if location else {})
-
-        def close(self):
-            pass
-
-    class Session:
-        def __init__(self, *resps, exc=None):
-            self.resps, self.exc, self.urls = list(resps), exc, []
-
-        def get(self, url, **kw):
-            assert kw["allow_redirects"] is False
-            self.urls.append(url)
-            if self.exc:
-                raise self.exc
-            return self.resps.pop(0)
+        def fetch(url):
+            seen.append(url)
+            if exc:
+                raise exc
+            return responses[len(seen) - 1]
+        return fetch, seen
 
     u = "https://boards.greenhouse.io/x/jobs/1"
-    check = lambda *resps, exc=None: picks.check_link(u, Session(*resps, exc=exc), resolve=PUBLIC)[0]
-    assert check(Resp(200)) == "ok"
-    assert check(Resp(404)) == "dead"
-    assert check(Resp(302, "/x?error=true"), Resp(200)) == "dead"
-    assert check(Resp(403)) == "unverified"
-    assert check(exc=rq.ConnectionError("dns")) == "dead"
-    s = Session(Resp(301, "https://job-boards.greenhouse.io/x/jobs/1"), Resp(200))
-    assert picks.check_link(u, s, resolve=PUBLIC)[0] == "ok" and s.urls[-1] == "https://job-boards.greenhouse.io/x/jobs/1"
+    check = lambda *rs, exc=None: picks.check_link(u, fetcher(*rs, exc=exc)[0])[0]
+    assert check((200, None)) == "ok"
+    assert check((404, None)) == "dead"
+    assert check((302, "/x?error=true"), (200, None)) == "dead"
+    assert check((403, None)) == "unverified"
+    assert check(exc=urllib3.exceptions.NewConnectionError(None, "refused")) == "dead"
+    fetch, seen = fetcher((301, "https://job-boards.greenhouse.io/x/jobs/1"), (200, None))
+    assert picks.check_link(u, fetch)[0] == "ok" and seen[-1] == "https://job-boards.greenhouse.io/x/jobs/1"
 
 
-def test_check_link_refuses_private_addresses_and_odd_ports():
+@pytest.mark.parametrize("url", [
+    "https://evil.example:8080/x", "ftp://evil.example/x", "https://evil.example\\@127.0.0.1/x",
+    "https://user@127.0.0.1/x", "https://evil.example/\x00", "http://evil.example/a b",
+])
+def test_check_link_refuses_odd_urls_before_fetching(url):
     from lockin_worker import picks
-    at = lambda ip: (lambda host, port, **kw: [(2, 1, 6, "", (ip, port))])
 
-    class Never:
-        def get(self, url, **kw):
-            raise AssertionError(f"fetched {url}")
+    def never(u):
+        raise AssertionError(f"fetched {u}")
+    assert picks.check_link(url, never) == ("dead", "isn't a public web address")
 
-    for ip in ("127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1", "fd00::1"):
-        assert picks.check_link("https://evil.example/x", Never(), resolve=at(ip))[0] == "dead", ip
-    assert picks.check_link("https://evil.example:8080/x", Never(), resolve=at("93.184.216.34"))[0] == "dead"
 
-    class RedirectToLan:
-        def get(self, url, **kw):
-            class R:
-                status_code, headers = 302, {"Location": "http://192.168.1.1/admin"}
-                def close(self):
-                    pass
-            return R()
+@pytest.mark.parametrize("ip", ["127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1", "fd00::1", "::ffff:127.0.0.1", "0.0.0.0"])
+def test_check_link_connection_refuses_private_addresses(ip):
+    """The real connection layer: the address is checked where urllib3 connects, so DNS can't swap it."""
+    from lockin_worker import picks
+    calls = []
 
     def resolve(host, port, **kw):
-        return [(2, 1, 6, "", ("192.168.1.1" if host == "192.168.1.1" else "93.184.216.34", port))]
-    assert picks.check_link("https://jobs.example/1", RedirectToLan(), resolve=resolve) == ("dead", "isn't a public web address")
+        calls.append(host)
+        return [(socket.AF_INET6 if ":" in ip else socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))]
+    assert picks.check_link("https://jobs.example.com/1", resolve=resolve) == ("dead", "isn't a public web address")
+    assert calls == ["jobs.example.com"]  # resolved once, at connect time
+
+
+def test_check_link_redirect_to_a_private_address_is_refused():
+    """A public posting that redirects into the LAN: the next hop goes through the same pinned connection."""
+    from lockin_worker import picks
+    real = picks._pool_manager
+
+    def resolve(host, port, **kw):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", port))]
+
+    class FirstHopPublic:
+        def __init__(self):
+            self.pm = real(resolve)
+            self.n = 0
+
+        def request(self, method, url, **kw):
+            self.n += 1
+            if self.n == 1:  # pretend the public posting answered with a redirect into the LAN
+                class R:
+                    status, headers = 302, {"Location": "http://router.lan/admin"}
+                    def close(self):
+                        pass
+                return R()
+            return self.pm.request(method, url, **kw)
+
+    import pytest as _pt
+    mp = _pt.MonkeyPatch()
+    mp.setattr(picks, "_pool_manager", lambda r: FirstHopPublic())
+    try:
+        assert picks.check_link("https://jobs.example.com/1", resolve=resolve) == ("dead", "isn't a public web address")
+    finally:
+        mp.undo()
