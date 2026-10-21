@@ -47,3 +47,19 @@ describe('jobs', () => {
     expect(termsOf(ps)).toEqual(['Winter 2027']);
   });
 });
+
+describe('best fit and per-company cap', () => {
+  it('Best fit keeps only shortlisted postings, sorted by rank', async () => {
+    const { sortByFit } = await import('./jobs');
+    const ps = [J('a', { fit_rank: 2 }), J('b'), J('c', { fit_rank: 1 }), J('d', { fit_rank: null })];
+    const picked = filterPostings(ps, { ...NO_FILTERS, bestFit: true });
+    expect(sortByFit(picked).map((p) => p.id)).toEqual(['c', 'a']);
+  });
+  it('caps each company and puts a "more" item where the hidden rows start', async () => {
+    const { capPerCompany } = await import('./jobs');
+    const ps = [J('i1', { company: 'IBM' }), J('r1', { company: 'Ramp' }), J('i2', { company: 'IBM' }), J('i3', { company: 'IBM' }), J('i4', { company: 'IBM' })];
+    const label = (xs: ReturnType<typeof capPerCompany>) => xs.map((x) => (x.kind === 'posting' ? x.p.id : `+${x.count} ${x.company}`));
+    expect(label(capPerCompany(ps, 2, new Set()))).toEqual(['i1', 'r1', 'i2', '+2 IBM']);
+    expect(label(capPerCompany(ps, 2, new Set(['IBM'])))).toEqual(['i1', 'r1', 'i2', 'i3', 'i4']);
+  });
+});

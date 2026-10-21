@@ -240,3 +240,94 @@ companies:
   - { name: Canva,           ats: smartrecruiters, token: Canva,          tier: B }
   - { name: Experian,        ats: smartrecruiters, token: Experian,       tier: C }
   - { name: Western Digital, ats: smartrecruiters, token: WesternDigital, tier: C }
+
+  # ===== Added 2026-10-20: companies Adam applied to that weren't watched, plus similar early-career employers.
+  # Every token was run through the repo fetchers and returned jobs.
+  # --- Applied-to companies (not yet watched) ---------------------------------
+  # --- Greenhouse
+  - { name: Anduril,             ats: greenhouse, token: andurilindustries,  tier: A, software_only: true }
+  - { name: Sigma Computing,     ats: greenhouse, token: sigmacomputing,     tier: B }
+  - { name: Maven Securities,    ats: greenhouse, token: mavensecuritiesholdingltd, tier: B }
+  - { name: Garner Health,       ats: greenhouse, token: garnerhealth,       tier: B }
+  - { name: Rocket Lab,          ats: greenhouse, token: rocketlab,          tier: B, software_only: true }
+  - { name: Zipline,             ats: greenhouse, token: flyzipline,         tier: B, software_only: true }
+  - { name: Domino Data Lab,     ats: greenhouse, token: dominodatalab,      tier: C }
+  - { name: Courier Health,      ats: greenhouse, token: courierhealth,      tier: C }
+  - { name: Inspire11,           ats: greenhouse, token: inspire11,          tier: C }
+  - { name: OneEthos,            ats: greenhouse, token: oneethos,           tier: C }
+  - { name: Formlabs,            ats: greenhouse, token: formlabs,           tier: C, software_only: true }
+  - { name: The Nuclear Company, ats: greenhouse, token: thenuclearcompany,  tier: C, software_only: true }
+  # --- Ashby
+  - { name: Old Mission,         ats: ashby, token: old-mission-capital, tier: B }
+  - { name: Talos,               ats: ashby, token: talos-trading,       tier: B }
+  - { name: Valon,               ats: ashby, token: valon,               tier: B }
+  - { name: Browserbase,         ats: ashby, token: browserbase,         tier: B }
+  - { name: Ellipsis Labs,       ats: ashby, token: ellipsislabs,        tier: B }
+  - { name: Niantic Spatial,     ats: ashby, token: niantic-spatial,     tier: B }
+  - { name: Pylon,               ats: ashby, token: pylon-labs,          tier: B }
+  - { name: Confido,             ats: ashby, token: confido,             tier: C }
+  - { name: Greenboard,          ats: ashby, token: greenboard,          tier: C }
+  - { name: Pariveda,            ats: ashby, token: pariveda,            tier: C }
+  - { name: Qumulo,              ats: ashby, token: qumulo,              tier: C }
+  - { name: Realm,               ats: ashby, token: realmalliance,       tier: C }
+  # --- Workday / Eightfold
+  - { name: Caterpillar,         ats: workday,   token: cat.wd5/CaterpillarCareers, tier: C, software_only: true }
+  - { name: Jabil,               ats: workday,   token: jabil.wd5/Jabil_Careers,    tier: C, software_only: true }
+  - { name: BCG X,               ats: eightfold, token: bcg.eightfold.ai/bcg.com,   tier: B }
+
+  # --- New: trading and fintech ------------------------------------------------
+  - { name: Five Rings,              ats: greenhouse, token: fiveringsllc,           tier: A }
+  - { name: XTX Markets,             ats: greenhouse, token: xtxmarketstechnologies, tier: A }
+  - { name: Squarepoint Capital,     ats: greenhouse, token: squarepointcapital,     tier: A }
+  - { name: Chicago Trading Company, ats: greenhouse, token: chicagotrading,         tier: A }
+  - { name: Flow Traders,            ats: greenhouse, token: flowtraders,            tier: B }
+  - { name: Geneva Trading,          ats: greenhouse, token: genevatrading,          tier: B }
+  - { name: Clear Street,            ats: greenhouse, token: clearstreet,            tier: B }
+  - { name: Arcesium,                ats: greenhouse, token: arcesiumllc,            tier: B }
+  - { name: Addepar,                 ats: greenhouse, token: addepar1,               tier: B }
+  - { name: Kalshi,                  ats: ashby,      token: kalshi,                 tier: B }
+  - { name: Polymarket,              ats: ashby,      token: polymarket,             tier: B }
+  - { name: Modern Treasury,         ats: ashby,      token: moderntreasury,         tier: C }
+  - { name: Column,                  ats: ashby,      token: column,                 tier: C }
+
+  # --- New: AI, dev tools, infra and security ----------------------------------
+  - { name: Applied Intuition,     ats: ashby,      token: applied,           tier: A }
+  - { name: Glean,                 ats: greenhouse, token: gleanwork,         tier: A }
+  - { name: Cognition,             ats: ashby,      token: cognition,         tier: A }
+  - { name: Wiz,                   ats: greenhouse, token: wizinc,            tier: A }
+  - { name: Hex,                   ats: ashby,      token: hex,               tier: B }
+  - { name: Decagon,               ats: ashby,      token: decagon,           tier: B }
+  - { name: Ironclad,              ats: ashby,      token: ironcladhq,        tier: B }
+  - { name: Clay,                  ats: ashby,      token: claylabs,          tier: B }
+  - { name: Zip,                   ats: ashby,      token: zip,               tier: B }
+  - { name: Writer,                ats: ashby,      token: writer,            tier: B }
+  - { name: Hebbia,                ats: ashby,      token: hebbia-ai,         tier: B }
+  - { name: Mercor,                ats: ashby,      token: mercor,            tier: B }
+  - { name: Physical Intelligence, ats: ashby,      token: physicalintelligence, tier: B }
+  - { name: Lambda,                ats: ashby,      token: lambda,            tier: B }
+  - { name: Anyscale,              ats: ashby,      token: anyscale,          tier: B }
+  - { name: 1Password,             ats: ashby,      token: 1password,         tier: B }
+  - { name: Grafana Labs,          ats: greenhouse, token: grafanalabs,       tier: B }
+  - { name: Cribl,                 ats: greenhouse, token: cribl,             tier: B }
+  - { name: Tanium,                ats: greenhouse, token: tanium,            tier: B }
+  - { name: Pure Storage,          ats: greenhouse, token: purestorage,       tier: B }
+  - { name: Abnormal Security,     ats: greenhouse, token: abnormalsecurity,  tier: B }
+  - { name: Tailscale,             ats: greenhouse, token: tailscale,         tier: B }
+  - { name: Coupang,               ats: greenhouse, token: coupang,           tier: B }
+  - { name: Attio,                 ats: ashby,      token: attio,             tier: C }
+  - { name: WorkOS,                ats: ashby,      token: workos,            tier: C }
+
+  # --- New: autonomy, robotics, defense (hardware-heavy) -----------------------
+  - { name: Figure AI,         ats: greenhouse, token: figureai,           tier: B, software_only: true }
+  - { name: Saronic,           ats: ashby,      token: saronic,            tier: B, software_only: true }
+  - { name: Chaos Industries,  ats: greenhouse, token: chaosindustries,    tier: B, software_only: true }
+  - { name: Motional,          ats: greenhouse, token: motional,           tier: B, software_only: true }
+  - { name: Hadrian,           ats: ashby,      token: hadrian-automation, tier: C, software_only: true }
+  - { name: Gecko Robotics,    ats: ashby,      token: gecko-robotics,     tier: C, software_only: true }
+
+  # --- New: Midwest ------------------------------------------------------------
+  - { name: May Mobility,   ats: greenhouse,      token: maymobility,   tier: B, software_only: true }
+  - { name: Censys,         ats: greenhouse,      token: censys,        tier: C }
+  - { name: Sprout Social,  ats: greenhouse,      token: sproutsocial,  tier: C }
+  - { name: Allstate,       ats: workday,         token: allstate.wd5/allstate_careers, tier: C }
+  - { name: "Domino's",     ats: smartrecruiters, token: Dominos,       tier: C }

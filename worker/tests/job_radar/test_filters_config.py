@@ -24,6 +24,16 @@ FILTERS = load_filters(ROOT / "config/filters.yaml")
     "Software Engineer Co-op",
     "Middleware Software Intern (Winter 2027)",       # Simplify row + Terms column
     "UI Intern (Summer 2027, Winter 2027)",
+    "Junior Software Developer",
+    "Jr. Backend Engineer",
+    "Associate Software Engineer",
+    "Associate Application Developer - Azure",
+    "Software Development Engineer I",
+    "Data Engineer 1",
+    "Graduate Software Engineer",
+    "Software Engineer - New College Grad",
+    "Technology Rotational Program - Software",
+    "Software Engineering Apprenticeship",
 ])
 def test_include(title):
     assert FILTERS.matches(title)
@@ -52,6 +62,13 @@ def test_include(title):
     "Internship, Platform",
     "Engineering Intern (Fall 2026)",
     "Data Engineer Intern (Summer 2027)",
+    "Software Development Engineer II",           # not "I"
+    "Associate Director, Engineering",
+    "Associate Principal Software Engineer",
+    "Associate Product Marketing Lead",           # no engineer/developer
+    "Entry Level Hardware Developer 2027 - Austin",
+    "Entry level Compliance EMC HW Developer - 2027",
+    "Technical Support - Hardware and Software Products - 2027",
 ])
 
 def test_exclude_or_no_match(title):
@@ -92,6 +109,11 @@ def test_advanced_degree_not_overmatched(title):
     assert FILTERS.matches(title)
 
 
+def test_hardware_rule_keeps_software_titles():
+    assert FILTERS.matches("Hardware/Software Co-design Engineer, New Grad 2027")
+    assert FILTERS.matches("Software Engineer, Hardware Platforms - 2027")
+
+
 def test_new_grad_unaffected_by_summer_rules():
     # summer rules only target internships / co-ops, never full-time new grad roles
     assert FILTERS.matches("Software Engineer, New Grad (Summer 2027 start)")
@@ -103,6 +125,8 @@ def test_new_grad_unaffected_by_summer_rules():
 def test_lists_skip_include_but_keep_exclude():
     assert FILTERS.matches("iOS Engineer 1", check_include=False)
     assert not FILTERS.matches("Senior iOS Engineer", check_include=False)
+    assert not FILTERS.matches("Firmware Engineer II", check_include=False)
+    assert not FILTERS.matches("Data Scientist 3", check_include=False)
 
 
 def test_repo_config_loads():

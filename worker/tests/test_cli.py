@@ -302,3 +302,113 @@ def test_skip_job_refuses_emailed_cards_and_blank_reasons():
     assert code == 2 and "--reason is required" in err
     code, _, err = run(db_with_outreach(), ["skip-job", "--id", "nope", "--reason", "x"], "")
     assert code == 2 and "no outreach request" in err
+
+
+# ---- save-picks (Find best fits) ----
+
+def db_with_postings():
+    db = MemoryDB()
+    db.insert("postings", [
+        {"id": "ramp|swe new grad|nyc", "company": "Ramp", "title": "SWE New Grad", "url": "https://jobs.ashbyhq.com/ramp/1", "status": "new"},
+        {"id": "ibm|dev|austin", "company": "IBM", "title": "Dev", "url": "https://ibm.com/1", "status": "seen",
+         "fit_rank": 1, "fit_reason": "old pick"},
+        {"id": "stripe|swe|sf", "company": "Stripe", "title": "SWE", "url": "https://x/s", "status": "dismissed"},
+    ])
+    db.insert("applications", [{"company": "Notion", "role": "Software Engineer - Early Career"}])
+    return db
+
+
+def run_picks(db, picks, check=lambda url: ("ok", "")):
+    out, err = io.StringIO(), io.StringIO()
+    code = cli.main(["save-picks"], stdin=io.StringIO(json.dumps(picks)), stdout=out, stderr=err,
+                    db_factory=lambda: db, link_check=check)
+    return code, out.getvalue(), err.getvalue()
+
+
+NEW_PICK = {"company": "Whatnot", "title": "Software Engineer - 2027 New Grad", "url": "https://jobs.ashbyhq.com/whatnot/9",
+            "location": "Chicago, IL", "reason": "Marketplace backend; Chicago"}
+
+
+def test_save_picks_ranks_inbox_and_new_and_replaces_old_list():
+    db = db_with_postings()
+    checked = []
+    code, out, err = run_picks(db, [NEW_PICK, {"id": "ramp|swe new grad|nyc", "reason": "  NYC fintech\n new grad "}],
+                               check=lambda url: checked.append(url) or ("ok", ""))
+    assert code == 0, err
+    assert out.strip() == "Saved 2 best fits (1 from the inbox, 1 new)"
+    assert checked == [NEW_PICK["url"]]  # inbox links aren't re-checked
+    rows = {p["id"]: p for p in db.select("postings")}
+    assert rows["ramp|swe new grad|nyc"]["fit_rank"] == 2 and rows["ramp|swe new grad|nyc"]["fit_reason"] == "NYC fintech new grad"
+    assert rows["ibm|dev|austin"]["fit_rank"] is None and rows["ibm|dev|austin"]["fit_reason"] is None
+    new = rows["whatnot|software engineer 2027 new grad|chicago il"]
+    assert new["fit_rank"] == 1 and new["found_by"] == "claude" and new["status"] == "new"
+    assert new["starred"] is True  # Chicago is a preferred region in filters.yaml
+
+
+def test_save_picks_dead_link_saves_nothing():
+    db = db_with_postings()
+    code, _, err = run_picks(db, [{"id": "ramp|swe new grad|nyc", "reason": "x"}, NEW_PICK],
+                             check=lambda url: ("dead", "HTTP 404, the posting is gone"))
+    assert code == 2 and "pick 2 (Whatnot · Software Engineer - 2027 New Grad)" in err and "Nothing was saved" in err
+    assert db.select("postings", {"id": "ibm|dev|austin"})[0]["fit_rank"] == 1
+    assert db.select("postings", {"id": "ramp|swe new grad|nyc"})[0].get("fit_rank") is None
+
+
+def test_save_picks_unverified_link_saves_with_warning():
+    code, out, err = run_picks(db_with_postings(), [NEW_PICK], check=lambda url: ("unverified", "HTTP 403 (the site blocks scripts)"))
+    assert code == 0 and "Saved 1 best fit (0 from the inbox, 1 new)" in out and "couldn't check Whatnot" in err
+
+
+def test_save_picks_skips_closed_applied_and_duplicate_picks():
+    db = db_with_postings()
+    picks = [{"id": "stripe|swe|sf", "reason": "x"},
+             {"company": "Notion", "title": "Software Engineer - Early Career", "url": "https://jobs.ashbyhq.com/notion/1", "reason": "x"},
+             {"id": "ramp|swe new grad|nyc", "reason": "x"},
+             {"company": "Ramp", "title": "SWE New Grad", "url": "https://jobs.ashbyhq.com/ramp/1", "reason": "same url"}]
+    code, out, err = run_picks(db, picks)
+    assert code == 0 and "Saved 1 best fit (1 from the inbox, 0 new)" in out
+    assert "Stripe · SWE: already dismissed" in err and "already in your applications" in err and "listed twice" in err
+    assert db.select("postings", {"id": "ramp|swe new grad|nyc"})[0]["fit_rank"] == 1
+
+
+@pytest.mark.parametrize("picks, msg", [
+    ([], "non-empty JSON list"),
+    ({"id": "x"}, "non-empty JSON list"),
+    ([{"id": "x"}], "$[0].reason: required"),
+    ([{"company": "A", "reason": "r"}], "$[0].title: required"),
+    ([{**NEW_PICK, "url": "javascript:alert(1)"}], "plain http(s) link"),
+    ([{**NEW_PICK, "url": "https://www.linkedin.com/jobs/view/1"}], "aggregator"),
+    ([{"id": "nope", "reason": "r"}], "no posting with id 'nope'"),
+    ([{"id": "x", "reason": "r"}] * 26, "at most 25"),
+])
+def test_save_picks_validation(picks, msg):
+    code, _, err = run_picks(db_with_postings(), picks)
+    assert code == 2 and msg in err
+
+
+def test_check_link_classifies_responses():
+    from lockin_worker import picks
+    import requests as rq
+
+    class Resp:
+        def __init__(self, code, url):
+            self.status_code, self.url = code, url
+
+        def close(self):
+            pass
+
+    class Session:
+        def __init__(self, resp=None, exc=None):
+            self.resp, self.exc = resp, exc
+
+        def get(self, url, **kw):
+            if self.exc:
+                raise self.exc
+            return self.resp
+
+    u = "https://boards.greenhouse.io/x/jobs/1"
+    assert picks.check_link(u, Session(Resp(200, u)))[0] == "ok"
+    assert picks.check_link(u, Session(Resp(404, u)))[0] == "dead"
+    assert picks.check_link(u, Session(Resp(200, "https://boards.greenhouse.io/x?error=true")))[0] == "dead"
+    assert picks.check_link(u, Session(Resp(403, u)))[0] == "unverified"
+    assert picks.check_link(u, Session(exc=rq.ConnectionError("dns")))[0] == "dead"

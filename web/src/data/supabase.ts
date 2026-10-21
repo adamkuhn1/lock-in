@@ -152,9 +152,18 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
         throw e;
       }
     },
-    listPostings: (since) =>
-      allPages<Posting>((a, b) => sb.from('postings').select('id,company,title,location,url,term,posted_at,tier,starred,status,found_at')
-        .in('status', ['new', 'seen']).gte('found_at', since).order('found_at', { ascending: false }).order('id').range(a, b)),
+    async listPostings(since) {
+      const cols = 'id,company,title,location,url,term,posted_at,tier,starred,status,found_at';
+      const page = (select: string) => allPages<Posting>((a, b) => sb.from('postings').select(select)
+        .in('status', ['new', 'seen']).gte('found_at', since).order('found_at', { ascending: false }).order('id').range(a, b));
+      try {
+        return await page(`${cols},fit_rank,fit_reason,found_by`);
+      } catch (e) {
+        // Before migration 0009 the Best fit columns don't exist; nothing is on the shortlist.
+        if (e instanceof Error && /(fit_rank|fit_reason|found_by).*(does not exist|schema cache)|column.*(fit_rank|fit_reason|found_by)/i.test(e.message)) return page(cols);
+        throw e;
+      }
+    },
     setPostingStatus: (id, status) => exec(sb.from('postings').update({ status }).eq('id', id)),
     async listOutreach() {
       const cols = 'id,job_url,company,role,resume_path,status,sent_on,follow_up_on,created_at';

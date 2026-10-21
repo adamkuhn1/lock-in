@@ -17,3 +17,20 @@ github_lists:
     sections: ["Software Engineering", "Data Science"]
     terms: ["Winter", "Spring"]
     tier: B
+
+  # Markdown-table lists (job_radar/fetchers/simplify.py reads both formats). About half their
+  # companies aren't on Simplify. No Terms column, so untermed intern rows are dropped as summer.
+  - name: SpeedyApply New Grad (USA)
+    repo: speedyapply/2027-SWE-College-Jobs
+    path: NEW_GRAD_USA.md
+    tier: B
+
+  - name: SpeedyApply Internships (USA)
+    repo: speedyapply/2027-SWE-College-Jobs
+    path: README.md
+    tier: B
+
+  - name: vanshb03 Off-Season Internships
+    repo: vanshb03/Summer2027-Internships
+    path: OFFSEASON_README.md
+    tier: B

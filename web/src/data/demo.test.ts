@@ -16,7 +16,7 @@ describe('demo api', () => {
   it('fixture sizes match the brief', async () => {
     const api = createDemoApi(NOW);
     expect(await api.listApplications()).toHaveLength(21);
-    expect(await api.listPostings('2000-01-01T00:00:00Z')).toHaveLength(8);
+    expect(await api.listPostings('2000-01-01T00:00:00Z')).toHaveLength(9);
     expect(await api.listOutreach()).toHaveLength(5);
     expect((await api.listProjects()).map((p) => p.id)).toEqual(['27b', 'showboat', 'lego']);
     expect(await api.listTopics()).toHaveLength(18);

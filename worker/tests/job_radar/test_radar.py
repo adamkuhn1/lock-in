@@ -188,7 +188,7 @@ def test_burst_is_capped_with_summary():
     state = state_mod.empty()
     board = Board(**{"greenhouse:stripe": []})
     go(board, state, MORNING)
-    board.jobs["greenhouse:stripe"] = [job(i, f"New Grad Engineer {i}") for i in range(MAX_INDIVIDUAL_ALERTS + 5)]
+    board.jobs["greenhouse:stripe"] = [job(i, f"New Grad Engineer #{i}") for i in range(MAX_INDIVIDUAL_ALERTS + 5)]
     summary, sent = go(board, state)
     assert len(sent) == MAX_INDIVIDUAL_ALERTS + 1
     assert sent[-1]["title"] == "job-radar: +5 more new postings"

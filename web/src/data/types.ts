@@ -8,7 +8,7 @@ export type IdeaStatus = 'todo' | 'today' | 'in_progress' | 'done' | 'dropped';
 export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach' | 'applied';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {
@@ -116,6 +116,12 @@ export interface Posting {
   starred: boolean;
   status: PostingStatus;
   found_at: string;
+  /** Best fit shortlist rank from Find best fits (1 = best); null or missing = not on it (migration 0009). */
+  fit_rank?: number | null;
+  /** Claude's one line on why it fits. */
+  fit_reason?: string | null;
+  /** 'claude' when Claude found it on the web rather than the job scanner. */
+  found_by?: string | null;
 }
 export interface Outreach {
   id: string;

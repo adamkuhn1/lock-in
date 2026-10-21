@@ -103,6 +103,12 @@ const POSTINGS: [string, string, string, string, string | null, boolean, string,
   ['p8', 'Robinhood', 'Software Engineer Intern', 'Menlo Park, CA', 'Summer 2027', false, 'A', 50],
 ];
 
+/** Demo Best fit shortlist: what a Find best fits run saves. */
+const BEST_FIT: Record<string, Partial<Posting>> = {
+  p3: { fit_rank: 1, fit_reason: 'New-grad fintech role in NYC; React + TypeScript match his projects.' },
+  p2: { fit_rank: 3, fit_reason: 'Winter co-op in Michigan, close to school; open to 2027 grads.' },
+};
+
 export function createFixtures(now: Date): DemoDb {
   const day = planDay(now);
   const today = localDay(now);
@@ -173,10 +179,18 @@ export function createFixtures(now: Date): DemoDb {
       id: id + 1, company, role, stage, status, track: role.includes('New Grad') ? 'New grad' : 'Internship', term: null,
       location: null, priority: null, applied_on: addDays(today, -d),
     })),
-    postings: POSTINGS.map(([id, company, title, location, term, starred, tier, h]) => ({
-      id, company, title, location, term, starred, tier, status: 'new', posted_at: hoursAgo(h), found_at: hoursAgo(h),
-      url: `https://boards.greenhouse.io/${company.toLowerCase().replace(/[^a-z]/g, '')}/jobs/${4000000 + h}`,
-    })),
+    postings: [
+      ...POSTINGS.map(([id, company, title, location, term, starred, tier, h]) => ({
+        id, company, title, location, term, starred, tier, status: 'new' as const, posted_at: hoursAgo(h), found_at: hoursAgo(h),
+        url: `https://boards.greenhouse.io/${company.toLowerCase().replace(/[^a-z]/g, '')}/jobs/${4000000 + h}`,
+        ...BEST_FIT[id],
+      })),
+      {
+        id: 'p9', company: 'Lakeshore Labs', title: 'Software Engineer, New Grad 2027', location: 'Chicago, IL', term: null, starred: true,
+        tier: null, status: 'new' as const, posted_at: null, found_at: hoursAgo(1), url: 'https://jobs.ashbyhq.com/lakeshorelabs/2027-new-grad',
+        fit_rank: 2, fit_reason: 'Found on their careers page: TypeScript + Postgres backend, Chicago, 2027 grads.', found_by: 'claude',
+      },
+    ],
     outreach: [
       { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: minsAgo(5) },
       { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), followups: 0, created_at: hoursAgo(30) },

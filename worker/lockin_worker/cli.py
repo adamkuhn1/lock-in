@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 
-from . import clock, creds
+from . import clock, creds, picks
 from .db import DBError
 
 CONFIDENCE = ("verified", "pattern", "guess")
@@ -203,7 +203,7 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
 
-def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_db) -> int:
+def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_db, link_check=None) -> int:
     stdin, stdout, stderr = stdin or sys.stdin, stdout or sys.stdout, stderr or sys.stderr
     ap = argparse.ArgumentParser(prog="lockin", description="Save Claude Code results into Lock In.")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -214,6 +214,7 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
     sk = sub.add_parser("skip-job", help="the role doesn't fit: close the outreach card and dismiss the posting")
     sk.add_argument("--id", required=True, help="outreach id from the prompt")
     sk.add_argument("--reason", required=True, help="one line, e.g. 'PhD required'")
+    sub.add_parser("save-picks", help="read the Best fit shortlist (JSON list, best first) on stdin")
     sub.add_parser("doctor", help="check Keychain credentials and the database connection")
     lp = sub.add_parser("log-prep", help="log a prep session (used by Mock with Claude)")
     lp.add_argument("--kind", required=True, choices=["oa", "mock", "study", "story"])
@@ -242,6 +243,14 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             print(f"Logged {args.kind} session", file=stdout)
             return 0
         payload = parse_json(stdin.read())
+        if args.cmd == "save-picks":
+            r = picks.save(db_factory(), picks.validate(payload), now=clock.now(), check=link_check or picks.check_link)
+            for note in r["unverified"]:
+                print(f"warning: couldn't check {note}; saved because you opened it yourself", file=stderr)
+            for note in r["skipped"]:
+                print(f"skipped {note}", file=stderr)
+            print(f"Saved {_plural(r['inbox'] + r['new'], 'best fit')} ({r['inbox']} from the inbox, {r['new']} new)", file=stdout)
+            return 0
         if args.cmd == "save-outreach":
             data, warnings = validate_outreach(payload)
             for w in warnings:
@@ -254,7 +263,7 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             tail = f" ({_plural(skipped, 'duplicate')} skipped)" if skipped else ""
             print(f"Saved {_plural(saved, 'idea')}{tail}", file=stdout)
         return 0
-    except InputError as e:
+    except (InputError, picks.PickError) as e:
         print(f"error: {e}", file=stderr)
         return 2
     except (creds.CredsError, DBError) as e:

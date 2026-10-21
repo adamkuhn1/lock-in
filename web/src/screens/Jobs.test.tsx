@@ -18,10 +18,11 @@ describe('Jobs', () => {
     const { container } = renderWithData(tree);
     await screen.findAllByRole('button', { name: 'Cold email' });
     const titles = [...container.querySelectorAll('[data-primary] .job-title')].map((n) => n.textContent ?? '');
-    expect(titles).toHaveLength(8);
+    expect(titles).toHaveLength(9);
     const company = (t: string) => t.replace(/^.*?Starred: /, '').split(' · ')[0];
-    // Tier A (Stripe starred, then Ramp, Cloudflare, Datadog, Robinhood newest first), then tier B (Ford and Rocket starred, then Duolingo)
-    expect(titles.map(company)).toEqual(['Stripe', 'Ramp', 'Cloudflare', 'Datadog', 'Robinhood', 'Ford', 'Rocket Companies', 'Duolingo']);
+    // Tier A (Stripe starred, then Ramp, Cloudflare, Datadog, Robinhood newest first), then tier B (Ford and Rocket starred, then Duolingo),
+    // then untiered (Lakeshore Labs, which Claude found on the web)
+    expect(titles.map(company)).toEqual(['Stripe', 'Ramp', 'Cloudflare', 'Datadog', 'Robinhood', 'Ford', 'Rocket Companies', 'Duolingo', 'Lakeshore Labs']);
     expect(screen.getAllByText(/^Tier A · /)).toHaveLength(5);
   });
   it('Tier A chip shows only top-tier companies', async () => {
@@ -32,11 +33,12 @@ describe('Jobs', () => {
   it('filters by star and clears', async () => {
     renderWithData(tree);
     await userEvent.click(await screen.findByRole('button', { name: '⭐ Starred' }));
-    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(4);
+    await userEvent.click(screen.getByRole('button', { name: 'Tier A' }));
     await userEvent.click(screen.getByRole('button', { name: 'New grad' }));
     expect(screen.getByText('Nothing matches these filters.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(9);
   });
   it('dismiss removes a posting', async () => {
     const api = createDemoApi();
@@ -44,7 +46,47 @@ describe('Jobs', () => {
     renderWithData(tree, { api });
     await userEvent.click(await screen.findByRole('button', { name: 'Dismiss Ramp Software Engineer, New Grad' }));
     expect(spy).toHaveBeenCalledWith('p3', 'dismissed');
-    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+  });
+  it('opening a posting keeps it in the inbox, tagged Opened', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'setPostingStatus');
+    const { container } = renderWithData(tree, { api });
+    await screen.findAllByRole('button', { name: 'Cold email' });
+    const ramp = () => [...container.querySelectorAll('[data-primary] li.job')].find((li) => li.textContent?.includes('Ramp')) as HTMLElement;
+    await userEvent.click(within(ramp()).getByRole('link', { name: /Open/ }));
+    expect(spy).toHaveBeenCalledWith('p3', 'seen');
+    expect(await within(ramp()).findByText('Opened')).toBeInTheDocument();
+    expect(within(ramp()).getByRole('button', { name: /^I applied: Ramp/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(9);
+  });
+  it('Best fit shows Claude\'s shortlist in rank order with each reason', async () => {
+    const { container } = renderWithData(tree);
+    await userEvent.click(await screen.findByRole('button', { name: 'Best fit (3)' }));
+    const titles = [...container.querySelectorAll('[data-primary] .job-title')].map((n) => n.textContent ?? '');
+    expect(titles.map((t) => t.match(/Best fit #(\d)/)?.[1])).toEqual(['1', '2', '3']);
+    expect(titles[1]).toContain('Lakeshore Labs');
+    expect(titles[1]).toContain('Found by Claude');
+    expect(screen.getByText(/New-grad fintech role in NYC/)).toBeInTheDocument();
+  });
+  it('Find best fits queues a Mac launch and switches to the Best fit list', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'requestLaunch');
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'Find best fits' }));
+    expect(spy).toHaveBeenCalledWith('best_fit', {});
+    expect(await screen.findByRole('button', { name: 'Queued for Mac' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Best fit (3)' })).toHaveAttribute('aria-pressed', 'true');
+  });
+  it('shows three postings per company, then a button for the rest', async () => {
+    const api = createDemoApi();
+    const real = await api.listPostings('2000-01-01');
+    vi.spyOn(api, 'listPostings').mockResolvedValue([
+      ...real, ...[1, 2, 3, 4, 5].map((i) => ({ ...real[0], id: `ibm${i}`, company: 'IBM', title: `Developer ${i}`, fit_rank: null, fit_reason: null })),
+    ]);
+    const { container } = renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'Show 2 more from IBM' }));
+    expect([...container.querySelectorAll('[data-primary] .job-title')].filter((n) => n.textContent?.includes('IBM'))).toHaveLength(5);
   });
   it('cold email queues outreach and goes to Outreach', async () => {
     const api = createDemoApi();
@@ -120,7 +162,7 @@ describe('Jobs', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Dismissed Ramp');
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(spy).toHaveBeenLastCalledWith('p3', 'new');
-    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(9);
   });
   it('I applied adds the posting to the Sheet and removes it from the inbox', async () => {
     const api = createDemoApi();
@@ -128,7 +170,7 @@ describe('Jobs', () => {
     renderWithData(tree, { api });
     await userEvent.click(await screen.findByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' }));
     expect(spy).toHaveBeenCalledWith({ posting_id: 'p3' });
-    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
     expect((await api.listApplications()).some((a) => a.company === 'Ramp' && a.role === 'Software Engineer, New Grad')).toBe(true);
   });
   it('Undo after I applied removes it from the Sheet and puts the posting back', async () => {
@@ -139,7 +181,7 @@ describe('Jobs', () => {
     expect(await screen.findByText('Added Ramp to your Sheet')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(spy).toHaveBeenCalledWith({ company: 'Ramp', role: 'Software Engineer, New Grad' });
-    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(9);
     expect((await api.listApplications()).some((a) => a.company === 'Ramp' && a.role === 'Software Engineer, New Grad')).toBe(false);
   });
   it('I applied asks before adding a duplicate; Add anyway forces, Cancel backs out', async () => {
@@ -154,7 +196,7 @@ describe('Jobs', () => {
     await userEvent.click(screen.getByRole('button', { name }));
     await userEvent.click(await screen.findByRole('button', { name: 'Add Stripe anyway' }));
     expect(spy).toHaveBeenLastCalledWith({ posting_id: 'p1', force: true });
-    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(7);
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
   });
   it('I applied shows the short error and keeps the posting', async () => {
     const api = createDemoApi();
@@ -162,7 +204,7 @@ describe('Jobs', () => {
     renderWithData(tree, { api });
     await userEvent.click(await screen.findByRole('button', { name: 'I applied: Ramp Software Engineer, New Grad' }));
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't reach Google. Try again.");
-    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(8);
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(9);
   });
   it('I applied moves focus to Add anyway when the Sheet already has the job', async () => {
     renderWithData(tree);

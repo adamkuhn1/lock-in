@@ -611,3 +611,36 @@ def test_plain_tailor_never_skips_even_with_a_saved_resume(tmp_path, opened):
     op = Opener()
     launcher.poll_once(db, op, "/v/bin/lockin")
     assert len(op.calls) == 1 and opened == []
+
+
+def test_best_fit_writes_context_files_and_renders_prompt(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setattr(launcher, "BEST_FIT_DIR", tmp_path / "bf")
+    db = MemoryDB()
+    db.insert("settings", [{"resume_root": "/R", "profile": {"grad": "May 2027"}}])
+    db.insert("postings", [
+        {"id": "a", "company": "Ramp", "title": "SWE New Grad", "status": "new", "url": "https://r/1", "found_at": "2026-10-19"},
+        {"id": "b", "company": "IBM", "title": "Dev", "status": "seen", "found_at": "2026-10-20"},
+        {"id": "c", "company": "Stripe", "title": "SWE", "status": "dismissed", "found_at": "2026-10-18"},
+        {"id": "d", "company": "Figma", "title": "SWE", "status": "outreach", "url": "https://f/1", "found_at": "2026-10-17"},
+    ])
+    db.insert("applications", [{"company": "Notion", "role": "SWE", "stage": "applied", "applied_on": "2026-10-01", "row_hash": "h"}])
+    cwd, text = launcher.build_best_fit(db, {}, "/bin/lockin")
+    assert cwd == tmp_path / "bf"
+    inbox = json.loads((cwd / "inbox.json").read_text())
+    assert [p["id"] for p in inbox] == ["b", "a"]  # newest first, open postings only
+    applied = json.loads((cwd / "applied.json").read_text())
+    assert [a["company"] for a in applied] == ["Notion", "Figma"] and "row_hash" not in applied[0]
+    assert json.loads((cwd / "passed.json").read_text()) == [{"company": "Stripe", "title": "SWE"}]
+    assert oct((cwd / "inbox.json").stat().st_mode & 0o777) == "0o600"
+    assert "/bin/lockin save-picks <<'JSON'" in text and "/R/Base_Resume/Adam_Kuhn_Resume.tex" in text
+    assert "2 open postings" in text and "{{" not in text
+
+
+def test_best_fit_refuses_an_empty_inbox(tmp_path, monkeypatch):
+    monkeypatch.setattr(launcher, "BEST_FIT_DIR", tmp_path / "bf")
+    db = MemoryDB()
+    db.insert("launch_requests", [{"id": "r1", "kind": "best_fit", "payload": {}, "status": "queued"}])
+    opener = Opener()
+    assert launcher.process(db, db.select("launch_requests")[0], opener, "lockin") == "failed"
+    assert "inbox is empty" in db.select("launch_requests")[0]["error"] and opener.calls == []

@@ -182,6 +182,9 @@ input:not([type="checkbox"]), select { min-height: var(--tap); width: 100%; padd
 .resume-path { overflow-wrap: anywhere; }
 .job:first-child { border-top: 0; }
 .job-title { font-weight: 600; overflow-wrap: anywhere; }
+.job-why { color: var(--text); border-left: 2px solid var(--accent); padding-left: 8px; }
+.job-more { padding: 6px 0; border-top: 1px solid var(--border); }
+.best-fit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .contact { display: grid; gap: 6px; padding: 12px 0; border-top: 1px solid var(--border); }
 .contact-name { font-weight: 650; }
 .email { font-family: var(--mono); font-size: 0.9rem; overflow-wrap: anywhere; }

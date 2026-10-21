@@ -1,8 +1,10 @@
 import type { Posting } from '../data/types';
 
 export type Track = 'internship' | 'new_grad';
-export interface JobFilters { starred: boolean; topTier: boolean; track: Track | null; term: string | null; location: string | null }
-export const NO_FILTERS: JobFilters = { starred: false, topTier: false, track: null, term: null, location: null };
+export interface JobFilters { bestFit: boolean; starred: boolean; topTier: boolean; track: Track | null; term: string | null; location: string | null }
+export const NO_FILTERS: JobFilters = { bestFit: false, starred: false, topTier: false, track: null, term: null, location: null };
+
+export const isBestFit = (p: Posting) => p.fit_rank != null;
 
 export function postingTrack(title: string): Track | null {
   if (/\b(intern|internship|co-?op)\b/i.test(title)) return 'internship';
@@ -19,6 +21,7 @@ export function locationKey(loc: string | null): string | null {
 
 export function filterPostings(ps: Posting[], f: JobFilters): Posting[] {
   return ps.filter((p) =>
+    (!f.bestFit || isBestFit(p)) &&
     (!f.starred || p.starred) &&
     (!f.topTier || p.tier === 'A') &&
     (!f.track || postingTrack(p.title) === f.track) &&
@@ -46,4 +49,30 @@ export function topLocations(ps: Posting[], n = 6): string[] {
 
 export function termsOf(ps: Posting[]): string[] {
   return [...new Set(ps.flatMap((p) => (p.term ? [p.term] : [])))].sort();
+}
+
+/** The Best fit shortlist in Claude's order. */
+export function sortByFit(ps: Posting[]): Posting[] {
+  return [...ps].sort((a, b) => (a.fit_rank ?? Infinity) - (b.fit_rank ?? Infinity));
+}
+
+export type InboxItem = { kind: 'posting'; p: Posting } | { kind: 'more'; company: string; count: number };
+
+/**
+ * At most `per` postings from each company, in the given order, so one big employer can't fill the inbox
+ * (IBM posts the same role in eight cities). Companies in `expanded` show everything; the rest get a
+ * "more" item where their hidden postings would start.
+ */
+export function capPerCompany(ps: Posting[], per: number, expanded: ReadonlySet<string>): InboxItem[] {
+  const total = new Map<string, number>();
+  for (const p of ps) total.set(p.company, (total.get(p.company) ?? 0) + 1);
+  const shown = new Map<string, number>();
+  const out: InboxItem[] = [];
+  for (const p of ps) {
+    const n = (shown.get(p.company) ?? 0) + 1;
+    shown.set(p.company, n);
+    if (n <= per || expanded.has(p.company)) out.push({ kind: 'posting', p });
+    else if (n === per + 1) out.push({ kind: 'more', company: p.company, count: total.get(p.company)! - per });
+  }
+  return out;
 }

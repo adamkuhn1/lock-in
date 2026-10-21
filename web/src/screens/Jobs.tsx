@@ -1,13 +1,18 @@
-import { ExternalLink as ExternalIcon, FileText, Mail } from 'lucide-react';
+import { ExternalLink as ExternalIcon, FileText, Mail, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useSetPostingStatus, useUndoApplied } from '../data/hooks';
+import {
+  useLaunchRequests, useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useRequestLaunch, useSetPostingStatus, useUndoApplied,
+} from '../data/hooks';
 import type { Posting, PostingStatus } from '../data/types';
-import { NO_FILTERS, filterPostings, sortPostings, termsOf, topLocations, type JobFilters } from '../lib/jobs';
+import { launchState } from '../lib/ideas';
+import { NO_FILTERS, capPerCompany, filterPostings, isBestFit, sortByFit, sortPostings, termsOf, topLocations, type JobFilters } from '../lib/jobs';
 import { relativeTime } from '../lib/time';
 import { safeHref } from '../lib/url';
 import { IApplied } from '../ui/IApplied';
-import { Button, Card, CardHead, Chip, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
+import { Badge, Button, Card, CardHead, Chip, Disclosure, Empty, ErrorDetail, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
+
+const PER_COMPANY = 3; // inbox rows per company before "Show N more"
 
 function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss, onApplied }: {
   p: Posting; now: Date; busy: boolean; queued: boolean; onOpen?: () => void; onApplied: () => void;
@@ -21,8 +26,12 @@ function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onDismiss, onA
         <p className="job-title">
           {p.starred && <><span aria-hidden="true">⭐ </span><span className="sr-only">Starred: </span></>}
           {p.company} · {p.title}
+          {p.fit_rank != null && <> <Badge tone="accent">Best fit #{p.fit_rank}</Badge></>}
+          {p.found_by === 'claude' && <> <Badge>Found by Claude</Badge></>}
+          {p.status === 'seen' && <> <span className="badge badge-muted">Opened</span></>}
         </p>
         <p className="muted small">{meta}</p>
+        {p.fit_reason && <p className="small job-why">{p.fit_reason}</p>}
         {!href && p.url && <p className="muted small">Link: {p.url}</p>}
       </div>
       <div className="row-actions">
@@ -49,14 +58,23 @@ export default function Jobs() {
   const [dismissed, setDismissed] = useState<{ p: Posting; prev: PostingStatus } | null>(null);
   const [applied, setApplied] = useState<{ p: Posting; prev: PostingStatus } | null>(null);
   const unapply = useUndoApplied();
+  const requests = useLaunchRequests();
+  const launch = useRequestLaunch();
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
   const all = postings.data ?? [];
   const fresh = all.filter((p) => p.status === 'new');
-  const inbox = sortPostings(filterPostings(fresh, f));
-  const opened = sortPostings(all.filter((p) => p.status === 'seen'));
-  const terms = termsOf(fresh);
-  const places = topLocations(fresh);
-  const filtering = f.starred || f.topTier || f.track !== null || f.term !== null || f.location !== null;
+  // Opening a link isn't acting on it: an opened posting stays in the inbox (tagged Opened) until it's applied, emailed or dismissed.
+  const open = all.filter((p) => p.status === 'new' || p.status === 'seen');
+  const matching = filterPostings(open, f);
+  const inbox = f.bestFit ? sortByFit(matching) : sortPostings(matching);
+  // The shortlist is short and ranked, so it's never capped; the full inbox shows a few rows per company.
+  const items = f.bestFit ? inbox.map((p) => ({ kind: 'posting' as const, p })) : capPerCompany(inbox, PER_COMPANY, expanded);
+  const bestFits = open.filter(isBestFit).length;
+  const fit = launchState(requests.data ?? [], (r) => r.kind === 'best_fit', now);
+  const terms = termsOf(open);
+  const places = topLocations(open);
+  const filtering = f.bestFit || f.starred || f.topTier || f.track !== null || f.term !== null || f.location !== null;
   const toggle = <K extends keyof JobFilters>(k: K, v: JobFilters[K]) => setF({ ...f, [k]: f[k] === v ? NO_FILTERS[k] : v });
 
   // Wait for the posting to leave the inbox before navigating, so coming back can't queue a second outreach for it.
@@ -87,10 +105,10 @@ export default function Jobs() {
       // unapply's message shows below.
     }
   };
-  const row = (p: Posting, markSeen: boolean) => (
+  const row = (p: Posting) => (
     <JobRow key={p.id} p={p} now={now} busy={queue.isPending || tailor.isPending || setStatus.isPending}
       queued={!!p.url && queuedUrls.has(safeHref(p.url) ?? p.url)}
-      onOpen={markSeen ? () => setStatus.mutate({ id: p.id, status: 'seen' }) : undefined}
+      onOpen={p.status === 'new' ? () => setStatus.mutate({ id: p.id, status: 'seen' }) : undefined}
       onCold={(href) => void startOutreach(p, href, 'cold')}
       onTailor={(href) => void startOutreach(p, href, 'tailor')}
       onDismiss={() => dismiss(p)}
@@ -104,7 +122,22 @@ export default function Jobs() {
         {fresh.length > 0 && <span className="count">{fresh.length} new</span>}
       </header>
 
+      <div className="best-fit">
+        <Button disabled={fit.kind === 'queued' || launch.isPending || open.length === 0}
+          onClick={() => launch.mutate({ kind: 'best_fit', payload: {} }, { onSuccess: () => setF({ ...NO_FILTERS, bestFit: true }) })}>
+          <Sparkles size={18} aria-hidden />
+          {fit.kind === 'queued' ? 'Queued for Mac' : fit.kind === 'failed' ? 'Try again' : 'Find best fits'}
+        </Button>
+        <span className="muted small">
+          {fit.kind === 'launched' ? 'Opened on Mac. Picks show up under Best fit when Claude saves them.'
+            : 'Claude reads your resume, applications and this inbox, then checks the web for more.'}
+        </span>
+      </div>
+      {fit.kind === 'failed' && <ErrorDetail error={fit.error} />}
+      {launch.isError && <p role="alert" className="error small">Couldn't queue it. Try again.</p>}
+
       <div className="chips" role="group" aria-label="Filters">
+        <Chip pressed={f.bestFit} onToggle={() => setF({ ...f, bestFit: !f.bestFit })}>Best fit{bestFits > 0 && ` (${bestFits})`}</Chip>
         <Chip pressed={f.topTier} onToggle={() => setF({ ...f, topTier: !f.topTier })}>Tier A</Chip>
         <Chip pressed={f.starred} onToggle={() => setF({ ...f, starred: !f.starred })}>⭐ Starred</Chip>
         <Chip pressed={f.track === 'internship'} onToggle={() => toggle('track', 'internship')}>Internship</Chip>
@@ -143,22 +176,24 @@ export default function Jobs() {
         ) : inbox.length === 0 ? (
           filtering ? (
             <div className="stack">
-              <Empty>Nothing matches these filters.</Empty>
+              <Empty>{f.bestFit && bestFits === 0 ? 'No best fits yet. Tap Find best fits to have Claude build the list.' : 'Nothing matches these filters.'}</Empty>
               <div><Button onClick={() => setF(NO_FILTERS)}>Clear filters</Button></div>
             </div>
           ) : (
             <Empty>Inbox zero.</Empty>
           )
         ) : (
-          <ul>{inbox.map((p) => row(p, true))}</ul>
+          <ul>
+            {items.map((it) => it.kind === 'posting' ? row(it.p) : (
+              <li key={`more-${it.company}`} className="job-more">
+                <Button variant="quiet" onClick={() => setExpanded(new Set([...expanded, it.company]))}>
+                  Show {it.count} more from {it.company}
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
-
-      {opened.length > 0 && (
-        <Disclosure summary={`Opened (${opened.length})`}>
-          <ul>{opened.map((p) => row(p, false))}</ul>
-        </Disclosure>
-      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import json
 import os
 import re
 import shlex
@@ -22,6 +23,8 @@ OUTREACH_DIR = DEFAULT_OUTREACH_DIR  # Claude runs here, not in $HOME
 MOCK_DIR = Path.home() / ".lockin" / "mock"  # mock interviews run here, not in $HOME
 DEFAULT_TAILOR_DIR = Path.home() / ".lockin" / "tailor"
 TAILOR_DIR = DEFAULT_TAILOR_DIR  # one work dir per tailored resume, never inside the resume folders
+BEST_FIT_DIR = Path.home() / ".lockin" / "best_fit"  # Find best fits runs here, with the JSON it reads
+PASSED_MAX = 150  # most recent dismissed postings shown to Claude as "not interested"
 BASE_RESUME = "Base_Resume"
 RESUME_STEM = "Adam_Kuhn_Resume"
 FOLDER_HINT_MAX = 80
@@ -311,8 +314,42 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] 
     return work, text
 
 
+def _write_json(path: Path, rows) -> None:
+    path.write_text(json.dumps(rows, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+    path.chmod(0o600)
+
+
+def build_best_fit(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    """Find best fits: hand Claude the inbox, the applications and the dismissed postings as JSON files."""
+    settings = (db.select("settings") or [{}])[0]
+    postings = db.select("postings")
+    by_new = sorted(postings, key=lambda p: str(p.get("found_at") or ""), reverse=True)
+    inbox = [{k: p.get(k) for k in ("id", "company", "title", "location", "term", "tier", "url", "posted_at")}
+             for p in by_new if p.get("status") in ("new", "seen")]
+    if not inbox:
+        raise LaunchError("The Jobs inbox is empty; wait for the next scan, then try again")
+    applied = [{k: a.get(k) for k in ("company", "role", "track", "term", "location", "stage", "applied_on")}
+               for a in sorted(db.select("applications"), key=lambda a: str(a.get("applied_on") or ""), reverse=True)]
+    applied += [{"company": p["company"], "role": p["title"], "stage": "emailing a recruiter", "url": p.get("url")}
+                for p in by_new if p.get("status") == "outreach"]
+    passed = [{"company": p["company"], "title": p["title"]} for p in by_new if p.get("status") == "dismissed"][:PASSED_MAX]
+    BEST_FIT_DIR.mkdir(parents=True, exist_ok=True)
+    BEST_FIT_DIR.chmod(0o700)
+    for name, rows in (("inbox.json", inbox), ("applied.json", applied), ("passed.json", passed)):
+        _write_json(BEST_FIT_DIR / name, rows)
+    base_dir = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT)) / BASE_RESUME
+    text = prompts.render(prompts.load("best_fit"), {
+        "work_dir": str(BEST_FIT_DIR), "n_inbox": str(len(inbox)), "n_applied": str(len(applied)),
+        "n_passed": str(len(passed)), "base_tex": str(base_dir / f"{RESUME_STEM}.tex"),
+        "base_pdf": str(base_dir / f"{RESUME_STEM}.pdf"), "lockin": shlex.quote(lockin),
+        **profile.prompt_values(settings.get("profile")),
+    })
+    return BEST_FIT_DIR, text
+
+
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
-            "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor}
+            "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor,
+            "best_fit": build_best_fit}
 ON_FAIL = {"work_on_idea": revert_work}
 
 

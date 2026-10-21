@@ -153,3 +153,44 @@ def test_fetch_non_readme_path_uses_contents_api():
     jobs, sha = simplify.fetch(src, session, None)
     assert sha == "off1" and len(jobs) == 4
     assert src.key == "github:SimplifyJobs/Summer2027-Internships:README-Off-Season.md"
+
+
+MARKDOWN_LIST = """
+## 2027 USA SWE New Graduate Positions
+
+### FAANG+
+
+| Company | Position | Location | Salary | Posting | Age |
+|---|---|---|---|---|---|
+| <a href="https://www.lyft.com"><strong>Lyft</strong></a> | Software Engineer | San Francisco, CA | $206k/yr | <a href="https://jobs.lever.co/lyft/abc/apply?utm_source=x"><img alt="Apply"/></a> | 3d |
+| ↳ | Backend Engineer | NYC</br>Austin, TX | $190k/yr | <a href="https://jobs.lever.co/lyft/def"><img alt="Apply"/></a> | 1d |
+| **[Acme](https://acme.com)** | Platform Engineer | Remote | | [Apply](https://boards.greenhouse.io/acme/jobs/1) | 0d |
+| Closed Co | SWE | Boston, MA | | 🔒 | 9d |
+
+Some text after the table.
+
+## Contributors
+| Name | Commits |
+|---|---|
+| someone | 5 |
+"""
+
+
+def test_parses_markdown_pipe_tables():
+    from job_radar.fetchers.simplify import parse_readme
+    jobs = parse_readme(MARKDOWN_LIST, [])
+    assert [(j.company, j.title, j.url, j.age) for j in jobs] == [
+        ("Lyft", "Software Engineer", "https://jobs.lever.co/lyft/abc", "3d"),
+        ("Lyft", "Backend Engineer", "https://jobs.lever.co/lyft/def", "1d"),
+        ("Acme", "Platform Engineer", "https://boards.greenhouse.io/acme/jobs/1", "0d"),
+    ]
+    assert jobs[1].location == "NYC; Austin, TX"
+
+
+def test_markdown_section_filter():
+    from job_radar.fetchers.simplify import parse_readme
+    assert parse_readme(MARKDOWN_LIST, ["new graduate"])
+    import pytest
+    from job_radar.models import FetchError
+    with pytest.raises(FetchError):
+        parse_readme(MARKDOWN_LIST, ["contributors"])
