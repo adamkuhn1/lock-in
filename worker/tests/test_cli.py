@@ -424,7 +424,9 @@ def test_check_link_refuses_odd_urls_before_fetching(url):
     assert picks.check_link(url, never) == ("dead", "isn't a public web address")
 
 
-@pytest.mark.parametrize("ip", ["127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1", "fd00::1", "::ffff:127.0.0.1", "0.0.0.0"])
+@pytest.mark.parametrize("ip", ["127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1", "fd00::1", "::ffff:127.0.0.1", "0.0.0.0",
+                                "64:ff9b::7f00:1", "64:ff9b:1::a00:1", "2002:7f00:1::1", "2001:0:4136:e378:8000:63bf:80ff:fffe",
+                                "::127.0.0.1", "::ffff:10.0.0.1", "100.64.0.1"])
 def test_check_link_connection_refuses_private_addresses(ip):
     """The real connection layer: the address is checked where urllib3 connects, so DNS can't swap it."""
     from lockin_worker import picks
@@ -467,3 +469,9 @@ def test_check_link_redirect_to_a_private_address_is_refused():
         assert picks.check_link("https://jobs.example.com/1", resolve=resolve) == ("dead", "isn't a public web address")
     finally:
         mp.undo()
+
+
+def test_public_addresses_still_allowed():
+    from lockin_worker import picks
+    for ip in ("93.184.216.34", "2606:4700::6810:84e5", "::ffff:93.184.216.34"):
+        assert picks._is_public(ip), ip

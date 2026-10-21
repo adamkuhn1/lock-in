@@ -50,9 +50,24 @@ class BlockedAddress(Exception):
     """The link's host resolves to this Mac, the LAN, cloud metadata or another non-public address."""
 
 
+# IPv6 ranges that carry an IPv4 address inside (NAT64, 6to4, Teredo, IPv4-compatible). Python can call these
+# "global" even when the embedded IPv4 is 127.0.0.1, and no job site needs them, so they're refused outright.
+_EMBEDDED_V4 = [ipaddress.ip_network(n) for n in ("64:ff9b::/96", "64:ff9b:1::/48", "2002::/16", "2001::/32", "::/96")]
+
+
+def _is_public(raw: str) -> bool:
+    ip = ipaddress.ip_address(raw.split("%")[0])
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:  # ::ffff:a.b.c.d is just the IPv4 address
+            return ip.ipv4_mapped.is_global
+        if any(ip in net for net in _EMBEDDED_V4):
+            return False
+    return ip.is_global
+
+
 def _public_addresses(host: str, port: int, resolve) -> list:
     infos = resolve(host, port, type=socket.SOCK_STREAM)
-    if not infos or not all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos):
+    if not infos or not all(_is_public(i[4][0]) for i in infos):
         raise BlockedAddress(host)
     return infos
 
