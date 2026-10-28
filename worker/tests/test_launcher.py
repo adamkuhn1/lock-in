@@ -706,3 +706,38 @@ def test_fill_shell_quotes_job_url_in_fallback_open(tmp_path):
     op = Opener()
     launcher.poll_once(db, op, "lockin")
     assert f"`open '{url}'`" in op.calls[0][1]
+
+
+# --- report: Make PDF report ----------------------------------------------------------------
+
+def test_report_dumps_every_table_and_renders_prompt(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setattr(launcher, "REPORT_DIR", tmp_path / "rp")
+    db = MemoryDB()
+    db.insert("settings", [{"owner": "u1", "resume_root": "/R", "lc_username": "adamk", "ntfy_topic": "secret-topic",
+                            "sheet_id": "sheet-123", "day_one": "2026-09-28",
+                            "profile": {"github": "https://github.com/adamkuhn1", "linkedin": "linkedin.com/in/adamk"}}])
+    db.insert("lc_solves", [{"id": 1, "slug": "two-sum", "owner": "u1"}])
+    db.insert("problems", [{"slug": "two-sum", "difficulty": "Easy"}, {"slug": "lru-cache", "difficulty": "Medium"}])
+    db.insert("applications", [{"id": 1, "company": "Notion", "stage": "oa", "row_hash": "h"}])
+    db.insert("projects", [{"id": "lego", "name": "LEGO", "repo": "adamkuhn1/lego"}])
+    db.insert("outreach", [{"id": "o1", "resume_path": "/R/Stripe_SWE/Adam_Kuhn_Resume.pdf"},
+                           {"id": "o2", "resume_path": "/R/Base_Resume/Adam_Kuhn_Resume.pdf"}])
+    cwd, text = launcher.build_report(db, {}, "/bin/lockin")
+    data = cwd / "data"
+    assert json.loads((data / "applications.json").read_text()) == [{"id": 1, "company": "Notion", "stage": "oa"}]
+    assert [p["slug"] for p in json.loads((data / "problems.json").read_text())] == ["two-sum"]  # solved only
+    prof = json.loads((data / "profile.json").read_text())
+    assert prof["links"]["github"] == "https://github.com/adamkuhn1"
+    assert prof["links"]["leetcode"] == "https://leetcode.com/u/adamk/"
+    assert prof["links"]["projects"] == [{"name": "LEGO", "url": "https://github.com/adamkuhn1/lego"}]
+    blob = (data / "profile.json").read_text()
+    assert "secret-topic" not in blob and "sheet-123" not in blob and "u1" not in blob
+    assert json.loads((data / "resumes.json").read_text())["tailored"] == ["/R/Stripe_SWE/Adam_Kuhn_Resume.pdf"]
+    assert oct((data / "lc_solves.json").stat().st_mode & 0o777) == "0o600"
+    assert "linkedin: linkedin.com/in/adamk" in text and "/R/Reports/Lock_In_Report_" in text
+    assert "`applications.json`: 1 rows" in text and "{{" not in text
+
+
+def test_report_is_a_known_kind():
+    assert "report" in launcher.BUILDERS

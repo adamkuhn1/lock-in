@@ -9,7 +9,8 @@ import json
 from pathlib import Path
 
 SHARED = Path(__file__).resolve().parents[2] / "shared"
-FIELDS = ("name", "school", "degree", "grad", "grad_late", "experience", "targets", "locations", "notes", "application")
+FIELDS = ("name", "school", "degree", "grad", "grad_late", "experience", "targets", "locations", "notes", "application",
+          "github", "linkedin", "portfolio")
 
 
 def defaults() -> dict:

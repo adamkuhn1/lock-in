@@ -1,24 +1,34 @@
-import { BookOpen, ChevronRight, FileText, Share2 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { BookOpen, ChevronRight, Download, FileText, Share2, Sparkles } from 'lucide-react';
+import { Fragment, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { useApplications, useNow, useOutreach, useSettings, useSolves, useStories, useSyncStatus, useUpdateSettings } from '../data/hooks';
+import { useApi } from '../data/context';
+import { useApplications, useLaunchRequests, useNow, useOutreach, useRequestLaunch, useSettings, useSolves, useStories, useSyncStatus, useUpdateSettings } from '../data/hooks';
 import type { Outreach } from '../data/types';
 import { useTodayStats } from '../data/useTodayStats';
+import { buildExport, downloadJson, exportFilename } from '../lib/export';
+import { launchState } from '../lib/ideas';
 import { PROFILE_DEFAULTS, mergedProfile, type Profile, type ProfileField } from '../lib/profile';
 import { seasonRecord } from '../lib/record';
 import { anyStale } from '../lib/sync';
 import { shortDate } from '../lib/time';
+import { safeHref } from '../lib/url';
 import { StatTile } from '../ui/StatTile';
-import { Button, Card, CardHead, CopyButton, Empty, Skeleton } from '../ui/primitives';
+import { Button, Card, CardHead, CopyButton, Empty, ErrorDetail, Skeleton } from '../ui/primitives';
 
 const FIELD_LABEL: Record<ProfileField, string> = {
   name: 'Name', school: 'School', degree: 'Degree', grad: 'Graduating', grad_late: 'Latest graduation date',
   experience: 'Experience', targets: 'Looking for', locations: 'Preferred locations', notes: 'Notes for Claude',
-  application: 'Application answers',
+  application: 'Application answers', github: 'GitHub', linkedin: 'LinkedIn', portfolio: 'Portfolio',
 };
+const LINK_FIELDS = ['github', 'linkedin', 'portfolio'] as const;
+const LINK_HINT: Record<(typeof LINK_FIELDS)[number], string> = {
+  github: 'https://github.com/you', linkedin: 'https://linkedin.com/in/you', portfolio: 'https://your-site.com',
+};
+/** A link as typed, with https:// added when the scheme is missing. Null when it isn't a web address. */
+export const linkHref = (v: string) => safeHref(/^https?:\/\//i.test(v) ? v : `https://${v}`);
 /** The questions application forms ask that the resume can't answer. Blank → Claude leaves them for Adam. */
 const APPLICATION_HINT = 'Work authorization, sponsorship, mailing address, earliest start date, open to relocation, how you heard about jobs. Claude uses these to fill in applications; anything missing is left blank for you.';
-const FIELD_ORDER: ProfileField[] = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'notes', 'application'];
+const FIELD_ORDER: ProfileField[] = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'github', 'linkedin', 'portfolio', 'notes', 'application'];
 
 /** Who Adam is. Tailor resume and Cold email (including their fit check) read this. */
 function ProfileCard() {
@@ -52,7 +62,8 @@ function ProfileCard() {
                 <textarea rows={2} value={draft[k] ?? ''} placeholder={PROFILE_DEFAULTS[k]} maxLength={300}
                   onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
               ) : (
-                <input value={draft[k] ?? ''} placeholder={PROFILE_DEFAULTS[k]} maxLength={150}
+                <input value={draft[k] ?? ''} placeholder={(LINK_HINT as Record<string, string>)[k] ?? PROFILE_DEFAULTS[k]} maxLength={150}
+                  inputMode={(LINK_FIELDS as readonly string[]).includes(k) ? 'url' : undefined}
                   onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
               )}
             </label>
@@ -72,6 +83,10 @@ function ProfileCard() {
           {p.experience && <><dt>Experience</dt><dd>{p.experience}</dd></>}
           <dt>Looking for</dt><dd>{p.targets}</dd>
           {p.locations && <><dt>Prefers</dt><dd>{p.locations}</dd></>}
+          {LINK_FIELDS.filter((k) => p[k]).map((k) => {
+            const href = linkHref(p[k]);
+            return <Fragment key={k}><dt>{FIELD_LABEL[k]}</dt><dd>{href ? <a href={href} target="_blank" rel="noreferrer">{p[k]}</a> : p[k]}</dd></Fragment>;
+          })}
           {p.application && <><dt>Application answers</dt><dd>{p.application}</dd></>}
         </dl>
       )}
@@ -147,6 +162,49 @@ function ResumeHub() {
   );
 }
 
+/** Download everything as JSON, or have Claude on the Mac turn it into a visual PDF report. */
+function ExportCard() {
+  const api = useApi();
+  const requests = useLaunchRequests();
+  const launch = useRequestLaunch();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const report = launchState(requests.data ?? [], (r) => r.kind === 'report', useNow());
+  const download = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      const now = new Date();
+      downloadJson(await buildExport(api, now), exportFilename(now));
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card aria-labelledby="export-h">
+      <CardHead id="export-h" title="Your data" />
+      <p className="muted small">Everything Lock In has on you: LeetCode, applications, outreach, projects and commits, prep, calendar, profile, links and resume paths.</p>
+      <div className="row-actions">
+        <Button onClick={download} disabled={busy}><Download size={18} aria-hidden /> {busy ? 'Gathering…' : 'Download data'}</Button>
+        <Button variant="primary" disabled={report.kind === 'queued' || launch.isPending}
+          onClick={() => launch.mutate({ kind: 'report', payload: {} })}>
+          <Sparkles size={18} aria-hidden />
+          {report.kind === 'queued' ? 'Queued for Mac' : report.kind === 'failed' ? 'Try again' : 'Make PDF report'}
+        </Button>
+      </div>
+      <p className="muted small" role="status">
+        {report.kind === 'launched' ? 'Opened on Mac. Claude saves the PDF to your resume folder under Reports and opens it.'
+          : 'Claude on your Mac turns all of it, plus your resume, into a visual season report.'}
+      </p>
+      {report.kind === 'failed' && <ErrorDetail error={report.error} />}
+      {failed && <p role="alert" className="error small">Couldn't gather your data. Try again.</p>}
+      {launch.isError && <p role="alert" className="error small">Couldn't queue it. Try again.</p>}
+    </Card>
+  );
+}
+
 export default function Me() {
   const now = useNow();
   const stale = anyStale(useSyncStatus().data ?? [], now);
@@ -158,6 +216,7 @@ export default function Me() {
       <ProfileCard />
       <SeasonRecordCard />
       <ResumeHub />
+      <ExportCard />
       <nav className="links" aria-label="More">
         <Link className="row-link" to="/grind/prep">
           <span><BookOpen size={18} aria-hidden /> Story bank{count !== undefined && <span className="muted"> · {count} {count === 1 ? 'story' : 'stories'}</span>}</span>

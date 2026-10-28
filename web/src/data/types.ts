@@ -8,7 +8,7 @@ export type IdeaStatus = 'todo' | 'today' | 'in_progress' | 'done' | 'dropped';
 export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach' | 'applied';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {

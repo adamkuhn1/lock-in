@@ -24,6 +24,7 @@ MOCK_DIR = Path.home() / ".lockin" / "mock"  # mock interviews run here, not in 
 DEFAULT_TAILOR_DIR = Path.home() / ".lockin" / "tailor"
 TAILOR_DIR = DEFAULT_TAILOR_DIR  # one work dir per tailored resume, never inside the resume folders
 BEST_FIT_DIR = Path.home() / ".lockin" / "best_fit"  # Find best fits runs here, with the JSON it reads
+REPORT_DIR = Path.home() / ".lockin" / "report"  # Make PDF report runs here, one dated folder per report
 PASSED_MAX = 150  # most recent dismissed postings shown to Claude as "not interested"
 BASE_RESUME = "Base_Resume"
 RESUME_STEM = "Adam_Kuhn_Resume"
@@ -366,9 +367,67 @@ def build_best_fit(db, payload: dict, lockin: str, find=None) -> tuple[Path, str
     return BEST_FIT_DIR, text
 
 
+# Make PDF report: every table Claude needs, one JSON file each. problems is global and big, so only solved ones go in.
+REPORT_TABLES = ("lc_solves", "lc_problem_state", "lc_topic_state", "lc_daily_sets", "topics", "applications",
+                 "postings", "outreach", "contacts", "projects", "commits", "ideas", "stories", "prep_sessions",
+                 "prep_items", "prep_progress", "company_prep", "events")
+REPORT_DROP = {"owner", "row_hash"}  # bookkeeping columns, not Adam's data
+SETTINGS_PRIVATE = {"ntfy_topic", "sheet_id"}  # anyone holding these can push nudges or find the Sheet
+
+
+def _clean(rows: list[dict]) -> list[dict]:
+    return [{k: v for k, v in r.items() if k not in REPORT_DROP} for r in rows]
+
+
+def build_report(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    """Make PDF report: dump everything to JSON in a dated work folder and brief Claude to build the PDF."""
+    settings = (db.select("settings") or [{}])[0]
+    stamp = datetime.now().strftime("%Y-%m-%d")
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    REPORT_DIR.chmod(0o700)
+    work = REPORT_DIR / stamp
+    data = work / "data"
+    data.mkdir(parents=True, exist_ok=True)
+    work.chmod(0o700)
+    counts: dict[str, int] = {}
+    for table in REPORT_TABLES:
+        rows = _clean(db.select(table))
+        counts[table] = len(rows)
+        _write_json(data / f"{table}.json", rows)
+    solved = {s.get("slug") for s in db.select("lc_solves")}
+    _write_json(data / "problems.json", [p for p in db.select("problems") if p.get("slug") in solved])
+    p = profile.merged(settings.get("profile"))
+    lc_user = settings.get("lc_username")
+    links = {
+        "github": p.get("github") or None, "linkedin": p.get("linkedin") or None, "portfolio": p.get("portfolio") or None,
+        "leetcode": f"https://leetcode.com/u/{lc_user}/" if lc_user else None,
+        "projects": [{"name": x.get("name"), "url": f"https://github.com/{x['repo']}"}
+                     for x in db.select("projects") if x.get("repo")],
+    }
+    _write_json(data / "profile.json", {"profile": p, "links": links,
+                                        "settings": {k: v for k, v in _clean([settings])[0].items()
+                                                     if k not in SETTINGS_PRIVATE and k != "profile"}})
+    root = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT))
+    base_dir = root / BASE_RESUME
+    tailored = sorted({str(o["resume_path"]) for o in db.select("outreach")
+                       if o.get("resume_path") and f"/{BASE_RESUME}/" not in str(o["resume_path"])})
+    _write_json(data / "resumes.json", {"base_tex": str(base_dir / f"{RESUME_STEM}.tex"),
+                                       "base_pdf": str(base_dir / f"{RESUME_STEM}.pdf"), "tailored": tailored})
+    out_dir = root / "Reports"
+    text = prompts.render(prompts.load("report"), {
+        "work_dir": str(work), "data_dir": str(data), "today": stamp,
+        "counts": "\n".join(f"- `{t}.json`: {n} rows" for t, n in counts.items()),
+        "base_tex": str(base_dir / f"{RESUME_STEM}.tex"), "base_pdf": str(base_dir / f"{RESUME_STEM}.pdf"),
+        "out_dir": str(out_dir), "out_pdf": str(out_dir / f"Lock_In_Report_{stamp}.pdf"),
+        "links": "\n".join(f"- {k}: {v}" for k, v in links.items() if k != "projects" and v) or "- (none set on the Me tab)",
+        **profile.prompt_values(settings.get("profile")),
+    })
+    return work, text
+
+
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
             "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor,
-            "best_fit": build_best_fit}
+            "best_fit": build_best_fit, "report": build_report}
 ON_FAIL = {"work_on_idea": revert_work}
 
 

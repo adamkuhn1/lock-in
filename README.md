@@ -18,7 +18,7 @@ I built it for myself and use it every day. It's not a hosted product: you'd nee
 - **Projects**: commit strips for my side projects and an idea list. **Work on this** opens a briefed Claude Code session in that project's folder.
 - **Tailor resume**: Claude first checks the fit (degree level, graduation date, role type) and stops early if the posting isn't for me, offering to drop it from the app. Otherwise the Mac copies my base LaTeX resume, has Claude tailor it to the posting, compiles it with tectonic, checks it's exactly one page, saves it next to my other resumes, then drafts one recruiter email for me to review and send.
 - **Tailor & fill out app**: the same, plus Claude in Chrome fills in the application with the new resume. It waits for me to sign in on Workday-style sites, declines every demographic question, leaves anything it can't answer blank, and stops before Submit so I can review it and send it myself.
-- **Me**: my profile (which the Claude prompts read), a season record, and every tailored resume with its path.
+- **Me**: my profile and links (which the Claude prompts read), a season record, and every tailored resume with its path. **Download data** saves everything as one JSON file; **Make PDF report** has the Mac write every table to JSON and Claude turn it, plus the resume, into a visual season report PDF (inline SVG charts, printed with headless Chrome).
 - **Calendar**, a shareable progress card, and phone nudges through ntfy.
 
 Claude never sends, submits an application or pushes anything on its own. Every session is interactive, and I approve each command.
