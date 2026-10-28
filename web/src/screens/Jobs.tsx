@@ -37,7 +37,7 @@ function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onFill, onDism
       <div className="row-actions">
         <Button className="job-cold" disabled={!href || busy || queued} onClick={() => { if (href) onCold(href); }}><Mail size={18} aria-hidden />Cold email</Button>
         <Button className="job-tailor" disabled={!href || busy || queued} onClick={() => { if (href) onTailor(href); }}><FileText size={18} aria-hidden />Tailor resume</Button>
-        <Button className="job-fill" disabled={!href || busy || queued} onClick={() => { if (href) onFill(href); }}><ClipboardPen size={18} aria-hidden />Tailor resume &amp; fill application</Button>
+        <Button className="job-fill" disabled={!href || busy || queued} onClick={() => { if (href) onFill(href); }}><ClipboardPen size={18} aria-hidden />Tailor &amp; fill out app</Button>
         {href && <ExternalLink className="btn" href={href} onClick={onOpen}><ExternalIcon size={16} aria-hidden />Open</ExternalLink>}
         <IApplied input={{ posting_id: p.id }} company={p.company} role={p.title} applied={p.status === 'applied'} onApplied={onApplied} />
         {queued && <span className="muted small">Already queued</span>}

@@ -114,14 +114,14 @@ describe('Jobs', () => {
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
   });
-  it('Tailor resume & fill application queues a tailor request with fill and goes to Outreach', async () => {
+  it('Tailor & fill out app queues a tailor request with fill and goes to Outreach', async () => {
     const api = createDemoApi();
     const tailor = vi.spyOn(api, 'queueTailor');
     const status = vi.spyOn(api, 'setPostingStatus');
     const { container } = renderWithData(tree, { api });
-    await screen.findAllByRole('button', { name: 'Tailor resume & fill application' });
+    await screen.findAllByRole('button', { name: 'Tailor & fill out app' });
     const stripe = [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes('Stripe')) as HTMLElement;
-    await userEvent.click(within(stripe).getByRole('button', { name: 'Tailor resume & fill application' }));
+    await userEvent.click(within(stripe).getByRole('button', { name: 'Tailor & fill out app' }));
     expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', fill: true });
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
@@ -136,7 +136,7 @@ describe('Jobs', () => {
     const rowOf = (company: string) => [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes(company)) as HTMLElement;
     await vi.waitFor(() => expect(within(rowOf('Stripe')).getByRole('button', { name: 'Tailor resume' })).toBeDisabled());
     expect(within(rowOf('Stripe')).getByRole('button', { name: 'Cold email' })).toBeDisabled();
-    expect(within(rowOf('Stripe')).getByRole('button', { name: 'Tailor resume & fill application' })).toBeDisabled();
+    expect(within(rowOf('Stripe')).getByRole('button', { name: 'Tailor & fill out app' })).toBeDisabled();
     expect(within(rowOf('Stripe')).getByText('Already queued')).toHaveClass('muted');
     expect(within(rowOf('Ramp')).getByRole('button', { name: 'Tailor resume' })).toBeEnabled();
     expect(within(rowOf('Ramp')).getByRole('button', { name: 'Cold email' })).toBeEnabled();
