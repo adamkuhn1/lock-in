@@ -29,7 +29,8 @@ export interface DataApi {
   listContacts(): Promise<Contact[]>;
   queueOutreach(i: { job_url: string; company?: string | null; role?: string | null }): Promise<Outreach>;
   /** Like queueOutreach, but the Mac tailors a resume copy first, then drafts the recruiter email. */
-  queueTailor(i: { job_url: string; company?: string | null; role?: string | null }): Promise<Outreach>;
+  /** With fill, Claude also fills in the application in Chrome and leaves it for Adam to submit. */
+  queueTailor(i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }): Promise<Outreach>;
   updateOutreach(id: string, patch: OutreachPatch): Promise<void>;
   requestLaunch(kind: LaunchKind, payload: Record<string, unknown>): Promise<void>;
   listLaunchRequests(): Promise<LaunchRequest[]>;

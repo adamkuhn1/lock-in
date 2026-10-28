@@ -74,6 +74,15 @@ describe('supabase api', () => {
     expect(calls[0].body).toEqual({ job_url: 'https://x.com/j', company: 'X', role: 'SWE' });
     expect(calls[1].body).toEqual({ kind: 'tailor_resume', payload: { outreach_id: 'o9', job_url: 'https://x.com/j' } });
   });
+  it('queueTailor with fill asks the Mac to fill in the application too', async () => {
+    const { api, calls } = harness((c) =>
+      c.url.pathname.endsWith('/outreach')
+        ? json({ id: 'o9', job_url: 'https://x.com/j', company: 'X', role: 'SWE', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, created_at: '2026-10-14T16:00:00Z' }, 201)
+        : empty());
+    await api.queueTailor({ job_url: 'https://x.com/j', company: 'X', role: 'SWE', fill: true });
+    expect(calls[0].body).toEqual({ job_url: 'https://x.com/j', company: 'X', role: 'SWE' });
+    expect(calls[1].body).toEqual({ kind: 'tailor_resume', payload: { outreach_id: 'o9', job_url: 'https://x.com/j', fill_application: true } });
+  });
   it('surfaces PostgREST errors', async () => {
     const { api } = harness(() => json({ message: 'permission denied for table ideas' }, 403));
     await expect(api.listIdeas()).rejects.toThrow('permission denied');

@@ -125,7 +125,7 @@ export const useQueueOutreach = () =>
   useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null }) => api.queueOutreach(v),
     [keys.outreach, keys.launchRequests]);
 export const useQueueTailor = () =>
-  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null }) => api.queueTailor(v),
+  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => api.queueTailor(v),
     [keys.outreach, keys.launchRequests]);
 export const useUpdateOutreach = () =>
   useApiMutation((api, v: { id: string; patch: OutreachPatch }) => api.updateOutreach(v.id, v.patch), [keys.outreach]);

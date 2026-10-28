@@ -75,10 +75,10 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
   const requestLaunch: DataApi['requestLaunch'] = (kind, payload) =>
     exec(sb.from('launch_requests').insert({ kind, payload }));
 
-  const queueWith = async (kind: 'outreach' | 'tailor_resume', i: { job_url: string; company?: string | null; role?: string | null }) => {
+  const queueWith = async (kind: 'outreach' | 'tailor_resume', i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => {
     const o = await rows<Outreach>(sb.from('outreach')
       .insert({ job_url: i.job_url, company: i.company ?? null, role: i.role ?? null }).select().single());
-    await requestLaunch(kind, { outreach_id: o.id, job_url: o.job_url });
+    await requestLaunch(kind, { outreach_id: o.id, job_url: o.job_url, ...(i.fill ? { fill_application: true } : {}) });
     return o;
   };
 

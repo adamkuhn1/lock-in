@@ -52,6 +52,13 @@ describe('demo api', () => {
     expect((await api.listOutreach())[0].id).toBe(o.id);
     const req = (await api.listLaunchRequests()).find((r) => r.payload.outreach_id === o.id)!;
     expect(req).toMatchObject({ kind: 'tailor_resume', status: 'queued', payload: { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/2' } });
+    expect(req.payload).not.toHaveProperty('fill_application');
+  });
+  it('queueTailor with fill flags the launch request', async () => {
+    const api = createDemoApi(NOW);
+    const o = await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/3', fill: true });
+    const req = (await api.listLaunchRequests()).find((r) => r.payload.outreach_id === o.id)!;
+    expect(req).toMatchObject({ kind: 'tailor_resume', payload: { fill_application: true } });
   });
   it('updates ideas, postings, outreach, settings and projects', async () => {
     const api = createDemoApi(NOW);

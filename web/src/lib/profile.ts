@@ -1,7 +1,7 @@
 import defaultsJson from '../../../shared/profile_defaults.json';
 
 /** Adam's profile (settings.profile, edited on the Me tab). Same rules as worker/lockin_worker/profile.py. */
-export const PROFILE_FIELDS = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'notes'] as const;
+export const PROFILE_FIELDS = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'notes', 'application'] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type Profile = Partial<Record<ProfileField, string>>;
 export const PROFILE_DEFAULTS = defaultsJson as Record<ProfileField, string>;

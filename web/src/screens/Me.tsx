@@ -14,8 +14,11 @@ import { Button, Card, CardHead, CopyButton, Empty, Skeleton } from '../ui/primi
 const FIELD_LABEL: Record<ProfileField, string> = {
   name: 'Name', school: 'School', degree: 'Degree', grad: 'Graduating', grad_late: 'Latest graduation date',
   experience: 'Experience', targets: 'Looking for', locations: 'Preferred locations', notes: 'Notes for Claude',
+  application: 'Application answers',
 };
-const FIELD_ORDER: ProfileField[] = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'notes'];
+/** The questions application forms ask that the resume can't answer. Blank → Claude leaves them for Adam. */
+const APPLICATION_HINT = 'Work authorization, sponsorship, mailing address, earliest start date, open to relocation, how you heard about jobs. Claude uses these to fill in applications; anything missing is left blank for you.';
+const FIELD_ORDER: ProfileField[] = ['name', 'school', 'degree', 'grad', 'grad_late', 'experience', 'targets', 'locations', 'notes', 'application'];
 
 /** Who Adam is. Tailor resume and Cold email (including their fit check) read this. */
 function ProfileCard() {
@@ -42,7 +45,10 @@ function ProfileCard() {
           {FIELD_ORDER.map((k) => (
             <label key={k} className="field">
               <span>{FIELD_LABEL[k]}</span>
-              {k === 'notes' || k === 'targets' ? (
+              {k === 'application' ? (
+                <textarea rows={4} value={draft[k] ?? ''} placeholder={APPLICATION_HINT} maxLength={1000}
+                  onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
+              ) : k === 'notes' || k === 'targets' ? (
                 <textarea rows={2} value={draft[k] ?? ''} placeholder={PROFILE_DEFAULTS[k]} maxLength={300}
                   onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
               ) : (
@@ -51,7 +57,7 @@ function ProfileCard() {
               )}
             </label>
           ))}
-          <p className="muted small">Leave a field blank to keep the default shown. Tailor resume and Cold email use this, including the fit check.</p>
+          <p className="muted small">Leave a field blank to keep the default shown. Tailor resume and Cold email use this, including the fit check. Fill application also uses Application answers.</p>
           <div className="row-actions">
             <Button type="submit" variant="primary" disabled={update.isPending}>{update.isPending ? 'Saving…' : 'Save'}</Button>
             <Button variant="quiet" onClick={() => setDraft(null)}>Cancel</Button>
@@ -66,6 +72,7 @@ function ProfileCard() {
           {p.experience && <><dt>Experience</dt><dd>{p.experience}</dd></>}
           <dt>Looking for</dt><dd>{p.targets}</dd>
           {p.locations && <><dt>Prefers</dt><dd>{p.locations}</dd></>}
+          {p.application && <><dt>Application answers</dt><dd>{p.application}</dd></>}
         </dl>
       )}
     </Card>

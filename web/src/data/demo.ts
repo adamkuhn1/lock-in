@@ -19,13 +19,13 @@ export function createDemoApi(now: Date = new Date()): DataApi {
   let seq = 1;
   const newId = (prefix: string) => `${prefix}-demo-${seq++}`;
   const stamp = () => new Date().toISOString();
-  const queueWith = async (kind: LaunchKind, i: { job_url: string; company?: string | null; role?: string | null }) => {
+  const queueWith = async (kind: LaunchKind, i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => {
     const o: Outreach = {
       id: newId('out'), job_url: i.job_url, company: i.company ?? null, role: i.role ?? null, resume_path: null,
       status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: stamp(),
     };
     db.outreach.unshift(o);
-    db.launchRequests.unshift({ id: newId('req'), kind, payload: { outreach_id: o.id, job_url: o.job_url }, status: 'queued', error: null, created_at: o.created_at });
+    db.launchRequests.unshift({ id: newId('req'), kind, payload: { outreach_id: o.id, job_url: o.job_url, ...(i.fill ? { fill_application: true } : {}) }, status: 'queued', error: null, created_at: o.created_at });
     return structuredClone(o);
   };
 

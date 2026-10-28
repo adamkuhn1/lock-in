@@ -20,12 +20,13 @@ def outreach_dir(tmp_path, monkeypatch):
 
 class Opener:
     def __init__(self, fail: Exception | None = None, db=None):
-        self.calls, self.fail, self.db, self.status_at_open = [], fail, db, None
+        self.calls, self.fail, self.db, self.status_at_open, self.kwargs = [], fail, db, None, []
 
-    def __call__(self, cwd, prompt, name):
+    def __call__(self, cwd, prompt, name, **kw):
         if self.db is not None:
             self.status_at_open = self.db.select("launch_requests", {"id": name})[0]["status"]
         self.calls.append((cwd, prompt, name))
+        self.kwargs.append(kw)
         if self.fail:
             raise self.fail
 
@@ -644,3 +645,64 @@ def test_best_fit_refuses_an_empty_inbox(tmp_path, monkeypatch):
     opener = Opener()
     assert launcher.process(db, db.select("launch_requests")[0], opener, "lockin") == "failed"
     assert "inbox is empty" in db.select("launch_requests")[0]["error"] and opener.calls == []
+
+
+# --- tailor_resume: fill in the application in Chrome ------------------------------------
+
+def _fill(db, answers=None):
+    if answers is not None:
+        db.update("settings", {}, {"profile": {"application": answers}})
+    db.update("launch_requests", {"id": "tr1"}, {"payload": {"outreach_id": "t-1", "job_url": "https://boards.greenhouse.io/stripe/jobs/1",
+                                                              "fill_application": True}})
+
+
+def test_tailor_without_fill_keeps_plain_claude_and_no_form_filling(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    op = Opener()
+    launcher.poll_once(db, op, "lockin")
+    prompt = op.calls[0][1]
+    assert op.kwargs == [{}]
+    assert "Part 1b" not in prompt and "Never apply or fill in forms. Draft only." in prompt
+    assert "6. Open the posting for Adam so he can apply: `open https://boards.greenhouse.io/stripe/jobs/1`" in prompt
+    assert "{{" not in prompt
+
+
+def test_tailor_with_fill_opens_claude_with_chrome_and_fill_steps(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    _fill(db, "US citizen, no  sponsorship needed.\nStart: June 2027")
+    op = Opener()
+    assert launcher.poll_once(db, op, "lockin") == [("tr1", "launched")]
+    prompt = op.calls[0][1]
+    assert op.kwargs == [{"chrome": True}]
+    assert "## Part 1b: fill in the application in Chrome (never submit)" in prompt
+    assert prompt.index("## Part 1b") < prompt.index("## Part 2: recruiter outreach")
+    assert "Open https://boards.greenhouse.io/stripe/jobs/1 in a new Chrome tab" in prompt
+    assert "US citizen, no sponsorship needed. Start: June 2027" in prompt
+    assert "Never apply or fill in forms" not in prompt and "leave Submit for Adam" in prompt
+    assert "6. Don't run `open` on the posting here" in prompt
+    assert "{{" not in prompt
+
+
+def test_tailor_with_fill_and_no_answers_leaves_them_for_adam(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    _fill(db)
+    op = Opener()
+    launcher.poll_once(db, op, "lockin")
+    assert launcher.NO_ANSWERS in op.calls[0][1]
+
+
+def test_fill_flag_must_be_true_exactly(tmp_path):
+    db, _ = tailor_db(tmp_path)
+    db.update("launch_requests", {"id": "tr1"}, {"payload": {"outreach_id": "t-1", "fill_application": "yes"}})
+    op = Opener()
+    launcher.poll_once(db, op, "lockin")
+    assert op.kwargs == [{}]
+
+
+def test_fill_shell_quotes_job_url_in_fallback_open(tmp_path):
+    url = "https://boards.greenhouse.io/x/jobs/1?gh_src=abc&t=1"
+    db, _ = tailor_db(tmp_path, job_url=url)
+    db.update("launch_requests", {"id": "tr1"}, {"payload": {"outreach_id": "t-1", "job_url": url, "fill_application": True}})
+    op = Opener()
+    launcher.poll_once(db, op, "lockin")
+    assert f"`open '{url}'`" in op.calls[0][1]

@@ -47,9 +47,11 @@ def osascript_argv(command: str) -> list[str]:
 
 
 def open_in_terminal(cwd: Path, prompt: str, name: str, run=subprocess.run,
-                     directory: Path = PROMPT_DIR) -> Path:
+                     directory: Path = PROMPT_DIR, chrome: bool = False) -> Path:
+    """chrome=True starts Claude with Claude in Chrome turned on (filling in an application)."""
     f = write_prompt(prompt, name, directory)
-    r = run(osascript_argv(shell_command(cwd, f)), capture_output=True, text=True, timeout=30)
+    program = "claude --chrome" if chrome else "claude"
+    r = run(osascript_argv(shell_command(cwd, f, program)), capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise TerminalError(f"osascript failed ({r.returncode}): {(r.stderr or '').strip()[:300]}")
     return f

@@ -259,7 +259,7 @@ def find_tailored(o: dict, root: Path, hint: str) -> Path | None:
     return max(pdfs, key=lambda p: p.stat().st_mtime) if pdfs else None
 
 
-def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] | dict:
+def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] | tuple[Path, str, dict] | dict:
     oid = payload.get("outreach_id")
     rows = db.select("outreach", {"id": oid}) if oid else []
     if not rows:
@@ -303,15 +303,34 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] 
     work.mkdir(exist_ok=True)
     work.chmod(0o700)
     _copy_base(base_tex, work / f"{RESUME_STEM}.tex")
+    fill = payload.get("fill_application") is True
     text = prompts.render(prompts.load("tailor_resume"), {
-        "outreach_id": oid, "job_url": job_url, "job_url_shell": shlex.quote(job_url),
+        **_apply_values(fill, job_url, settings.get("profile")),
+        "outreach_id": oid, "job_url": job_url,
         "company": company or resume.company_from_url(job_url) or "unknown (read it from the posting)",
         "role": role or "unknown (read it from the posting)",
         "resume_root": str(root), "base_tex": str(base_tex), "base_pdf": str(base_pdf),
         "work_dir": str(work), "folder_hint": hint, "lockin": shlex.quote(lockin),
         **profile.prompt_values(settings.get("profile")),
     })
-    return work, text
+    return (work, text, {"chrome": True}) if fill else (work, text)
+
+
+NO_ANSWERS = "(none set on the Me tab: leave those questions blank and list them for Adam)"
+
+
+def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
+    """The parts of the tailor prompt that differ when Claude also fills in the application in Chrome."""
+    if not fill:
+        return {"open_step": f"6. Open the posting for Adam so he can apply: `open {shlex.quote(job_url)}`",
+                "apply_part": "", "form_rule": "Never apply or fill in forms. Draft only."}
+    answers = profile.merged(saved_profile).get("application") or NO_ANSWERS
+    part = prompts.render(prompts.load("fill_application"), {
+        "job_url": job_url, "job_url_shell": shlex.quote(job_url), "application_answers": answers,
+    })
+    return {"open_step": "6. Don't run `open` on the posting here: Part 1b opens it in Chrome.",
+            "apply_part": part,
+            "form_rule": "Never submit an application. Fill in the form in Chrome only as Part 1b says, and leave Submit for Adam."}
 
 
 def _write_json(path: Path, rows) -> None:
@@ -365,8 +384,8 @@ def process(db, req: dict, opener, lockin: str, find=resume.find_resume) -> str:
         if isinstance(built, dict):  # handled on the Mac without opening Claude; tell the app what happened
             db.update("launch_requests", {"id": rid}, {"payload": {**(req.get("payload") or {}), **built}})
             return "launched"
-        cwd, text = built
-        opener(cwd, text, rid)
+        cwd, text, *extra = built  # an optional third item: keyword options for the opener (chrome=True)
+        opener(cwd, text, rid, **(extra[0] if extra else {}))
         log(f"launched {req['kind']} {rid} in {cwd}")
         return "launched"
     except Exception as exc:  # report every failure on the request itself

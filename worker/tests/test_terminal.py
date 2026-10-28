@@ -73,3 +73,16 @@ def test_prompt_dir_0700_and_file_0600(tmp_path):
     assert (p.stat().st_mode & 0o777) == 0o600
     terminal.write_prompt("y", "r1", d)  # overwrite keeps the mode
     assert (p.stat().st_mode & 0o777) == 0o600 and p.read_text() == "y"
+
+
+def test_open_in_terminal_chrome_flag(tmp_path):
+    calls = []
+
+    def run(argv, **kw):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    terminal.open_in_terminal(tmp_path, "hello", "r9", run=run, directory=tmp_path, chrome=True)
+    terminal.open_in_terminal(tmp_path, "hello", "r8", run=run, directory=tmp_path)
+    assert "&& claude --chrome \\\"$(cat " in calls[0][4]
+    assert "--chrome" not in calls[1][4] and "&& claude \\\"$(cat " in calls[1][4]
