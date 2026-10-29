@@ -217,7 +217,8 @@ def test_unreadable_posting_stays_in_the_inbox():
 
 def test_open_postings_are_refiled_and_retiered():
     db = MemoryDB()
-    base = {"location": "Chicago, IL", "url": None, "term": None, "posted_at": None, "starred": False, "found_at": NOW.isoformat()}
+    base = {"location": "Chicago, IL", "url": None, "term": None, "posted_at": None, "starred": False, "found_at": NOW.isoformat(),
+            "filtered_reason": None}
     db.insert("postings", [
         {**base, "id": "a", "company": "Jane Street", "title": "Software Engineer Intern", "tier": "reach", "status": "new"},
         {**base, "id": "b", "company": "Acme", "title": "Senior Software Engineer", "tier": "volume", "status": "seen"},

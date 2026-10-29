@@ -32,6 +32,12 @@ class DB(Protocol):
     def delete(self, table: str, eq: dict | None = None) -> None: ...
 
 
+def _same_keys(table: str, rows: list[dict]) -> None:
+    """PostgREST rejects a batch whose rows don't all have the same keys (PGRST102); the test DB does too."""
+    if rows and any(r.keys() != rows[0].keys() for r in rows):
+        raise DBError(f"POST {table}: All object keys must match")
+
+
 def _matches(row: dict, eq: dict | None) -> bool:
     return all(row.get(k) == v for k, v in (eq or {}).items())
 
@@ -48,10 +54,16 @@ class MemoryDB:
     def select(self, table, eq=None):
         return [copy.deepcopy(r) for r in self._t(table) if _matches(r, eq)]
 
+    def seed(self, table, rows):
+        """Test fixtures: insert rows as stored rows, which may leave columns out (the real table fills defaults)."""
+        self._t(table).extend(copy.deepcopy(r) for r in rows)
+
     def insert(self, table, rows):
+        _same_keys(table, rows)
         self._t(table).extend(copy.deepcopy(r) for r in rows)
 
     def upsert(self, table, rows, on_conflict, *, ignore_duplicates=False):
+        _same_keys(table, rows)
         keys = [k.strip() for k in on_conflict.split(",")]
         t = self._t(table)
         for row in rows:

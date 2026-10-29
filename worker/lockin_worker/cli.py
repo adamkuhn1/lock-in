@@ -164,9 +164,7 @@ def save_ideas(db, project_id: str, ideas: list[dict]) -> tuple[int, int]:
             continue
         seen.add(key)
         row = {"project_id": project_id, "text": idea["text"], "size": idea["size"],
-               "status": "todo", "source": "claude", "position": pos}
-        if idea.get("details"):
-            row["details"] = idea["details"]  # needs migration 0007
+               "status": "todo", "source": "claude", "position": pos, "details": idea.get("details") or None}
         new.append(row)
         pos += 1
     db.insert("ideas", new)

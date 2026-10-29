@@ -114,7 +114,7 @@ def test_save_ideas_keeps_details_only_when_given():
     assert code == 0 and out.strip() == "Saved 2 ideas"
     rows = {i["text"]: i for i in db.select("ideas")}
     assert rows["Make aiming easier"]["details"] == "Ghost ball in drawAim"
-    assert "details" not in rows["Add a test"]
+    assert rows["Add a test"]["details"] is None
     code, _, err = run(db, ["save-ideas", "--project", "27b"], json.dumps([{"text": "x", "details": "d" * 1001}]))
     assert code == 2 and "$[0].details: longer than 1000 characters" in err
 
@@ -309,7 +309,7 @@ def test_skip_job_refuses_emailed_cards_and_blank_reasons():
 
 def db_with_postings():
     db = MemoryDB()
-    db.insert("postings", [
+    db.seed("postings", [
         {"id": "ramp|swe new grad|nyc", "company": "Ramp", "title": "SWE New Grad", "url": "https://jobs.ashbyhq.com/ramp/1", "status": "new"},
         {"id": "ibm|dev|austin", "company": "IBM", "title": "Dev", "url": "https://ibm.com/1", "status": "seen",
          "fit_rank": 1, "fit_reason": "old pick"},

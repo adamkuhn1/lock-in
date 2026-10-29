@@ -196,7 +196,7 @@ def test_in_progress_without_started_at_is_ignored():
 def test_pick_today_idea_keeps_an_in_progress_today_idea():
     # F5: Work on this moves today's idea to in_progress; it is still today's idea.
     db = _db()
-    db.insert("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
+    db.seed("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
                          "today_on": "2026-10-14", "started_at": "2026-10-14T13:00:00Z", "position": 0},
                         {"id": "next", "project_id": "showboat", "text": "b", "status": "todo", "position": 0}])
     assert projects.pick_today_idea(db, date(2026, 10, 14))["id"] == "cur"
@@ -205,7 +205,7 @@ def test_pick_today_idea_keeps_an_in_progress_today_idea():
 
 def test_pick_today_idea_carries_over_an_in_progress_idea():
     db = _db()
-    db.insert("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
+    db.seed("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
                          "today_on": "2026-10-13", "started_at": "2026-10-13T13:00:00Z", "position": 0},
                         {"id": "next", "project_id": "showboat", "text": "b", "status": "todo", "position": 0}])
     idea = projects.pick_today_idea(db, date(2026, 10, 14))
@@ -218,7 +218,7 @@ def test_pick_today_idea_carries_over_an_in_progress_idea():
 def test_one_commit_completes_one_idea_when_today_idea_is_in_progress():
     # F5: plan job picks, then the sync job runs both completion passes; one commit = one idea done.
     db = _db()
-    db.insert("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
+    db.seed("ideas", [{"id": "cur", "project_id": "27b", "text": "a", "status": "in_progress",
                          "today_on": "2026-10-14", "started_at": "2026-10-14T13:00:00Z", "position": 0},
                         {"id": "other", "project_id": "27b", "text": "b", "status": "todo", "position": 1}])
     projects.pick_today_idea(db, date(2026, 10, 14))

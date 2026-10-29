@@ -619,7 +619,7 @@ def test_best_fit_writes_context_files_and_renders_prompt(tmp_path, monkeypatch)
     monkeypatch.setattr(launcher, "BEST_FIT_DIR", tmp_path / "bf")
     db = MemoryDB()
     db.insert("settings", [{"resume_root": "/R", "profile": {"grad": "May 2027"}}])
-    db.insert("postings", [
+    db.seed("postings", [
         {"id": "a", "company": "Ramp", "title": "SWE New Grad", "status": "new", "url": "https://r/1", "found_at": "2026-10-19"},
         {"id": "b", "company": "IBM", "title": "Dev", "status": "seen", "found_at": "2026-10-20"},
         {"id": "c", "company": "Stripe", "title": "SWE", "status": "dismissed", "found_at": "2026-10-18"},

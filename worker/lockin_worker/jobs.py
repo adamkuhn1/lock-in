@@ -211,7 +211,7 @@ def collect(db, sources: list[Source], filters: Filters, session, now: datetime,
                 "url": url, "term": job.term, "posted_at": job.posted_at,
                 "tier": index.tier(job.company, job.location_texts, fallback=tier_by_company.get(_norm(job.company), src.tier)),
                 "starred": filters.placement(job.location_texts).preferred,
-                "status": "new", "found_at": now.isoformat(),
+                "status": "new", "filtered_reason": None, "found_at": now.isoformat(),
             })
             to_check.append((job, *_ats(src), fresh_only))
     for i, reason in _screen_all([c[:3] for c in to_check], session, describe, MAX_DETAILS).items():
