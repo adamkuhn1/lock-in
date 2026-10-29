@@ -5,6 +5,8 @@ const SCREENS = [
   { name: 'today', path: '/', heading: /^Day \d+$/ },
   { name: 'grind-leetcode', path: '/grind/leetcode', heading: 'LeetCode' },
   { name: 'grind-prep', path: '/grind/prep', heading: 'Prep' },
+  { name: 'grind-cs', path: '/grind/learn/cs', heading: 'CS' },
+  { name: 'grind-math', path: '/grind/learn/math', heading: 'Math' },
   { name: 'hunt-jobs', path: '/hunt/jobs', heading: 'Jobs' },
   { name: 'hunt-apps', path: '/hunt/apps', heading: 'Applications' },
   { name: 'hunt-engineers', path: '/hunt/engineers', heading: 'Engineers' },

@@ -5,6 +5,7 @@ import Engineers from './screens/Engineers';
 import Grind from './screens/Grind';
 import Hunt from './screens/Hunt';
 import Jobs from './screens/Jobs';
+import Learn from './screens/Learn';
 import LeetCode from './screens/LeetCode';
 import Me from './screens/Me';
 import Outreach from './screens/Outreach';
@@ -30,6 +31,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="leetcode" replace />} />
           <Route path="leetcode" element={<LeetCode />} />
           <Route path="prep" element={<Prep />} />
+          <Route path="learn/:track" element={<Learn />} />
         </Route>
         <Route path="hunt" element={<Hunt />}>
           <Route index element={<Navigate to="jobs" replace />} />

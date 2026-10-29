@@ -4,7 +4,7 @@ import type { DataApi } from './api';
 import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
-  Application, CompanyPrepInput, FindEngineersInput, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  Application, CompanyPrepInput, FindEngineersInput, LearnProgressPatch, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
   PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
@@ -25,6 +25,11 @@ export const keys = {
   outreach: ['outreach'],
   contacts: ['contacts'],
   referrals: ['referrals'],
+  learnModules: ['learnModules'],
+  learnItems: ['learnItems'],
+  learnProgress: ['learnProgress'],
+  learnStates: ['learnStates'],
+  learnChecks: ['learnChecks'],
   launchRequests: ['launchRequests'],
   syncStatus: ['syncStatus'],
   stories: ['stories'],
@@ -75,6 +80,15 @@ export const useContacts = () => { const api = useApi(); return useQuery({ query
 export const useReferrals = () => { const api = useApi(); return useQuery({ queryKey: keys.referrals, queryFn: () => api.listReferrals() }); };
 export const useUpdateReferral = () =>
   useApiMutation((api, v: { id: string; patch: ReferralPatch }) => api.updateReferral(v.id, v.patch), [keys.referrals]);
+export const useLearnModules = () => { const api = useApi(); return useQuery({ queryKey: keys.learnModules, queryFn: () => api.listLearnModules(), staleTime: 24 * HOUR }); };
+export const useLearnItems = () => { const api = useApi(); return useQuery({ queryKey: keys.learnItems, queryFn: () => api.listLearnItems(), staleTime: 24 * HOUR }); };
+export const useLearnProgress = () => { const api = useApi(); return useQuery({ queryKey: keys.learnProgress, queryFn: () => api.listLearnProgress() }); };
+export const useLearnStates = () => { const api = useApi(); return useQuery({ queryKey: keys.learnStates, queryFn: () => api.listLearnModuleStates() }); };
+export const useLearnChecks = () => { const api = useApi(); return useQuery({ queryKey: keys.learnChecks, queryFn: () => api.listLearnChecks() }); };
+export const useSaveLearnProgress = () =>
+  useApiMutation((api, v: { itemId: string; patch: LearnProgressPatch }) => api.saveLearnProgress(v.itemId, v.patch), [keys.learnProgress]);
+export const useSetModuleDone = () =>
+  useApiMutation((api, v: { moduleId: string; doneOn: string | null }) => api.setModuleDone(v.moduleId, v.doneOn), [keys.learnStates]);
 export const useFindEngineers = () =>
   useApiMutation((api, v: FindEngineersInput) => api.findEngineers(v), [keys.launchRequests, keys.referrals]);
 export const useLaunchRequests = () => {

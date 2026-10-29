@@ -5,7 +5,7 @@ from typing import Protocol
 
 import requests
 
-GLOBAL_TABLES = {"problems", "topics", "prep_items"}
+GLOBAL_TABLES = {"problems", "topics", "prep_items", "learn_modules", "learn_items"}
 TIMEOUT = 30
 PAGE = 1000
 # Stable sort key per table so Range-based pagination never skips or repeats rows (owner is already filtered).
@@ -15,7 +15,8 @@ ORDER = {
     "projects": "id", "commits": "sha", "ideas": "id", "postings": "id", "outreach": "id", "contacts": "id",
     "launch_requests": "id", "sync_status": "source", "worker_state": "key", "settings": "owner",
     "stories": "id", "prep_sessions": "id", "prep_items": "id", "prep_progress": "item_id",
-    "company_prep": "id", "events": "id",
+    "company_prep": "id", "events": "id", "referrals": "id",
+    "learn_modules": "id", "learn_items": "id", "learn_progress": "item_id", "learn_module_state": "module_id", "learn_checks": "id",
 }
 
 

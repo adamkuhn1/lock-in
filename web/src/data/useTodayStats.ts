@@ -6,7 +6,7 @@ import { notesSentThisWeek, reachWithoutContact, replyRates, type ReplyRow } fro
 import { planDay } from '../lib/time';
 import { buildTodayItems } from '../lib/today';
 import {
-  useApplications, useCommits, useDailySet, useNow, useOutreach, usePrepSessions, useProblemMap, useReferrals, useSettings, useSolves,
+  useApplications, useCommits, useDailySet, useLearnChecks, useLearnProgress, useNow, useOutreach, usePrepSessions, useProblemMap, useReferrals, useSettings, useSolves,
 } from './hooks';
 
 export interface TodayStats {
@@ -27,6 +27,8 @@ export function useTodayStats(): { state: 'loading' | 'error' | 'ready'; retry: 
   const outreach = useOutreach();
   const prep = usePrepSessions();
   const refs = useReferrals();
+  const learnProg = useLearnProgress();
+  const learnChecks = useLearnChecks();
   const dateLine = dayLine(now);
   const stats = useMemo((): TodayStats | null => {
     const s = settings.data;
@@ -34,7 +36,10 @@ export function useTodayStats(): { state: 'loading' | 'error' | 'ready'; retry: 
     const days = dayActivity({
       // A LinkedIn note sent counts as outreach, like the day_activity view (migration 0011).
       solves: solves.data ?? [], applications: apps.data ?? [], outreach: [...(outreach.data ?? []), ...(refs.data ?? [])],
-      commits: commits.data ?? [], prep: prep.data ?? [],
+      commits: commits.data ?? [],
+      // Finishing a learning item or taking a check counts as prep (migration 0012's day_activity).
+      prep: [...(prep.data ?? []), ...(learnProg.data ?? []).flatMap((p) => (p.done_on ? [{ happened_on: p.done_on }] : [])),
+        ...(learnChecks.data ?? []).map((c) => ({ happened_on: c.taken_on }))],
     }, s.day_one, day);
     const items = set.data ? buildTodayItems(set.data, solves.data ?? [], problems, day) : [];
     return {
@@ -46,7 +51,7 @@ export function useTodayStats(): { state: 'loading' | 'error' | 'ready'; retry: 
       notesWeek: notesSentThisWeek(refs.data ?? [], day), notesTarget: s.weekly_engineer_target ?? 10,
       replies: replyRates(refs.data ?? [], outreach.data ?? []), reachUncovered: reachWithoutContact(apps.data ?? [], refs.data ?? []).length,
     };
-  }, [settings.data, solves.data, apps.data, outreach.data, commits.data, prep.data, set.data, refs.data, problems, day, dateLine]);
+  }, [settings.data, solves.data, apps.data, outreach.data, commits.data, prep.data, set.data, refs.data, learnProg.data, learnChecks.data, problems, day, dateLine]);
   return {
     state: settings.isPending ? 'loading' : settings.isError ? 'error' : 'ready',
     retry: () => void settings.refetch(),

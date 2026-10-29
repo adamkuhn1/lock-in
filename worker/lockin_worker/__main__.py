@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-from . import clock, jobs, leetcode, nudges, plan, projects, sheet
+from . import clock, jobs, learn, leetcode, nudges, plan, projects, sheet
 from .bank import load_bank, load_topics
 from .db import RestDB
 
@@ -135,6 +135,7 @@ def finish(db, session, now: datetime, env: dict) -> list[str]:
             ("refresh_done", lambda: plan.refresh_done(db, now)),
             ("complete_idea_on_commit", lambda: projects.complete_idea_on_commit(db, today, now)),
             ("complete_started_ideas", lambda: projects.complete_started_ideas(db)),
+            ("learn_content", lambda: learn.sync_content(db)),
         ]
     except Exception as exc:
         errors.append(f"load: {_safe_err(exc)}")

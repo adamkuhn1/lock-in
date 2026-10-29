@@ -12,7 +12,7 @@ def activity_days(db) -> set[date]:
     days = {clock.plan_day(clock.parse_ts(s["accepted_at"])) for s in db.select("lc_solves") if s.get("accepted_at")}
     days |= {clock.plan_day(clock.parse_ts(c["committed_at"])) for c in db.select("commits") if c.get("committed_at")}
     for table, col in (("applications", "applied_on"), ("outreach", "sent_on"), ("referrals", "sent_on"),
-                       ("prep_sessions", "happened_on")):
+                       ("prep_sessions", "happened_on"), ("learn_progress", "done_on"), ("learn_checks", "taken_on")):
         days |= {d for d in (_d(r.get(col)) for r in db.select(table)) if d}
     return days
 

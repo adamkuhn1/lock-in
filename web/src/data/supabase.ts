@@ -3,7 +3,7 @@ import { AlreadyCountedError, type DataApi } from './api';
 import { KEPT } from './types';
 import type {
   Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Idea, LaunchRequest, Outreach, Posting, PrepItem, PrepProgress,
-  PrepSession, Problem, ProblemState, Project, Referral, Settings, Solve, Story, SyncResult, SyncStatus, Tier, Topic, TopicState,
+  LearnCheck, LearnItem, LearnModule, LearnModuleState, LearnProgress, PrepSession, Problem, ProblemState, Project, Referral, Settings, Solve, Story, SyncResult, SyncStatus, Tier, Topic, TopicState,
 } from './types';
 
 type PgError = { message: string } | null;
@@ -49,6 +49,16 @@ export async function firstThatWorks<T>(page: (select: string) => Promise<T[]>, 
     }
   }
   return [];
+}
+
+/** A table a later migration adds reads as empty until it's there. */
+async function orEmpty<T>(tables: string[], load: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await load();
+  } catch (e) {
+    if (missing(e, tables)) return [];
+    throw e;
+  }
 }
 
 async function exec(p: PromiseLike<{ error: PgError }>): Promise<void> {
@@ -204,6 +214,25 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
       }
     },
     updateReferral: (id, patch) => exec(sb.from('referrals').update(patch).eq('id', id)),
+    listLearnModules: () => orEmpty(['learn_modules'], () => rows<LearnModule[]>(sb.from('learn_modules').select('id,track,ord,title,summary').order('track').order('ord'))),
+    listLearnItems: () => orEmpty(['learn_items'], () => allPages<LearnItem>((a, b) => sb.from('learn_items')
+      .select('id,module_id,ord,type,title,url,hours,project,check_kind,details').order('module_id').order('ord').range(a, b))),
+    listLearnProgress: () => orEmpty(['learn_progress'], () => allPages<LearnProgress>((a, b) => sb.from('learn_progress')
+      .select('item_id,status,rating,notes,started_on,done_on').order('item_id').range(a, b))),
+    async saveLearnProgress(itemId, patch) {
+      await exec(sb.from('learn_progress').upsert(
+        { owner: await deps.ownerId(), item_id: itemId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'owner,item_id' }));
+    },
+    listLearnModuleStates: () => orEmpty(['learn_module_state'], () => rows<LearnModuleState[]>(sb.from('learn_module_state').select('module_id,done_on'))),
+    async setModuleDone(moduleId, doneOn) {
+      if (doneOn === null) {
+        await exec(sb.from('learn_module_state').delete().eq('module_id', moduleId));
+        return;
+      }
+      await exec(sb.from('learn_module_state').upsert({ owner: await deps.ownerId(), module_id: moduleId, done_on: doneOn }, { onConflict: 'owner,module_id' }));
+    },
+    listLearnChecks: () => orEmpty(['learn_checks'], () => allPages<LearnCheck>((a, b) => sb.from('learn_checks')
+      .select('id,module_id,kind,score,total,rating,summary,taken_on').order('taken_on').order('id').range(a, b))),
     findEngineers: (i) => requestLaunch('find_engineers', {
       company: i.company, role: i.role ?? null, tier: i.tier ?? null,
       ...(i.posting_id ? { posting_id: i.posting_id } : {}), ...(i.job_url ? { job_url: i.job_url } : {}),

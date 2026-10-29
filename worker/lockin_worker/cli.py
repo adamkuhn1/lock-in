@@ -308,6 +308,71 @@ def skip_request(db, request_id: str, reason: str) -> int:
     return len(posts)
 
 
+CHECK_SUMMARY_MAX = 1500
+LEARN_NOTE_MAX = 2000
+
+
+def save_check(db, request_id: str, data: Any, today: str) -> dict:
+    """Write back a Check me quiz or a spaced review: one learn_checks row; a Check me also marks the module's
+    check items done with the same rating."""
+    from . import learn
+
+    reqs = db.select("launch_requests", {"id": request_id})
+    if not reqs or reqs[0].get("kind") not in ("check_module", "review_module"):
+        raise InputError(f"no Check me or review request with id {request_id}")
+    module_id = (reqs[0].get("payload") or {}).get("module_id")
+    if not module_id or not db.select("learn_modules", {"id": module_id}):
+        raise InputError(f"the request's module {module_id!r} isn't in Lock In")
+    if not isinstance(data, dict):
+        raise InputError('expected a JSON object like {"score": 4, "total": 6, "summary": "..."}')
+    score, total = data.get("score"), data.get("total")
+    if not isinstance(score, int) or not isinstance(total, int) or isinstance(score, bool) or total <= 0 or not 0 <= score <= total:
+        raise InputError("$.score and $.total: whole numbers with 0 <= score <= total and total > 0")
+    errors: list[str] = []
+    summary = _str(data, "summary", "$", errors, required=True, max_len=CHECK_SUMMARY_MAX)
+    rating = _str(data, "rating", "$", errors) or learn.rating_for(score, total)
+    if rating not in learn.RATINGS:
+        errors.append("$.rating: must be nailed, struggled or help")
+    if errors:
+        raise InputError("\n".join(errors))
+    kind = "check" if reqs[0]["kind"] == "check_module" else "review"
+    row = {"id": str(uuid.uuid4()), "module_id": module_id, "kind": kind, "score": score, "total": total,
+           "rating": rating, "summary": summary, "taken_on": today}
+    db.insert("learn_checks", [row])
+    if kind == "check":
+        for it in db.select("learn_items", {"module_id": module_id}):
+            if it.get("type") == "check":
+                save_item(db, it["id"], status="done", rating=rating, note=None, today=today)
+    return row
+
+
+def save_item(db, item_id: str, *, status: str | None, rating: str | None, note: str | None, today: str) -> dict:
+    """Update one learning item from a Teach me session: status, rating, and a note appended to Adam's notes."""
+    from . import learn
+
+    if not db.select("learn_items", {"id": item_id}):
+        raise InputError(f"no learning item with id {item_id!r}")
+    if status is not None and status not in learn.STATUSES:
+        raise InputError("--status must be not_started, in_progress or done")
+    if rating is not None and rating not in learn.RATINGS:
+        raise InputError("--rating must be nailed, struggled or help")
+    prev = (db.select("learn_progress", {"item_id": item_id}) or [{}])[0]
+    row = {"item_id": item_id, "status": prev.get("status") or "not_started", "rating": prev.get("rating"),
+           "notes": prev.get("notes") or "", "started_on": prev.get("started_on"), "done_on": prev.get("done_on")}
+    if status:
+        row["status"] = status
+        if status in ("in_progress", "done") and not row["started_on"]:
+            row["started_on"] = today
+        row["done_on"] = (row["done_on"] or today) if status == "done" else None
+    if rating:
+        row["rating"] = rating
+    note = " ".join((note or "").split())
+    if note:
+        row["notes"] = (f"{row['notes']}\n{today}: {note}" if row["notes"] else f"{today}: {note}")[-LEARN_NOTE_MAX:]
+    db.upsert("learn_progress", [row], on_conflict="item_id")
+    return row
+
+
 def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
@@ -327,6 +392,13 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
     se = sub.add_parser("save-engineers", help="read the Find engineers JSON on stdin")
     se.add_argument("--request", required=True, help="request id from the prompt")
     sk.add_argument("--reason", required=True, help="one line, e.g. 'PhD required'")
+    sc = sub.add_parser("save-check", help="read a Check me or review result (JSON) on stdin")
+    sc.add_argument("--request", required=True, help="request id from the prompt")
+    sv = sub.add_parser("save-item", help="update a learning item from a Teach me session")
+    sv.add_argument("--item", required=True, help="item id from the prompt")
+    sv.add_argument("--status", choices=["not_started", "in_progress", "done"])
+    sv.add_argument("--rating", choices=["nailed", "struggled", "help"])
+    sv.add_argument("--note", default="")
     sub.add_parser("save-picks", help="read the Best fit shortlist (JSON list, best first) on stdin")
     sub.add_parser("doctor", help="check Keychain credentials and the database connection")
     lp = sub.add_parser("log-prep", help="log a prep session (used by Mock with Claude)")
@@ -350,6 +422,13 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             n = skip_job(db_factory(), args.id, args.reason)
             print(f"Skipped: card moved to Done, {_plural(n, 'posting')} dismissed", file=stdout)
             return 0
+        if args.cmd == "save-item":
+            if not (args.status or args.rating or args.note.strip()):
+                raise InputError("give at least one of --status, --rating, --note")
+            r = save_item(db_factory(), args.item, status=args.status, rating=args.rating, note=args.note,
+                          today=clock.plan_day(clock.now()).isoformat())
+            print(f"Saved {args.item}: {r['status'].replace('_', ' ')}" + (f", {r['rating']}" if r.get("rating") else ""), file=stdout)
+            return 0
         if args.cmd == "log-prep":
             if args.minutes is not None and not 1 <= args.minutes <= 600:
                 raise InputError("--minutes must be between 1 and 600")
@@ -367,6 +446,10 @@ def main(argv=None, stdin=None, stdout=None, stderr=None, db_factory=creds.make_
             for note in r["skipped"]:
                 print(f"skipped {note}", file=stderr)
             print(f"Saved {_plural(r['inbox'] + r['new'], 'best fit')} ({r['inbox']} from the inbox, {r['new']} new)", file=stdout)
+            return 0
+        if args.cmd == "save-check":
+            r = save_check(db_factory(), args.request, payload, today=clock.plan_day(clock.now()).isoformat())
+            print(f"Saved {r['kind']}: {r['score']}/{r['total']}, {r['rating']}", file=stdout)
             return 0
         if args.cmd == "save-engineers":
             data, warnings = validate_engineers(payload)

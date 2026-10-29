@@ -144,3 +144,11 @@ def test_a_sent_linkedin_note_counts_as_activity():
     db = MemoryDB()
     db.insert("referrals", [{"id": "a", "sent_on": "2026-10-14"}])
     assert activity_days(db) == {date(2026, 10, 14)}
+
+
+def test_learning_counts_as_activity():
+    from lockin_worker.streaks import activity_days
+    db = MemoryDB()
+    db.insert("learn_progress", [{"item_id": "a", "done_on": "2026-10-12"}, {"item_id": "b", "done_on": None}])
+    db.insert("learn_checks", [{"id": "c", "taken_on": "2026-10-13"}])
+    assert activity_days(db) == {date(2026, 10, 12), date(2026, 10, 13)}

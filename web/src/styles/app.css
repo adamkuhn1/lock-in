@@ -358,3 +358,18 @@ textarea { width: 100%; resize: vertical; padding: 10px 12px; border: 1px solid 
 .today-flag { margin: 0; }
 .today-flag a { color: var(--yellow); display: inline-flex; align-items: center; min-height: 44px; }
 @media (min-width: 900px) { .today > section[aria-labelledby='replies-h'], .today-flag { grid-column: 2; } }
+
+/* Learning tracks */
+.learn-roadmap { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.learn-group { display: grid; gap: 4px; margin-top: 12px; }
+.learn-group > ul { display: grid; gap: 0; list-style: none; padding: 0; margin: 0; }
+.learn-item { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); min-width: 0; }
+.learn-item.is-done .job-title { opacity: 0.8; }
+.learn-item textarea { width: 100%; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.split > div { display: grid; gap: 4px; min-width: 0; }
+.split-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.split-bar .prep { background: var(--orange); }
+.split-bar .learn { background: var(--cyan); }
+.today-time { display: grid; gap: 8px; }
+@media (min-width: 900px) { .today-time { grid-column: 2; } }

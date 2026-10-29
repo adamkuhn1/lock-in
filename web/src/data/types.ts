@@ -12,7 +12,8 @@ export type Tier = 'reach' | 'volume' | 'midwest';
 export const KEPT = 'Kept by Adam';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report' | 'find_engineers';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report' | 'find_engineers'
+  | 'teach_item' | 'check_module' | 'review_module';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {
@@ -33,11 +34,15 @@ export interface Settings {
   weekly_engineer_target?: number;
   /** Phone alert for each new reach or Midwest posting (migration 0011). */
   job_alerts?: boolean;
+  /** Daily study time in minutes, split between interview prep and learning tracks (migration 0012; 180 before it). */
+  study_minutes?: number;
+  /** Percent of study_minutes for learning tracks; the rest is LeetCode + Prep (migration 0012; 30 before it). */
+  learn_split?: number;
   /** Adam's profile, edited on Me (migration 0008). Absent before the migration. */
   profile?: Profile;
 }
 export type SettingsPatch = Partial<
-  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target' | 'weekly_engineer_target' | 'job_alerts' | 'profile'>
+  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target' | 'weekly_engineer_target' | 'job_alerts' | 'study_minutes' | 'learn_split' | 'profile'>
 >;
 
 export interface SetItem { slug: string; slot: Slot; order: number; done: boolean }
@@ -223,3 +228,18 @@ export type CompanyPrepInput = Pick<CompanyPrep, 'company' | 'notes' | 'links' |
 export type EventKind = 'app_open' | 'deadline' | 'oa' | 'interview' | 'other';
 export interface CalEvent { id: string; title: string; kind: EventKind; on_date: string; at_time: string | null; company: string | null; url: string | null; created_at: string }
 export type NewCalEvent = Pick<CalEvent, 'title' | 'kind' | 'on_date'> & Partial<Pick<CalEvent, 'at_time' | 'company' | 'url'>>;
+
+export type LearnTrack = 'cs' | 'math' | 'founder';
+/** watch: free video course · do: practice · build: applied project · check: quiz, explain-it-back or honor checkoff */
+export type LearnType = 'watch' | 'do' | 'build' | 'check';
+export type LearnStatus = 'not_started' | 'in_progress' | 'done';
+/** Learning tracks content (migration 0012), from shared/learning.json. Nothing is locked; ord is the recommended order. */
+export interface LearnModule { id: string; track: LearnTrack; ord: number; title: string; summary: string }
+export interface LearnItem {
+  id: string; module_id: string; ord: number; type: LearnType; title: string; url: string | null; hours: number;
+  project: string | null; check_kind: 'quiz' | 'explain' | 'honor' | null; details: string;
+}
+export interface LearnProgress { item_id: string; status: LearnStatus; rating: Rating | null; notes: string; started_on: string | null; done_on: string | null }
+export type LearnProgressPatch = Partial<Omit<LearnProgress, 'item_id'>>;
+export interface LearnModuleState { module_id: string; done_on: string }
+export interface LearnCheck { id: string; module_id: string; kind: 'check' | 'review'; score: number; total: number; rating: Rating; summary: string; taken_on: string }

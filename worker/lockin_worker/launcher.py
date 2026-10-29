@@ -372,7 +372,8 @@ def build_best_fit(db, payload: dict, lockin: str, find=None) -> tuple[Path, str
 # Make PDF report: every table Claude needs, one JSON file each. problems is global and big, so only solved ones go in.
 REPORT_TABLES = ("lc_solves", "lc_problem_state", "lc_topic_state", "lc_daily_sets", "topics", "applications",
                  "postings", "outreach", "contacts", "referrals", "projects", "commits", "ideas", "stories", "prep_sessions",
-                 "prep_items", "prep_progress", "company_prep", "events")
+                 "prep_items", "prep_progress", "company_prep", "events",
+                 "learn_modules", "learn_items", "learn_progress", "learn_module_state", "learn_checks")
 REPORT_DROP = {"owner", "row_hash"}  # bookkeeping columns, not Adam's data
 SETTINGS_PRIVATE = {"ntfy_topic", "sheet_id"}  # anyone holding these can push nudges or find the Sheet
 
@@ -480,9 +481,93 @@ def build_engineers(db, payload: dict, lockin: str, find=None) -> tuple[Path, st
     return ENGINEERS_DIR, text
 
 
+LEARN_DIR = Path.home() / ".lockin" / "learn"  # Teach me / Check me run here (one folder per item for exercises)
+TRACK_TITLE = {"cs": "CS", "math": "Math", "founder": "Founder"}
+STATUS_WORD = {"not_started": "not started", "in_progress": "in progress", "done": "done"}
+RATING_WORD = {"nailed": "nailed it", "struggled": "struggled", "help": "needed help"}
+
+
+def _module(db, module_id) -> dict:
+    rows = db.select("learn_modules", {"id": module_id}) if module_id else []
+    if not rows:
+        raise LaunchError(f"learning module {module_id!r} not found (has the worker synced shared/learning.json?)")
+    return rows[0]
+
+
+def _module_lines(db, module_id: str) -> str:
+    progress = {r["item_id"]: r for r in db.select("learn_progress")}
+    out = []
+    for it in sorted(db.select("learn_items", {"module_id": module_id}), key=lambda r: r.get("ord") or 0):
+        pr = progress.get(it["id"], {})
+        rating = f", {RATING_WORD[pr['rating']]}" if pr.get("rating") in RATING_WORD else ""
+        out.append(f"- [{it['type']}] {it['title']}: {STATUS_WORD.get(pr.get('status') or 'not_started')}{rating}"
+                   + (f". {it['details']}" if it.get("details") else ""))
+    return "\n".join(out) or "- (no items)"
+
+
+def _learn_dir(name: str) -> Path:
+    LEARN_DIR.mkdir(parents=True, exist_ok=True)
+    LEARN_DIR.chmod(0o700)
+    d = LEARN_DIR / slugify(name)
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def build_teach(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    """Teach me on one item: Socratic, Adam attempts first. Build items open in the project's folder when it's on this Mac."""
+    rows = db.select("learn_items", {"id": payload.get("item_id")}) if payload.get("item_id") else []
+    if not rows:
+        raise LaunchError(f"learning item {payload.get('item_id')!r} not found")
+    it = rows[0]
+    m = _module(db, it["module_id"])
+    pr = (db.select("learn_progress", {"item_id": it["id"]}) or [{}])[0]
+    cwd = None
+    if it.get("type") == "build" and it.get("project"):
+        proj = next((p for p in db.select("projects") if (p.get("name") or "").lower() == it["project"].lower()), None)
+        if proj and proj.get("local_path") and Path(os.path.expanduser(proj["local_path"])).is_dir():
+            cwd = Path(os.path.expanduser(proj["local_path"]))
+    cwd = cwd or _learn_dir(it["id"])
+    settings = (db.select("settings") or [{}])[0]
+    notes = (pr.get("notes") or "").strip()
+    text = prompts.render(prompts.load("teach_item"), {
+        "track": TRACK_TITLE.get(m["track"], m["track"]), "module_ord": str(m.get("ord")), "module_title": m["title"],
+        "module_summary": m.get("summary") or "", "item_title": it["title"], "item_type": it["type"],
+        "item_hours": f"{float(it.get('hours') or 0):g}", "item_url": it.get("url") or "none",
+        "item_details": it.get("details") or "-", "item_status": STATUS_WORD.get(pr.get("status") or "not_started"),
+        "item_rating": RATING_WORD.get(pr.get("rating"), "none yet"),
+        "item_notes": "\n".join(f"  {line}" for line in notes.splitlines()) or "  (none)",
+        "module_items": _module_lines(db, m["id"]), "work_dir": str(cwd), "item_id": it["id"], "lockin": shlex.quote(lockin),
+        **profile.prompt_values(settings.get("profile")),
+    })
+    return cwd, text
+
+
+def _build_quiz(template: str, db, payload: dict, lockin: str) -> tuple[Path, str]:
+    m = _module(db, payload.get("module_id"))
+    settings = (db.select("settings") or [{}])[0]
+    past = sorted((c for c in db.select("learn_checks") if c.get("module_id") == m["id"]), key=lambda c: str(c.get("taken_on")))
+    history = "\n".join(f"- {c['taken_on']} {c['kind']}: {c['score']}/{c['total']}, {RATING_WORD.get(c['rating'], c['rating'])}. "
+                        f"{c.get('summary') or ''}".rstrip() for c in past) or "- None yet."
+    text = prompts.render(prompts.load(template), {
+        "track": TRACK_TITLE.get(m["track"], m["track"]), "module_ord": str(m.get("ord")), "module_title": m["title"],
+        "module_summary": m.get("summary") or "", "module_items": _module_lines(db, m["id"]), "history": history,
+        "request_id": str(payload.get("request_id")), "lockin": shlex.quote(lockin), **profile.prompt_values(settings.get("profile")),
+    })
+    return _learn_dir(m["id"]), text
+
+
+def build_check(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    return _build_quiz("check_module", db, payload, lockin)
+
+
+def build_review(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    return _build_quiz("review_module", db, payload, lockin)
+
+
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
             "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor,
-            "best_fit": build_best_fit, "report": build_report, "find_engineers": build_engineers}
+            "best_fit": build_best_fit, "report": build_report, "find_engineers": build_engineers,
+            "teach_item": build_teach, "check_module": build_check, "review_module": build_review}
 ON_FAIL = {"work_on_idea": revert_work}
 
 

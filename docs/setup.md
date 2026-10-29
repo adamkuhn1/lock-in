@@ -187,3 +187,9 @@ Deploy in this order. The new worker writes columns that only exist after the mi
 5. Phone alerts for new postings: once job-radar's own alerts are off (step 8), turn on **Me → Settings → Phone alert for each new Reach or Midwest posting**. Until then they stay off so nothing alerts twice.
 
 The first scan after the migration re-tiers and re-checks the whole open inbox, so expect a burst of postings under Jobs → Filtered. Anything there can be restored, and the scanner won't file a restored posting again.
+
+## 12. Learning tracks (2026-10-28)
+
+1. Run `supabase/migrations/0012_learning.sql` in the SQL editor. Paste the file itself: `pbcopy < supabase/migrations/0012_learning.sql`, then ⌘A, ⌘V and Run in the editor. Text copied from a chat can come out with lines missing.
+2. Push to main. The next full sync (:07 or :37) loads `shared/learning.json` into `learn_modules` and `learn_items`. After that, editing the JSON and pushing is all it takes to change a track.
+3. Restart the launcher so it knows Teach me, Check me and reviews.

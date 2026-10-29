@@ -1,0 +1,1073 @@
+{
+  "tracks": [
+    {
+      "id": "cs",
+      "title": "CS",
+      "modules": [
+        {
+          "id": "cs-1",
+          "ord": 1,
+          "title": "How computers work",
+          "summary": "Explain how logic gates become a CPU that runs your code, and build one yourself in a simulator.",
+          "items": [
+            {
+              "id": "cs-1-w1",
+              "type": "watch",
+              "title": "Ben Eater: Building an 8-bit breadboard computer",
+              "url": "https://www.youtube.com/playlist?list=PLowKtXNTBypGqImE405J2565dvjafglHU",
+              "hours": 12,
+              "details": "Watch in order. Focus on the clock, registers, ALU, RAM and control logic videos.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-1-w2",
+              "type": "watch",
+              "title": "Nand to Tetris Part 1 lectures",
+              "url": "https://www.youtube.com/playlist?list=PLrDd_kMiAuNmSb-CKWQqq9oBFN_KNMTaI",
+              "hours": 10,
+              "details": "Units 0 to 6 in order, one week of units per project.",
+              "verified": "fetched 200, free YouTube playlist (unofficial re-upload of the Coursera lectures)"
+            },
+            {
+              "id": "cs-1-d1",
+              "type": "do",
+              "title": "nand2tetris projects 1-6",
+              "url": "https://www.nand2tetris.org/course",
+              "hours": 25,
+              "details": "Use the free software. Build gates, ALU, RAM, CPU, then write the Hack assembler.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-1-b1",
+              "type": "build",
+              "title": "Hack assembler in TypeScript",
+              "url": null,
+              "hours": 6,
+              "project": "Lock In",
+              "details": "Write project 6's assembler in TypeScript with tests, in a scratch folder next to Lock In. Done when it matches the official assembler on all test programs."
+            },
+            {
+              "id": "cs-1-c1",
+              "type": "check",
+              "title": "Check: how computers work",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "Gates, ALU, memory, fetch-decode-execute, machine code vs assembly."
+            }
+          ]
+        },
+        {
+          "id": "cs-2",
+          "ord": 2,
+          "title": "OS and concurrency",
+          "summary": "Explain processes, virtual memory and threads, and write a working shell and thread pool in C.",
+          "items": [
+            {
+              "id": "cs-2-w1",
+              "type": "watch",
+              "title": "CMU 15-213 Intro to Computer Systems lectures",
+              "url": "https://www.youtube.com/playlist?list=PLbY-cFJNzq7z_tQGq-rxtq_n2QQDf5vnM",
+              "hours": 30,
+              "details": "Lectures on processes, exceptional control flow, signals, virtual memory, and concurrency. Skip ones you know.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-2-d1",
+              "type": "do",
+              "title": "CS:APP labs: shell lab and malloc lab",
+              "url": "https://csapp.cs.cmu.edu/3e/labs.html",
+              "hours": 20,
+              "details": "Download the Shell Lab (tsh) and Malloc Lab from the self-study handouts and pass the test drivers.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-2-b1",
+              "type": "build",
+              "title": "Thread pool for the job scanner",
+              "url": null,
+              "hours": 8,
+              "project": "Lock In",
+              "details": "Write a small fixed-size thread pool with a work queue in C, then use the same idea in Lock In's Python worker to scan job boards in parallel with a cap on workers. Done when scan time drops and nothing races."
+            },
+            {
+              "id": "cs-2-c1",
+              "type": "check",
+              "title": "Check: OS and concurrency",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain fork/exec/wait, signals, page tables, and why a lock is needed in your pool."
+            }
+          ]
+        },
+        {
+          "id": "cs-3",
+          "ord": 3,
+          "title": "Networking",
+          "summary": "Explain what happens from typing a URL to seeing a page, and serve HTTP from raw sockets.",
+          "items": [
+            {
+              "id": "cs-3-w1",
+              "type": "watch",
+              "title": "Ben Eater: Networking tutorial",
+              "url": "https://www.youtube.com/playlist?list=PLowKtXNTBypH19whXTVoG3oKSuOcw_XeW",
+              "hours": 4,
+              "details": "Whole playlist: physical layer up to TCP.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-3-w2",
+              "type": "watch",
+              "title": "Hussein Nasser: Backend Engineering (Beginner)",
+              "url": "https://www.youtube.com/playlist?list=PLQnljOFTspQUNnO4p00ua_C5mKTfldiYT",
+              "hours": 6,
+              "details": "Pick the TCP, HTTP, TLS, proxy and keep-alive videos.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-3-d1",
+              "type": "do",
+              "title": "Beej's Guide to Network Programming",
+              "url": "https://beej.us/guide/bgnet/",
+              "hours": 6,
+              "details": "Type out and run the client/server examples. Use Wireshark to watch the handshake.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-3-b1",
+              "type": "build",
+              "title": "HTTP server from raw sockets",
+              "url": null,
+              "hours": 12,
+              "project": "27B",
+              "details": "Write an HTTP/1.1 server on raw sockets (no framework) that serves cached map tiles for 27B with keep-alive, Content-Length, and ETag/304 responses. Done when a browser loads the map from it."
+            },
+            {
+              "id": "cs-3-c1",
+              "type": "check",
+              "title": "Check: networking",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "DNS, TCP handshake, HTTP/1.1 vs 2, TLS, caching headers."
+            }
+          ]
+        },
+        {
+          "id": "cs-4",
+          "ord": 4,
+          "title": "Databases",
+          "summary": "Explain how a database stores, indexes and recovers data, and build a small key-value store.",
+          "items": [
+            {
+              "id": "cs-4-w1",
+              "type": "watch",
+              "title": "CMU 15-445 Intro to Database Systems (Andy Pavlo, Fall 2024)",
+              "url": "https://www.youtube.com/playlist?list=PLSE8ODhjZXjYDBpQnSymaectKjxCy6BYq",
+              "hours": 30,
+              "details": "Lectures on storage, buffer pool, hash tables, B+ trees, concurrency control, logging and recovery.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-4-d1",
+              "type": "do",
+              "title": "BusTub projects",
+              "url": "https://15445.courses.cs.cmu.edu/fall2024/",
+              "hours": 20,
+              "details": "Do projects 0-2 (C++ primer, buffer pool, B+ tree or hash index) on the public BusTub repo.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-4-b1",
+              "type": "build",
+              "title": "KV store with index and WAL",
+              "url": null,
+              "hours": 14,
+              "project": "Lock In",
+              "details": "Write a key-value store with an on-disk index and a write-ahead log. Kill it mid-write and prove it recovers. Then compare with how Postgres (Lock In's Supabase DB) uses WAL and B-tree indexes with EXPLAIN."
+            },
+            {
+              "id": "cs-4-c1",
+              "type": "check",
+              "title": "Check: databases",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain B+ tree lookups, the buffer pool, WAL, and isolation levels."
+            }
+          ]
+        },
+        {
+          "id": "cs-5",
+          "ord": 5,
+          "title": "Distributed systems",
+          "summary": "Distributed systems and system design. Design a service that stays up and fast under load, and know the tradeoffs.",
+          "items": [
+            {
+              "id": "cs-5-w1",
+              "type": "watch",
+              "title": "MIT 6.824 Distributed Systems (Spring 2020)",
+              "url": "https://www.youtube.com/playlist?list=PLrw6a1wE39_tb2fErI4-WkMbsvGQk9_UB",
+              "hours": 20,
+              "details": "Lectures 1-8: MapReduce, RPC, GFS, replication, Raft.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-5-w2",
+              "type": "watch",
+              "title": "ByteByteGo: System Design Fundamentals",
+              "url": "https://www.youtube.com/playlist?list=PLCRMIe5FDPsd0gVs500xeOewfySTsmEjf",
+              "hours": 4,
+              "details": "Free YouTube playlist: caching, queues, load balancing, rate limiting.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-5-d1",
+              "type": "do",
+              "title": "MIT 6.5840 Lab 1: MapReduce",
+              "url": "https://pdos.csail.mit.edu/6.824/labs/lab-mr.html",
+              "hours": 12,
+              "details": "Do Lab 1 in Go. Lab 2 and Raft labs are a stretch goal.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-5-b1",
+              "type": "build",
+              "title": "Scale Promotr's ad serving",
+              "url": null,
+              "hours": 14,
+              "project": "Promotr",
+              "details": "Put a queue between ad events and spend tracking, cache ad lookups, and add a per-advertiser rate limit. Load test before and after and write down the numbers."
+            },
+            {
+              "id": "cs-5-c1",
+              "type": "check",
+              "title": "Check: system design",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Walk Claude through your Promotr design: bottlenecks, failure modes, consistency choices."
+            }
+          ]
+        },
+        {
+          "id": "cs-6",
+          "ord": 6,
+          "title": "Deeper algorithms",
+          "summary": "Pick and prove the right algorithm for a problem and code it fast.",
+          "items": [
+            {
+              "id": "cs-6-w1",
+              "type": "watch",
+              "title": "MIT 6.006 Introduction to Algorithms (Spring 2020)",
+              "url": "https://www.youtube.com/playlist?list=PLUl4u3cNGP63EdVPNLG3ToM6LaEUuStEY",
+              "hours": 25,
+              "details": "All lectures; pause on graphs, shortest paths and dynamic programming.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-6-d1",
+              "type": "do",
+              "title": "6.006 problem sets",
+              "url": "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/pages/assignments/",
+              "hours": 20,
+              "details": "Do problem sets 1-8 from OCW, check against posted solutions.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-6-d2",
+              "type": "do",
+              "title": "CSES Problem Set",
+              "url": "https://cses.fi/problemset/",
+              "hours": 15,
+              "details": "Free judge. Do Sorting and Searching, Graph Algorithms, and Dynamic Programming sections.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-6-b1",
+              "type": "build",
+              "title": "Route planner for 27B",
+              "url": null,
+              "hours": 8,
+              "project": "27B",
+              "details": "Implement Dijkstra and A* over a small city graph in 27B and compare speed. Done when routes match a reference and you can explain the heuristic."
+            },
+            {
+              "id": "cs-6-c1",
+              "type": "check",
+              "title": "Check: algorithms",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "Big-O, graph search, shortest paths, DP, hashing."
+            }
+          ]
+        },
+        {
+          "id": "cs-7",
+          "ord": 7,
+          "title": "ML from scratch",
+          "summary": "Build neural nets by hand up to a small GPT, and know how training really works.",
+          "items": [
+            {
+              "id": "cs-7-w1",
+              "type": "watch",
+              "title": "Karpathy: Neural Networks: Zero to Hero",
+              "url": "https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ",
+              "hours": 20,
+              "details": "In order: micrograd, makemore 1-5, then Let's build GPT. Code along.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "cs-7-d1",
+              "type": "do",
+              "title": "Karpathy's exercises",
+              "url": "https://karpathy.ai/zero-to-hero.html",
+              "hours": 15,
+              "details": "Do the exercises linked from each video's description and notebook.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "cs-7-b1",
+              "type": "build",
+              "title": "Revisit the Showboat ranker",
+              "url": null,
+              "hours": 12,
+              "project": "Showboat",
+              "details": "Replace or retrain the Showboat feed ranker with a small model you wrote yourself (logistic regression or MLP in your own autograd). Done when it beats the old ranker on a held-out set."
+            },
+            {
+              "id": "cs-7-c1",
+              "type": "check",
+              "title": "Check: ML from scratch",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain backprop, loss, batch norm, and attention in your own words."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "math",
+      "title": "Math",
+      "modules": [
+        {
+          "id": "math-1",
+          "ord": 1,
+          "title": "Calculus refresh",
+          "summary": "Use derivatives and the chain rule to train a model with gradient descent you wrote yourself.",
+          "items": [
+            {
+              "id": "math-1-w1",
+              "type": "watch",
+              "title": "3Blue1Brown: Essence of calculus",
+              "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr",
+              "hours": 4,
+              "details": "Whole playlist.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-1-w2",
+              "type": "watch",
+              "title": "3Blue1Brown: Neural networks",
+              "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi",
+              "hours": 2,
+              "details": "Chapters on gradient descent and backpropagation calculus.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-1-d1",
+              "type": "do",
+              "title": "MIT 18.01SC practice",
+              "url": "https://ocw.mit.edu/courses/18-01sc-single-variable-calculus-fall-2010/",
+              "hours": 6,
+              "details": "Do the problem sets on derivatives, chain rule and optimization.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-1-b1",
+              "type": "build",
+              "title": "Backprop and gradient descent from scratch",
+              "url": null,
+              "hours": 6,
+              "project": null,
+              "details": "Write gradient descent and backprop for a 2-layer net in plain NumPy. Check gradients numerically. Done when it learns a toy dataset."
+            },
+            {
+              "id": "math-1-c1",
+              "type": "check",
+              "title": "Check: calculus",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "Derivatives, chain rule, partial derivatives, gradients."
+            }
+          ]
+        },
+        {
+          "id": "math-2",
+          "ord": 2,
+          "title": "Linear algebra",
+          "summary": "Think in vectors and matrices and use PCA and embeddings on real data.",
+          "items": [
+            {
+              "id": "math-2-w1",
+              "type": "watch",
+              "title": "3Blue1Brown: Essence of linear algebra",
+              "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab",
+              "hours": 4,
+              "details": "Whole playlist first for intuition.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-2-w2",
+              "type": "watch",
+              "title": "MIT 18.06 Linear Algebra (Gilbert Strang)",
+              "url": "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/video_galleries/video-lectures/",
+              "hours": 25,
+              "details": "Lectures 1-21 and 29-31 (SVD).",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-2-d1",
+              "type": "do",
+              "title": "18.06SC problem sets",
+              "url": "https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/",
+              "hours": 12,
+              "details": "Do the problem-solving videos and problem sets for each unit.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-2-b1",
+              "type": "build",
+              "title": "PCA and embeddings for Showboat posts",
+              "url": null,
+              "hours": 6,
+              "project": "Showboat",
+              "details": "Embed Showboat posts, run PCA (your own SVD-based code), and plot them in 2D. Use cosine similarity for 'more like this'."
+            },
+            {
+              "id": "math-2-c1",
+              "type": "check",
+              "title": "Check: linear algebra",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain matrix multiply as a transform, eigenvectors, SVD, and what PCA keeps."
+            }
+          ]
+        },
+        {
+          "id": "math-3",
+          "ord": 3,
+          "title": "Probability",
+          "summary": "Reason about chance correctly and check answers with simulation.",
+          "items": [
+            {
+              "id": "math-3-w1",
+              "type": "watch",
+              "title": "Harvard Stat 110 (Joe Blitzstein)",
+              "url": "https://www.youtube.com/playlist?list=PL2SOU6wwxB0uwwH80KTQ6ht66KWxbzTIo",
+              "hours": 30,
+              "details": "Lectures 1-20: counting, conditional probability, random variables, distributions.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-3-w2",
+              "type": "watch",
+              "title": "StatQuest: Bayes' Theorem, Clearly Explained",
+              "url": "https://www.youtube.com/watch?v=9wCnvr7Xw4E",
+              "hours": 0.5,
+              "details": "Watch before Stat 110 lecture 4.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "math-3-d1",
+              "type": "do",
+              "title": "Stat 110 strategic practice problems",
+              "url": "https://stat110.hsites.harvard.edu/strategic-practice-problems",
+              "hours": 15,
+              "details": "Do strategic practice sets 1-6 with solutions.",
+              "verified": "site blocks automated fetch (403); exact URL confirmed via web search result for the official Stat 110 site"
+            },
+            {
+              "id": "math-3-b1",
+              "type": "build",
+              "title": "Monte Carlo simulator",
+              "url": null,
+              "hours": 4,
+              "project": null,
+              "details": "Write a Monte Carlo script that checks 3 Stat 110 problems (birthday, Monty Hall, coupon collector) against the exact answers."
+            },
+            {
+              "id": "math-3-c1",
+              "type": "check",
+              "title": "Check: probability",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "Conditional probability, Bayes, expectation, common distributions."
+            }
+          ]
+        },
+        {
+          "id": "math-4",
+          "ord": 4,
+          "title": "Stats & experiments",
+          "summary": "Statistics and experimentation. Run a sound A/B test and use a Bayesian bandit to split ad budget.",
+          "items": [
+            {
+              "id": "math-4-w1",
+              "type": "watch",
+              "title": "StatQuest: Statistics Fundamentals",
+              "url": "https://www.youtube.com/playlist?list=PLblh5JKOoLUK0FLuzwntyYI10UQFUhsY9",
+              "hours": 6,
+              "details": "Distributions, p-values, confidence intervals, power, t-tests.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-4-w2",
+              "type": "watch",
+              "title": "ritvikmath: Multi-Armed Bandit and Thompson Sampling",
+              "url": "https://www.youtube.com/watch?v=e3L4VocZnnQ",
+              "hours": 0.5,
+              "details": "Then watch Thompson Sampling: https://www.youtube.com/watch?v=Zgwfw3bzSmQ",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed (both videos)"
+            },
+            {
+              "id": "math-4-d1",
+              "type": "do",
+              "title": "Evan Miller: How Not To Run an A/B Test",
+              "url": "https://www.evanmiller.org/how-not-to-run-an-ab-test.html",
+              "hours": 2,
+              "details": "Read the short essay, then size a test with his free calculator.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-4-b1",
+              "type": "build",
+              "title": "A/B tests and Thompson sampling for Promotr budgets",
+              "url": null,
+              "hours": 10,
+              "project": "Promotr",
+              "details": "Add an A/B test framework to Promotr, then a Beta-Bernoulli Thompson sampling bandit that shifts budget across ads by click rate. Simulate it and compare regret vs a fixed split."
+            },
+            {
+              "id": "math-4-c1",
+              "type": "check",
+              "title": "Check: experimentation",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain p-values, power, peeking, and why a bandit trades off explore vs exploit."
+            }
+          ]
+        },
+        {
+          "id": "math-5",
+          "ord": 5,
+          "title": "Optimization",
+          "summary": "Model ad spend allocation as a linear program and solve it.",
+          "items": [
+            {
+              "id": "math-5-w1",
+              "type": "watch",
+              "title": "Fundamentals of Linear Programming (Cornell)",
+              "url": "https://www.youtube.com/playlist?list=PLc6nihbq_fwa4EG4kvpwz9AJlFpIoFgld",
+              "hours": 12,
+              "details": "Modeling, simplex, duality, sensitivity. Course page: people.orie.cornell.edu/huseyin/lp_course.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-5-w2",
+              "type": "watch",
+              "title": "Stanford EE364A Convex Optimization (Stephen Boyd)",
+              "url": "https://www.youtube.com/playlist?list=PL3940DD956CDF0622",
+              "hours": 8,
+              "details": "Optional: lectures 1-4 for the bigger picture.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-5-d1",
+              "type": "do",
+              "title": "Solve LPs with PuLP",
+              "url": "https://coin-or.github.io/pulp/",
+              "hours": 4,
+              "details": "Work through the PuLP case studies, then solve two textbook LPs and read the dual values.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-5-b1",
+              "type": "build",
+              "title": "Spend allocation LP for Promotr",
+              "url": null,
+              "hours": 8,
+              "project": "Promotr",
+              "details": "Write an LP that splits each advertiser's budget across placements to max expected clicks under budget and pacing limits. Use shadow prices to explain the result."
+            },
+            {
+              "id": "math-5-c1",
+              "type": "check",
+              "title": "Check: optimization",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "LP modeling, feasibility, simplex idea, duality and shadow prices."
+            }
+          ]
+        },
+        {
+          "id": "math-6",
+          "ord": 6,
+          "title": "Discrete math, proofs",
+          "summary": "Discrete math and proofs. Write clear proofs and use induction, graphs and counting in CS problems.",
+          "items": [
+            {
+              "id": "math-6-w1",
+              "type": "watch",
+              "title": "MIT 6.042J Mathematics for Computer Science (Fall 2010)",
+              "url": "https://www.youtube.com/playlist?list=PLB7540DEDD482705B",
+              "hours": 25,
+              "details": "All lectures: proofs, induction, number theory, graphs, counting, probability.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "math-6-d1",
+              "type": "do",
+              "title": "6.042J problem sets",
+              "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/pages/assignments/",
+              "hours": 20,
+              "details": "Do the problem sets and write full proofs; check against solutions.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "math-6-b1",
+              "type": "build",
+              "title": "Prove your own code correct",
+              "url": null,
+              "hours": 4,
+              "project": null,
+              "details": "Pick 3 functions you wrote (e.g. the KV store or route planner) and write invariant or induction proofs that they are correct."
+            },
+            {
+              "id": "math-6-c1",
+              "type": "check",
+              "title": "Check: proofs",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain a proof by induction and a counting argument to Claude step by step."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "founder",
+      "title": "Founder",
+      "modules": [
+        {
+          "id": "founder-1",
+          "ord": 1,
+          "title": "YC Startup School",
+          "summary": "Know the basic playbook for starting a startup and where Promotr stands on it.",
+          "items": [
+            {
+              "id": "founder-1-w1",
+              "type": "watch",
+              "title": "YC Startup School playlist",
+              "url": "https://www.youtube.com/playlist?list=PLQ-uHSnFig5M9fW16o2l35jrfdsxGknNB",
+              "hours": 10,
+              "details": "Start with the idea, MVP and first customers talks.",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "founder-1-w2",
+              "type": "watch",
+              "title": "How to Start a Startup (Stanford CS183B)",
+              "url": "https://www.youtube.com/playlist?list=PL5q_lef6zVkaTY_cT1k7qFNF2TidHCe-1",
+              "hours": 8,
+              "details": "Lectures 1-4 (Sam Altman, Dustin Moskovitz, Paul Graham).",
+              "verified": "fetched 200, free YouTube playlist, title matched"
+            },
+            {
+              "id": "founder-1-d1",
+              "type": "do",
+              "title": "Join Startup School",
+              "url": "https://www.startupschool.org/",
+              "hours": 2,
+              "details": "Make a free account, fill out your Promotr profile, set weekly goals.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "founder-1-b1",
+              "type": "build",
+              "title": "One-page Promotr plan",
+              "url": null,
+              "hours": 2,
+              "project": "Promotr",
+              "details": "Write problem, who has it, solution, why now, first 10 customers. Save it in Lock In."
+            },
+            {
+              "id": "founder-1-c1",
+              "type": "check",
+              "title": "Check: Startup School basics",
+              "url": null,
+              "hours": 0.5,
+              "check": "honor",
+              "details": "Watched the core talks and wrote the one-pager."
+            }
+          ]
+        },
+        {
+          "id": "founder-2",
+          "ord": 2,
+          "title": "Customer discovery",
+          "summary": "Run interviews that give real facts, not compliments.",
+          "items": [
+            {
+              "id": "founder-2-w1",
+              "type": "watch",
+              "title": "How To Talk To Users | Startup School",
+              "url": "https://www.youtube.com/watch?v=z1iF1c8w5Lg",
+              "hours": 0.5,
+              "details": "Gustaf Alstromer's talk.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-2-w2",
+              "type": "watch",
+              "title": "Rob Fitzpatrick: how to talk to customers (The Mom Test)",
+              "url": "https://www.youtube.com/watch?v=FG1Fa-t4AEQ",
+              "hours": 1,
+              "details": "Full talk by the author of The Mom Test.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-2-d1",
+              "type": "do",
+              "title": "Write an interview script",
+              "url": null,
+              "hours": 2,
+              "details": "Write 8-10 Mom Test questions about past behavior and current spend. No pitching."
+            },
+            {
+              "id": "founder-2-b1",
+              "type": "build",
+              "title": "Interview 20 advertisers and log them in Lock In",
+              "url": null,
+              "hours": 20,
+              "project": "Lock In",
+              "details": "Talk to 20 small advertisers. Log each one in Lock In with pains, current tools, spend, and quotes. Done when you can name the top 3 pains."
+            },
+            {
+              "id": "founder-2-c1",
+              "type": "check",
+              "title": "Check: customer discovery",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain what you learned, which ideas died, and why your questions passed the Mom Test."
+            }
+          ]
+        },
+        {
+          "id": "founder-3",
+          "ord": 3,
+          "title": "Pricing and sales",
+          "summary": "Set a first price for Promotr and test it with real buyers.",
+          "items": [
+            {
+              "id": "founder-3-w1",
+              "type": "watch",
+              "title": "Kevin Hale: Startup Pricing 101",
+              "url": "https://www.youtube.com/watch?v=jwXlo9gy_k4",
+              "hours": 1,
+              "details": "Core pricing lecture.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-3-w2",
+              "type": "watch",
+              "title": "Startup Business Models and Pricing | Startup School",
+              "url": "https://www.youtube.com/watch?v=oWZbWzAyHAE",
+              "hours": 0.5,
+              "details": "Aaron Epstein on 9 business models.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-3-w3",
+              "type": "watch",
+              "title": "How To Price For B2B | Startup School",
+              "url": "https://www.youtube.com/watch?v=4hjiRmgmHiU",
+              "hours": 0.5,
+              "details": "For selling to advertisers.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-3-d1",
+              "type": "do",
+              "title": "Draft 3 price points",
+              "url": null,
+              "hours": 2,
+              "details": "Write 3 pricing options (flat, % of spend, tiered) with reasons."
+            },
+            {
+              "id": "founder-3-b1",
+              "type": "build",
+              "title": "Promotr pricing experiment",
+              "url": null,
+              "hours": 8,
+              "project": "Promotr",
+              "details": "Show two prices to real prospects (pricing page or sales calls) and track who says yes. Done when you have a price backed by data."
+            },
+            {
+              "id": "founder-3-c1",
+              "type": "check",
+              "title": "Check: pricing",
+              "url": null,
+              "hours": 0.5,
+              "check": "explain",
+              "details": "Explain your pricing choice, value metric, and what the experiment showed."
+            }
+          ]
+        },
+        {
+          "id": "founder-4",
+          "ord": 4,
+          "title": "Distribution & growth",
+          "summary": "Distribution and growth. Find and test channels to get Promotr's first 100 users.",
+          "items": [
+            {
+              "id": "founder-4-w1",
+              "type": "watch",
+              "title": "How to Get Your First Customers | Startup School",
+              "url": "https://www.youtube.com/watch?v=hyYCn_kAngI",
+              "hours": 0.5,
+              "details": "Gustaf Alstromer.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-4-w2",
+              "type": "watch",
+              "title": "Gustaf Alstromer: How to Get Users and Grow",
+              "url": "https://www.youtube.com/watch?v=T9ikpoF2GH0",
+              "hours": 1,
+              "details": "Growth, retention and channels.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-4-d1",
+              "type": "do",
+              "title": "Paul Graham: Do Things that Don't Scale",
+              "url": "https://paulgraham.com/ds.html",
+              "hours": 0.5,
+              "details": "Short essay. List 5 unscalable things you will do for Promotr.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "founder-4-b1",
+              "type": "build",
+              "title": "Run 3 channel tests for Promotr",
+              "url": null,
+              "hours": 10,
+              "project": "Promotr",
+              "details": "Try 3 channels (cold email, communities, content) for 2 weeks each. Track signups per hour spent in Lock In."
+            },
+            {
+              "id": "founder-4-c1",
+              "type": "check",
+              "title": "Check: growth",
+              "url": null,
+              "hours": 0.5,
+              "check": "honor",
+              "details": "Ran 3 channel tests and logged the results."
+            }
+          ]
+        },
+        {
+          "id": "founder-5",
+          "ord": 5,
+          "title": "SaaS metrics",
+          "summary": "Track MRR, churn, CAC and LTV and know what good looks like.",
+          "items": [
+            {
+              "id": "founder-5-w1",
+              "type": "watch",
+              "title": "B2B Startup Metrics | Startup School",
+              "url": "https://www.youtube.com/watch?v=_mKeVGSqQac",
+              "hours": 0.5,
+              "details": "Tom Blomfield on the metrics that matter.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-5-w2",
+              "type": "watch",
+              "title": "Consumer Startup Metrics | Startup School",
+              "url": "https://www.youtube.com/watch?v=fdD4y4Civp4",
+              "hours": 0.5,
+              "details": "Retention and cohorts.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-5-d1",
+              "type": "do",
+              "title": "Model the numbers",
+              "url": null,
+              "hours": 3,
+              "details": "In a spreadsheet, compute MRR, churn, CAC, LTV and payback from made-up Promotr data."
+            },
+            {
+              "id": "founder-5-b1",
+              "type": "build",
+              "title": "Promotr metrics dashboard",
+              "url": null,
+              "hours": 10,
+              "project": "Promotr",
+              "details": "Build a dashboard showing MRR, churn, CAC/LTV and cohort retention from Promotr's database. Done when numbers match the spreadsheet."
+            },
+            {
+              "id": "founder-5-c1",
+              "type": "check",
+              "title": "Check: SaaS metrics",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "MRR, churn, cohorts, CAC, LTV, payback."
+            }
+          ]
+        },
+        {
+          "id": "founder-6",
+          "ord": 6,
+          "title": "Fundraising basics",
+          "summary": "Understand SAFEs and how a seed round works before talking to investors.",
+          "items": [
+            {
+              "id": "founder-6-w1",
+              "type": "watch",
+              "title": "Understanding SAFEs and Priced Equity Rounds",
+              "url": "https://www.youtube.com/watch?v=Dk6JNTDec9I",
+              "hours": 1,
+              "details": "Kirsty Nathoo.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-6-w2",
+              "type": "watch",
+              "title": "How Startup Fundraising Works | Startup School",
+              "url": "https://www.youtube.com/watch?v=zBUhQPPS9AY",
+              "hours": 0.5,
+              "details": "Brad Flora.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-6-d1",
+              "type": "do",
+              "title": "Read the SAFE and 2 PG essays",
+              "url": "https://www.ycombinator.com/documents",
+              "hours": 2,
+              "details": "Skim the post-money SAFE, then read paulgraham.com/fr.html (How to Raise Money) and paulgraham.com/investors.html.",
+              "verified": "fetched 200 (YC SAFE page and both PG essays)"
+            },
+            {
+              "id": "founder-6-b1",
+              "type": "build",
+              "title": "Promotr cap table and pitch",
+              "url": null,
+              "hours": 4,
+              "project": null,
+              "details": "Model a SAFE on a sample cap table (dilution at a priced round) and write a 10-line Promotr pitch."
+            },
+            {
+              "id": "founder-6-c1",
+              "type": "check",
+              "title": "Check: fundraising",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "SAFE, valuation cap, discount, dilution, pre vs post money."
+            }
+          ]
+        },
+        {
+          "id": "founder-7",
+          "ord": 7,
+          "title": "Company basics",
+          "summary": "Know how to form a company and split equity with a cofounder fairly.",
+          "items": [
+            {
+              "id": "founder-7-w1",
+              "type": "watch",
+              "title": "Legal and Accounting Basics for Startups",
+              "url": "https://www.youtube.com/watch?v=sd9yLmJ1Jfk",
+              "hours": 1,
+              "details": "Kirsty Nathoo and Carolynn Levy (Stanford CS183B lecture 18).",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-7-w2",
+              "type": "watch",
+              "title": "Co-Founder Equity Mistakes to Avoid | Startup School",
+              "url": "https://www.youtube.com/watch?v=DISocTmEwiI",
+              "hours": 0.5,
+              "details": "Michael Seibel.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-7-w3",
+              "type": "watch",
+              "title": "Starting A Company? The Key Terms You Should Know",
+              "url": "https://www.youtube.com/watch?v=wH3TKpALlw4",
+              "hours": 0.5,
+              "details": "Vesting, 83(b), C-corp and more.",
+              "verified": "free YouTube video, title confirmed via YouTube oEmbed"
+            },
+            {
+              "id": "founder-7-d1",
+              "type": "do",
+              "title": "Paul Graham: The Equity Equation",
+              "url": "https://paulgraham.com/equity.html",
+              "hours": 0.5,
+              "details": "Short essay on when giving up equity is worth it.",
+              "verified": "fetched 200, title matched"
+            },
+            {
+              "id": "founder-7-b1",
+              "type": "build",
+              "title": "Cofounder agreement draft",
+              "url": null,
+              "hours": 3,
+              "project": "Promotr",
+              "details": "Write down entity choice, equity split, 4-year vesting with 1-year cliff, and roles for Promotr. Review with a lawyer before signing anything."
+            },
+            {
+              "id": "founder-7-c1",
+              "type": "check",
+              "title": "Check: company basics",
+              "url": null,
+              "hours": 0.5,
+              "check": "quiz",
+              "details": "C-corp vs LLC, Delaware, vesting, cliff, 83(b), equity split."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "flags": [
+    "ByteByteGo's book and course are paid. Used the free ByteByteGo YouTube playlist 'System Design Fundamentals' instead, plus MIT 6.824 lectures.",
+    "The Mom Test book is paid. Used a free full-length Rob Fitzpatrick talk on YouTube and YC's 'How To Talk To Users' instead.",
+    "nand2tetris video lectures: the official ones are on Coursera, where free audit isn't clearly shown. Used a public YouTube playlist that re-uploads the same lectures (not posted by the authors). The projects and software on nand2tetris.org are free and official.",
+    "Stat 110's site (stat110.hsites.harvard.edu) blocks automated fetches (403). The strategic practice URL was confirmed via a web search result, not fetched. The lecture playlist was fetched fine.",
+    "Optimization: no single free 'LP for ad spend' video course exists. Used Cornell's free 'Fundamentals of Linear Programming' YouTube playlist, with Boyd's Stanford EE364A as optional.",
+    "MIT 6.824 is now called 6.5840. The lecture videos are the Spring 2020 playlist, and the lab link is the current 6.5840 MapReduce lab.",
+    "URLs were checked with HTTP fetches (status 200 plus matching page title). YouTube single videos were checked with YouTube's oEmbed endpoint, which only returns a title for real, public videos.",
+    "Hours are rough guesses for a strong CS student. Full lecture courses (15-213, 15-445, 6.006, Stat 110, 6.042) are the big ones; skip lectures you already know.",
+    "Judgment call: Math build items without a natural project fit (backprop, Monte Carlo, proofs) use project null.",
+    "Startup School items are free to watch. Legal and fundraising videos are general education, not legal advice."
+  ]
+}

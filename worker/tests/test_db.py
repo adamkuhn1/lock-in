@@ -92,7 +92,8 @@ def test_order_covers_every_table():
     from lockin_worker.db import ORDER
     mig = Path(__file__).parents[2] / "supabase/migrations"
     found = set(re.findall(r"create table public\.(\w+)", (mig / "0001_init.sql").read_text()))
-    found |= set(re.findall(r"create table if not exists public\.(\w+)", (mig / "0003_v2.sql").read_text()))
+    for f in sorted(mig.glob("*.sql")):
+        found |= set(re.findall(r"create table if not exists public\.(\w+)", f.read_text()))
     assert found == set(ORDER)
 
 def test_rest_owned_upsert_scopes_conflict_and_rows_to_owner():

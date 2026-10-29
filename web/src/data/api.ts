@@ -1,6 +1,6 @@
 import type {
   Application, CalEvent, Commit, CompanyPrep, CompanyPrepInput, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest,
-  FindEngineersInput, MarkAppliedInput, Referral, ReferralPatch, Tier, UndoAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
+  FindEngineersInput, LearnCheck, LearnItem, LearnModule, LearnModuleState, LearnProgress, LearnProgressPatch, MarkAppliedInput, Referral, ReferralPatch, Tier, UndoAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
   PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Rating, Settings, SettingsPatch, Solve, Story,
   StoryInput, StoryPatch, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
@@ -38,6 +38,16 @@ export interface DataApi {
   updateReferral(id: string, patch: ReferralPatch): Promise<void>;
   /** Queues Find engineers on the Mac for a posting, or for an application's company and role. */
   findEngineers(i: FindEngineersInput): Promise<void>;
+  /** Learning tracks (migration 0012). All empty before it. */
+  listLearnModules(): Promise<LearnModule[]>;
+  listLearnItems(): Promise<LearnItem[]>;
+  listLearnProgress(): Promise<LearnProgress[]>;
+  /** Upserts one item's progress; fields left out keep their saved value. */
+  saveLearnProgress(itemId: string, patch: LearnProgressPatch): Promise<void>;
+  listLearnModuleStates(): Promise<LearnModuleState[]>;
+  /** null clears it (back to in progress). */
+  setModuleDone(moduleId: string, doneOn: string | null): Promise<void>;
+  listLearnChecks(): Promise<LearnCheck[]>;
   updateOutreach(id: string, patch: OutreachPatch): Promise<void>;
   requestLaunch(kind: LaunchKind, payload: Record<string, unknown>): Promise<void>;
   listLaunchRequests(): Promise<LaunchRequest[]>;

@@ -1,7 +1,8 @@
+import learning from '../../../shared/learning.json';
 import prepItems from '../../../shared/prep_items.json';
 import { addDays, localDay, planDay } from '../lib/time';
 import type {
-  Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting,
+  Application, CalEvent, LearnCheck, LearnItem, LearnModule, LearnModuleState, LearnProgress, LearnTrack, LearnType, Commit, CompanyPrep, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting,
   PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Rating, Referral, ReferralPick, Settings, Solve, Stage, Story, SyncStatus, Tier,
   Topic, TopicState,
 } from './types';
@@ -22,6 +23,11 @@ export interface DemoDb {
   outreach: Outreach[];
   contacts: Contact[];
   referrals: Referral[];
+  learnModules: LearnModule[];
+  learnItems: LearnItem[];
+  learnProgress: LearnProgress[];
+  learnStates: LearnModuleState[];
+  learnChecks: LearnCheck[];
   launchRequests: LaunchRequest[];
   syncStatus: SyncStatus[];
   stories: Story[];
@@ -110,6 +116,23 @@ const APP_TIER: Record<string, Tier> = {
   Stripe: 'reach', Ramp: 'reach', Figma: 'reach', Amazon: 'reach', Duolingo: 'reach', Palantir: 'reach', Plaid: 'reach', Coinbase: 'reach',
   Ford: 'midwest', GM: 'midwest', 'Rocket Companies': 'midwest', Stryker: 'midwest', "Domino's": 'midwest', Ally: 'midwest',
 };
+
+type RawItem = { id: string; type: string; title: string; url: string | null; hours: number; project?: string | null; check?: string | null; details?: string };
+/** The real tracks from shared/learning.json, shaped like the learn_modules / learn_items rows the worker writes. */
+export function learningContent(): { modules: LearnModule[]; items: LearnItem[] } {
+  const modules: LearnModule[] = [];
+  const items: LearnItem[] = [];
+  for (const t of learning.tracks) {
+    for (const m of t.modules) {
+      modules.push({ id: m.id, track: t.id as LearnTrack, ord: m.ord, title: m.title, summary: m.summary ?? '' });
+      (m.items as RawItem[]).forEach((it, i) => items.push({
+        id: it.id, module_id: m.id, ord: i + 1, type: it.type as LearnType, title: it.title, url: it.url ?? null, hours: it.hours,
+        project: it.type === 'build' ? it.project ?? null : null, check_kind: (it.check ?? null) as LearnItem['check_kind'], details: it.details ?? '',
+      }));
+    }
+  }
+  return { modules, items };
+}
 
 /** Demo Best fit shortlist: what a Find best fits run saves. */
 const BEST_FIT: Record<string, Partial<Posting>> = {
@@ -268,6 +291,24 @@ export function createFixtures(now: Date): DemoDb {
         draft_subject: 'CMU student, Figma SWE intern', draft_body: "Hi Priya,\n\nI applied to Figma's Software Engineer Intern role and would love to chat.\n\nThanks,\nAdam",
       },
     ],
+    ...(() => {
+      const { modules, items } = learningContent();
+      const first = (mod: string, type: LearnType) => items.find((i) => i.module_id === mod && i.type === type)?.id;
+      const prog = (id: string | undefined, over: Partial<LearnProgress>): LearnProgress[] =>
+        id ? [{ item_id: id, status: 'done', rating: null, notes: '', started_on: addDays(day, -6), done_on: addDays(day, -2), ...over }] : [];
+      const math1 = modules.find((m) => m.track === 'math' && m.ord === 1)?.id ?? 'math-1';
+      return {
+        learnModules: modules, learnItems: items,
+        learnProgress: [
+          ...prog(first('cs-1', 'watch'), { rating: 'nailed', notes: `${addDays(day, -2)}: clock and registers clicked` }),
+          ...prog(first('cs-1', 'do'), { status: 'in_progress', done_on: null, started_on: addDays(day, -1) }),
+          ...items.filter((i) => i.module_id === math1).flatMap((i) => prog(i.id, { rating: 'struggled', started_on: addDays(day, -20), done_on: addDays(day, -12) })),
+        ],
+        learnStates: [{ module_id: math1, done_on: addDays(day, -10) }],
+        learnChecks: [{ id: 'lc1', module_id: math1, kind: 'check' as const, score: 4, total: 6, rating: 'struggled' as const,
+          summary: 'Chain rule solid; shaky on partial derivatives.', taken_on: addDays(day, -10) }],
+      };
+    })(),
     launchRequests: [
       { id: 'rq-ramp', kind: 'find_engineers', payload: { posting_id: 'p3', company: 'Ramp', role: 'Software Engineer, New Grad', tier: 'reach' }, status: 'launched', error: null, created_at: minsAgo(45) },
       { id: 'r1', kind: 'outreach', payload: { outreach_id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c' }, status: 'queued', error: null, created_at: minsAgo(5) },

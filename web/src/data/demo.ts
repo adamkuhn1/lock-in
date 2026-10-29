@@ -78,6 +78,20 @@ export function createDemoApi(now: Date = new Date()): DataApi {
       const o = db.outreach.find((x) => x.id === id);
       if (o) Object.assign(o, patch);
     },
+    listLearnModules: () => copy(db.learnModules),
+    listLearnItems: () => copy(db.learnItems),
+    listLearnProgress: () => copy(db.learnProgress),
+    async saveLearnProgress(itemId, patch) {
+      const hit = db.learnProgress.find((p) => p.item_id === itemId);
+      if (hit) Object.assign(hit, patch);
+      else db.learnProgress.push({ item_id: itemId, status: 'not_started', rating: null, notes: '', started_on: null, done_on: null, ...patch });
+    },
+    listLearnModuleStates: () => copy(db.learnStates),
+    async setModuleDone(moduleId, doneOn) {
+      db.learnStates = db.learnStates.filter((s) => s.module_id !== moduleId);
+      if (doneOn) db.learnStates.push({ module_id: moduleId, done_on: doneOn });
+    },
+    listLearnChecks: () => copy(db.learnChecks),
     listReferrals: () => copy([...db.referrals].sort((a, b) => a.created_at.localeCompare(b.created_at))),
     async updateReferral(id, patch) {
       const r = db.referrals.find((x) => x.id === id);

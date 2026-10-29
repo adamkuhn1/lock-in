@@ -262,6 +262,11 @@ export default function Settings() {
           <CardHead id="targets-h" title="Targets" />
           <NumberField label="Applications per week" value={s.weekly_app_target} min={1} max={200} onSave={(v) => update.mutate({ weekly_app_target: v })} />
           <NumberField label="Emails per week" value={s.weekly_email_target} min={1} max={100} onSave={(v) => update.mutate({ weekly_email_target: v })} />
+          <NumberField label="Study minutes per day" value={s.study_minutes ?? 180} min={15} max={960}
+            onSave={(v) => update.mutate({ study_minutes: v })} />
+          <NumberField label="Learning tracks, % of study time" value={s.learn_split ?? 30} min={0} max={100}
+            onSave={(v) => update.mutate({ learn_split: v })} />
+          <p className="muted small">The rest goes to interview prep (LeetCode and Prep). 30% keeps recruiting season at 70/30.</p>
           <NumberField label="LinkedIn notes to engineers per week" value={s.weekly_engineer_target ?? 10} min={1} max={100}
             onSave={(v) => update.mutate({ weekly_engineer_target: v })} />
           <label className="check-row">

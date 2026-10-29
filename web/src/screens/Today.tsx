@@ -7,6 +7,7 @@ import { Ring } from '../ui/Ring';
 import { ratePct, replyTotal } from '../lib/referrals';
 import { tierLabel } from '../lib/tiers';
 import { FunnelTile } from '../ui/StatTile';
+import { TodayLearning } from './TodayLearning';
 
 export default function Today() {
   const { state, retry, stats } = useTodayStats();
@@ -39,6 +40,7 @@ export default function Today() {
           <Ring value={s.emailsWeek} max={s.emailTarget} label="Emails this week" caption={`Emails /${s.emailTarget}`} color="cyan" />
         </Link>
       </section>
+      <TodayLearning lcDone={s.lcDone} lcTotal={s.lcTotal} />
       {s.reachUncovered > 0 && (
         <p className="small today-flag">
           <Link to="/hunt/apps">{s.reachUncovered} Reach application{s.reachUncovered === 1 ? '' : 's'} with no engineer contacted yet</Link>
