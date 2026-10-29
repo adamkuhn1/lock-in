@@ -8,9 +8,9 @@ from job_radar.notify import Notifier
 from job_radar.radar import ET, MAX_INDIVIDUAL_ALERTS, build_sources, run
 
 FILTERS = load_filters(Path(__file__).parent.parent / "config/filters.yaml")
-STRIPE = Company("Stripe", "greenhouse", "stripe", "A")
-LYFT = Company("Lyft", "greenhouse", "lyft", "B")
-NG = GitHubList("NG", "SimplifyJobs/New-Grad-Positions", [], "B")
+STRIPE = Company("Stripe", "greenhouse", "stripe", "reach")
+LYFT = Company("Lyft", "greenhouse", "lyft", "volume")
+NG = GitHubList("NG", "SimplifyJobs/New-Grad-Positions", [], "volume")
 MORNING = datetime(2026, 10, 6, 7, 0, tzinfo=ET)  # before the 9am ping
 LATER = datetime(2026, 10, 6, 8, 30, tzinfo=ET)
 
@@ -231,7 +231,7 @@ def test_recent_sends_newest_n_without_touching_state():
     assert [s["title"] for s in n.sent] == ["Stripe — Winter Intern", "Stripe — New Grad SWE"]  # newest last
 
 
-OFF = GitHubList("Off", "SimplifyJobs/Summer2027-Internships", [], "B",
+OFF = GitHubList("Off", "SimplifyJobs/Summer2027-Internships", [], "volume",
                  path="README-Off-Season.md", terms=["Winter", "Spring"])
 OFF_KEY = "github:SimplifyJobs/Summer2027-Internships:README-Off-Season.md"
 

@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { useApplications, useNow, useSetApplicationStatus, useSettings, useSheetStatuses, useUndoApplied } from '../data/hooks';
-import type { Application } from '../data/types';
+import { Link } from 'react-router';
+import {
+  useApplications, useFindEngineers, useLaunchRequests, useNow, useReferrals, useSetApplicationStatus, useSettings, useSheetStatuses, useUndoApplied,
+} from '../data/hooks';
+import type { Application, Tier } from '../data/types';
 import { STAGE_LABEL, appliedThisWeek, fmtPct, funnel, groupByStage, searchApps } from '../lib/funnel';
+import { backing, latestFind, reachWithoutContact } from '../lib/referrals';
+import { TIERS, TIER_LABEL } from '../lib/tiers';
 import { localDay, shortDate } from '../lib/time';
 import { funnelDetail } from '../ui/StatTile';
-import { Button, Card, CardHead, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
+import { Badge, Button, Card, CardHead, Chip, Disclosure, Empty, ExternalLink, LoadError, Skeleton } from '../ui/primitives';
 
 const OPEN_BY_DEFAULT = new Set(['offer', 'interview', 'oa']);
 
@@ -47,13 +52,18 @@ export default function Applications() {
   const statuses = useSheetStatuses();
   const options = statuses.data ?? [];
   const [q, setQ] = useState('');
+  const [tier, setTier] = useState<Tier | null>(null);
+  const refs = useReferrals();
+  const requests = useLaunchRequests();
+  const find = useFindEngineers();
   const list = apps.data ?? [];
+  const flagged = reachWithoutContact(list, refs.data ?? []);
   const today = localDay(now);
   const week = appliedThisWeek(list, today);
   const target = settings.data?.weekly_app_target ?? 25;
   const rows = funnel(list);
   const searching = q.trim() !== '';
-  const groups = groupByStage(searchApps(list, q));
+  const groups = groupByStage(searchApps(tier ? list.filter((a) => a.tier === tier) : list, q));
   const sheetId = settings.data?.sheet_id;
   const sheet = sheetId ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}` : null;
 
@@ -112,8 +122,40 @@ export default function Applications() {
         <p className="muted small">Typical: 582 → 54 → 13 → 5.</p>
       </Card>
 
+      {flagged.length > 0 && (
+        <Card className="span-all" aria-labelledby="flag-h">
+          <CardHead id="flag-h" title="Reach, no engineer yet"><Badge tone="warn">{flagged.length}</Badge></CardHead>
+          <p className="muted small">Reach applications with nobody contacted at the company. A referral note is the best next step.</p>
+          <ul className="flag-list">
+            {flagged.map((a) => {
+              const req = latestFind(requests.data ?? [], { company: a.company });
+              const drafted = backing(a.company, refs.data ?? []) === 'drafted';
+              const name = [a.company, a.role].filter(Boolean).join(' ');
+              return (
+                <li key={a.id} className="app-row">
+                  <span className="job-title">{a.company}</span>
+                  {a.role && <span className="small">{a.role}</span>}
+                  {drafted ? (
+                    <Link className="btn" to="/hunt/engineers">Note drafted, send it</Link>
+                  ) : (
+                    <Button variant="primary" aria-label={`Find engineers: ${name}`} disabled={find.isPending || req?.status === 'queued'}
+                      onClick={() => find.mutate({ company: a.company, role: a.role, tier: a.tier ?? 'reach' })}>
+                      {req?.status === 'queued' ? 'Queued for Mac' : req?.status === 'launched' ? 'Find again' : 'Find engineers'}
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {find.isError && <p role="alert" className="error small">Couldn't queue it. Try again.</p>}
+        </Card>
+      )}
+
       <Card className="span-all" aria-labelledby="board-h">
         <CardHead id="board-h" title="Board" />
+        <div className="chips" role="group" aria-label="Tier">
+          {TIERS.map((t) => <Chip key={t} pressed={tier === t} onToggle={() => setTier(tier === t ? null : t)}>{TIER_LABEL[t]}</Chip>)}
+        </div>
         <label className="field">
           <span>Search</span>
           <input type="search" value={q} placeholder="Company, role or status" onChange={(e) => setQ(e.target.value)} />
@@ -133,6 +175,7 @@ export default function Applications() {
                   <li key={a.id} className="app-row">
                     <span className="job-title">{a.company}</span>
                     {a.role && <span className="small">{a.role}</span>}
+                    {a.tier && <span className="muted small">{TIER_LABEL[a.tier]}</span>}
                     {options.length > 0 ? (
                       <>
                         {a.applied_on && <span className="muted small">{shortDate(a.applied_on)}</span>}

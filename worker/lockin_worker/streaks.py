@@ -8,10 +8,11 @@ from .agenda import _d, agenda as _agenda
 
 
 def activity_days(db) -> set[date]:
-    """Plan days with any real work: a solve, application, outreach sent, commit or prep session."""
+    """Plan days with any real work: a solve, application, outreach or LinkedIn note sent, commit or prep session."""
     days = {clock.plan_day(clock.parse_ts(s["accepted_at"])) for s in db.select("lc_solves") if s.get("accepted_at")}
     days |= {clock.plan_day(clock.parse_ts(c["committed_at"])) for c in db.select("commits") if c.get("committed_at")}
-    for table, col in (("applications", "applied_on"), ("outreach", "sent_on"), ("prep_sessions", "happened_on")):
+    for table, col in (("applications", "applied_on"), ("outreach", "sent_on"), ("referrals", "sent_on"),
+                       ("prep_sessions", "happened_on")):
         days |= {d for d in (_d(r.get(col)) for r in db.select(table)) if d}
     return days
 
@@ -54,6 +55,7 @@ class DayStatus:
     agenda: tuple[str, ...] = ()
 
 
+REFERRAL_FOLLOW_UP_DAYS = 3  # follow up 3-4 days after an engineer accepts
 POSTINGS_WINDOW = timedelta(days=30)  # matches the web (usePostings: found_at >= now - 30 days)
 
 
@@ -72,6 +74,10 @@ def day_status(db, now: datetime) -> DayStatus:
     postings = [p for p in db.select("postings", {"status": "new"}) if _recent(p, cutoff)]
     due = [o for o in db.select("outreach", {"status": "sent"})
            if o.get("follow_up_on") and o["follow_up_on"] <= today.isoformat()]
+    # Engineers who accepted a connection: a follow-up message is due 3 days later (web: lib/referrals.ts).
+    due += [r for r in db.select("referrals", {"status": "accepted"})
+            if r.get("accepted_on") and not r.get("followed_up_on")
+            and _d(r["accepted_on"]) + timedelta(days=REFERRAL_FOLLOW_UP_DAYS) <= today]
     active_projects = db.select("projects", {"active": True})
     idea = next((i for st in ("today", "in_progress") for i in db.select("ideas", {"status": st})
                  if i.get("today_on") == pday), None)

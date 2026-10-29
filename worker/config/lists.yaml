@@ -2,12 +2,12 @@
 #   sections: substrings of the file's "## ..." headings to keep (empty = all)
 #   path:     file in the repo (default: the repo README)
 #   terms:    only alert rows whose "Terms" column mentions one of these
-# Tier is used unless the row's company also appears in companies.yaml.
+# Tier (reach | volume | midwest) is used unless the row's company also appears in companies.yaml.
 github_lists:
   - name: SimplifyJobs New Grad
     repo: SimplifyJobs/New-Grad-Positions
     sections: ["Software Engineering", "Data Science"]
-    tier: B
+    tier: volume
 
   # Summer internships list (README.md) intentionally not watched — no Summer 2027.
   # Bump the year below each cycle when Simplify opens the next repo.
@@ -16,21 +16,21 @@ github_lists:
     path: README-Off-Season.md       # fall/winter/spring terms + co-ops
     sections: ["Software Engineering", "Data Science"]
     terms: ["Winter", "Spring"]
-    tier: B
+    tier: volume
 
   # Markdown-table lists (job_radar/fetchers/simplify.py reads both formats). About half their
   # companies aren't on Simplify. No Terms column, so untermed intern rows are dropped as summer.
   - name: SpeedyApply New Grad (USA)
     repo: speedyapply/2027-SWE-College-Jobs
     path: NEW_GRAD_USA.md
-    tier: B
+    tier: volume
 
   - name: SpeedyApply Internships (USA)
     repo: speedyapply/2027-SWE-College-Jobs
     path: README.md
-    tier: B
+    tier: volume
 
   - name: vanshb03 Off-Season Internships
     repo: vanshb03/Summer2027-Internships
     path: OFFSEASON_README.md
-    tier: B
+    tier: volume

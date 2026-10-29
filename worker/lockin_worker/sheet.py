@@ -91,8 +91,11 @@ def fetch_values(session, sheet_id: str, sa_info: dict) -> list[list[str]]:
     return resp.json().get("values", [])
 
 
-def sync(db, session, sheet_id: str, sa_info: dict) -> dict:
+def sync(db, session, sheet_id: str, sa_info: dict, index=None) -> dict:
     rows = map_rows(fetch_values(session, sheet_id, sa_info))
+    if index is not None:  # reach / volume / midwest, from the company and the Sheet's Location column (migration 0011)
+        for r in rows:
+            r["tier"] = index.tier(r["company"], (r.get("location") or "",))
     db.delete("applications")
     db.insert("applications", rows)
     return {"rows": len(rows)}

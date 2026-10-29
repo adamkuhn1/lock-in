@@ -32,6 +32,7 @@ describe('routes', () => {
   it('Hunt shows badges for new postings and follow-ups due', async () => {
     renderWithData(<AppRoutes />, { route: '/hunt/jobs' });
     expect(await screen.findByRole('link', { name: /^Jobs, \d+ new$/ })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Applications' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Apps' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Engineers, 1 due' })).toHaveAttribute('href', '/hunt/engineers');
   });
 });

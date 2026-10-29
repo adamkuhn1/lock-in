@@ -246,6 +246,7 @@ input[type="number"] { max-width: 10rem; }
 .ring-orange .ring-fill { stroke: var(--orange); }
 .ring-yellow .ring-fill { stroke: var(--yellow); }
 .ring-cyan .ring-fill { stroke: var(--cyan); }
+.ring-green .ring-fill { stroke: var(--green); }
 .ring figcaption { position: relative; display: grid; justify-items: center; line-height: 1; }
 .ring figcaption b { font-size: 1.7rem; }
 .ring figcaption small { font-family: var(--display); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
@@ -290,7 +291,8 @@ input[type="number"] { max-width: 10rem; }
 .streak-chip { color: var(--orange); }
 .day-n { font-size: clamp(4.5rem, 22vw, 7rem); line-height: 0.85; letter-spacing: -0.02em; }
 .day-n span { color: var(--orange); }
-.rings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.rings .ring figcaption b { font-size: 1.4rem; }
 .ring-link { display: block; border-radius: 50%; color: inherit; text-decoration: none; min-width: 0; }
 .funnel-tiles { display: grid; gap: 8px; }
 .tile-link { display: block; color: inherit; text-decoration: none; border-radius: var(--radius); }
@@ -343,3 +345,16 @@ textarea { width: 100%; resize: vertical; padding: 10px 12px; border: 1px solid 
 /* ---------- Share ---------- */
 .share-canvas { display: block; width: 100%; max-width: 340px; height: auto; aspect-ratio: 9 / 16; margin: 0 auto; border-radius: var(--radius); border: 1px solid var(--border); background: #000; }
 .share-caption { overflow-wrap: anywhere; }
+
+/* v3: engineer outreach progress, Jobs sort, reply rates */
+.steps { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
+.steps li { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.steps li[data-done] { color: var(--text); border-color: var(--accent); }
+.sort { display: flex; align-items: center; gap: 8px; }
+.sort select { max-width: 100%; }
+.reply-rates td, .reply-rates th { text-align: right; }
+.reply-rates th[scope='row'], .reply-rates thead th:first-child { text-align: left; }
+.flag-list { display: grid; gap: 8px; }
+.today-flag { margin: 0; }
+.today-flag a { color: var(--yellow); display: inline-flex; align-items: center; min-height: 44px; }
+@media (min-width: 900px) { .today > section[aria-labelledby='replies-h'], .today-flag { grid-column: 2; } }

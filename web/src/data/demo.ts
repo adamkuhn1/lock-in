@@ -3,7 +3,7 @@ import { createFixtures } from './fixtures';
 import { canRate } from './supabase';
 import { statusStage } from '../lib/stages';
 import { localDay } from '../lib/time';
-import type { Idea, LaunchKind, Outreach } from './types';
+import { KEPT, type Idea, type LaunchKind, type Outreach, type Tier } from './types';
 
 /** Stand-in for the Sheet's Status dropdown in demo mode. */
 export const DEMO_STATUSES = [
@@ -19,10 +19,10 @@ export function createDemoApi(now: Date = new Date()): DataApi {
   let seq = 1;
   const newId = (prefix: string) => `${prefix}-demo-${seq++}`;
   const stamp = () => new Date().toISOString();
-  const queueWith = async (kind: LaunchKind, i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => {
+  const queueWith = async (kind: LaunchKind, i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean; tier?: Tier | null }) => {
     const o: Outreach = {
       id: newId('out'), job_url: i.job_url, company: i.company ?? null, role: i.role ?? null, resume_path: null,
-      status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: stamp(),
+      status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: stamp(), tier: i.tier ?? null, replied_on: null,
     };
     db.outreach.unshift(o);
     db.launchRequests.unshift({ id: newId('req'), kind, payload: { outreach_id: o.id, job_url: o.job_url, ...(i.fill ? { fill_application: true } : {}) }, status: 'queued', error: null, created_at: o.created_at });
@@ -61,7 +61,11 @@ export function createDemoApi(now: Date = new Date()): DataApi {
       if (i) Object.assign(i, patch);
     },
     listApplications: () => copy(db.applications),
-    listPostings: (since) => copy(db.postings.filter((p) => (p.status === 'new' || p.status === 'seen') && p.found_at >= since)),
+    listPostings: (since) => copy(db.postings.filter((p) => (p.status === 'new' || p.status === 'seen' || p.status === 'filtered') && p.found_at >= since)),
+    async restorePosting(id) {
+      const p = db.postings.find((x) => x.id === id);
+      if (p) Object.assign(p, { status: 'new', filtered_reason: KEPT });
+    },
     async setPostingStatus(id, status) {
       const p = db.postings.find((x) => x.id === id);
       if (p) p.status = status;
@@ -73,6 +77,17 @@ export function createDemoApi(now: Date = new Date()): DataApi {
     async updateOutreach(id, patch) {
       const o = db.outreach.find((x) => x.id === id);
       if (o) Object.assign(o, patch);
+    },
+    listReferrals: () => copy([...db.referrals].sort((a, b) => a.created_at.localeCompare(b.created_at))),
+    async updateReferral(id, patch) {
+      const r = db.referrals.find((x) => x.id === id);
+      if (r) Object.assign(r, patch);
+    },
+    async findEngineers(i) {
+      db.launchRequests.unshift({
+        id: newId('req'), kind: 'find_engineers', status: 'queued', error: null, created_at: stamp(),
+        payload: { company: i.company, role: i.role ?? null, tier: i.tier ?? null, ...(i.posting_id ? { posting_id: i.posting_id } : {}), ...(i.job_url ? { job_url: i.job_url } : {}) },
+      });
     },
     async requestLaunch(kind, payload) {
       db.launchRequests.unshift({ id: newId('req'), kind, payload, status: 'queued', error: null, created_at: stamp() });

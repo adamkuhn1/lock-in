@@ -6,7 +6,7 @@ from job_radar.models import FetchError
 
 from .conftest import FakeResponse, FakeSession, fixture_json
 
-PALANTIR = Company("Palantir", "lever", "palantir", "A")
+PALANTIR = Company("Palantir", "lever", "palantir", "reach")
 URL = "https://api.lever.co/v0/postings/palantir?mode=json"
 
 

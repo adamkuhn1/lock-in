@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from job_radar import tiers
+
 from . import creds, profile, prompts, resume, terminal
 
 POLL_SECONDS = 10
@@ -369,7 +371,7 @@ def build_best_fit(db, payload: dict, lockin: str, find=None) -> tuple[Path, str
 
 # Make PDF report: every table Claude needs, one JSON file each. problems is global and big, so only solved ones go in.
 REPORT_TABLES = ("lc_solves", "lc_problem_state", "lc_topic_state", "lc_daily_sets", "topics", "applications",
-                 "postings", "outreach", "contacts", "projects", "commits", "ideas", "stories", "prep_sessions",
+                 "postings", "outreach", "contacts", "referrals", "projects", "commits", "ideas", "stories", "prep_sessions",
                  "prep_items", "prep_progress", "company_prep", "events")
 REPORT_DROP = {"owner", "row_hash"}  # bookkeeping columns, not Adam's data
 SETTINGS_PRIVATE = {"ntfy_topic", "sheet_id"}  # anyone holding these can push nudges or find the Sheet
@@ -425,9 +427,62 @@ def build_report(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
     return work, text
 
 
+ENGINEERS_DIR = Path.home() / ".lockin" / "engineers"  # Find engineers runs here, not in $HOME
+REFERRAL_STATUS = {"drafted": "note drafted, not sent", "sent": "note sent", "accepted": "connected",
+                   "replied": "replied", "referred": "referred Adam", "closed": "closed"}
+FIT_WITH_POSTING = """Read the posting (fetch the URL). If it won't load, say so in one line and skip this check. Adam is NOT a fit if the posting clearly:
+- is only for PhD or Master's students or graduates ("Bachelor's or Master's" is fine)
+- needs a graduation date that neither {grad} nor {grad_late} fits
+- asks for 2 or more years of full-time industry experience (internships or "0-2 years" are fine)
+- needs an active security clearance, or isn't entry level (senior, staff, lead, manager)
+
+Then do exactly one of these:
+- **Clear fit:** say so in one line and go on.
+- **Clearly not a fit:** stop. Tell Adam in two or three lines what rules him out, quoting the posting. Ask: "Want me to drop this from Lock In?" Only if he says yes, run `{lockin} skip-job --request {request_id} --reason "<one line, e.g. PhD required>"`. Then stop: no engineer search, no notes.
+- **Unclear:** explain in two or three lines and ask Adam whether to continue. Wait for his answer."""
+FIT_NO_POSTING = ("There's no posting link: Adam started this from an application he already sent. Skip the fit check. "
+                  "If you need the team or stack, look the role up on {company}'s careers site.")
+
+
+def _known_line(r: dict) -> str:
+    who = r["name"] + (f" ({r['title']})" if r.get("title") else "")
+    role = f", {r['role']}" if r.get("role") else ""
+    return f"- {who}: {REFERRAL_STATUS.get(r.get('status'), r.get('status'))}{role}"
+
+
+def build_engineers(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
+    """Find engineers: one or two people at the company to ask for a referral, each with a LinkedIn note."""
+    rid = payload.get("request_id")
+    posting = None
+    if payload.get("posting_id"):
+        posting = next(iter(db.select("postings", {"id": payload["posting_id"]})), None)
+    job_url = payload.get("job_url") or (posting or {}).get("url") or ""
+    if job_url:
+        safe_job_url(job_url)
+    company = (payload.get("company") or (posting or {}).get("company") or "").strip()
+    if not company:
+        raise LaunchError("No company to search: open Find engineers from a job or an application")
+    role = (payload.get("role") or (posting or {}).get("title") or "").strip() or "the role (read it from the posting)"
+    tier = payload.get("tier") or (posting or {}).get("tier") or "reach"
+    settings = (db.select("settings") or [{}])[0]
+    values = profile.prompt_values(settings.get("profile"))
+    key = tiers.company_key(company)
+    known = [r for r in db.select("referrals") if tiers.company_key(r.get("company")) == key]
+    already = "\n".join(_known_line(r) for r in known) or "- Nobody yet."
+    fit = (FIT_WITH_POSTING.format(grad=values["grad"], grad_late=values["grad_late"], lockin=shlex.quote(lockin), request_id=rid)
+           if job_url else FIT_NO_POSTING.format(company=company))
+    text = prompts.render(prompts.load("find_engineers"), {
+        "company": company, "role": role, "tier": tier, "job_url": job_url or "no link (already applied)",
+        "already": already, "fit_step": fit, "request_id": str(rid), "lockin": shlex.quote(lockin), **values,
+    })
+    ENGINEERS_DIR.mkdir(parents=True, exist_ok=True)
+    ENGINEERS_DIR.chmod(0o700)
+    return ENGINEERS_DIR, text
+
+
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
             "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor,
-            "best_fit": build_best_fit, "report": build_report}
+            "best_fit": build_best_fit, "report": build_report, "find_engineers": build_engineers}
 ON_FAIL = {"work_on_idea": revert_work}
 
 
@@ -439,7 +494,8 @@ def process(db, req: dict, opener, lockin: str, find=resume.find_resume) -> str:
         builder = BUILDERS.get(req.get("kind"))
         if builder is None:
             raise LaunchError(f"unknown kind {req.get('kind')!r}")
-        built = builder(db, req.get("payload") or {}, lockin, find=find)
+        # The request id goes to the builder too: Find engineers saves against it (lockin save-engineers --request).
+        built = builder(db, {**(req.get("payload") or {}), "request_id": rid}, lockin, find=find)
         if isinstance(built, dict):  # handled on the Mac without opening Claude; tell the app what happened
             db.update("launch_requests", {"id": rid}, {"payload": {**(req.get("payload") or {}), **built}})
             return "launched"

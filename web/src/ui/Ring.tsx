@@ -3,7 +3,7 @@ import { useMounted } from './motion';
 const R = 42;
 const C = 2 * Math.PI * R;
 
-export function Ring({ value, max, label, caption, color }: { value: number; max: number; label: string; caption: string; color: 'orange' | 'yellow' | 'cyan' }) {
+export function Ring({ value, max, label, caption, color }: { value: number; max: number; label: string; caption: string; color: 'orange' | 'yellow' | 'green' | 'cyan' }) {
   const on = useMounted();
   const frac = max > 0 ? Math.min(value / max, 1) : 0;
   return (

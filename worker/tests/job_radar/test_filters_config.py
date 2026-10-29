@@ -131,7 +131,7 @@ def test_lists_skip_include_but_keep_exclude():
 
 def test_repo_config_loads():
     companies = load_companies(ROOT / "config/companies.yaml")
-    assert companies and all(c.tier in "ABC" for c in companies)
+    assert companies and all(c.tier in ("reach", "volume", "midwest") for c in companies)
     assert load_lists(ROOT / "config/lists.yaml")
 
 
@@ -168,7 +168,7 @@ def test_software_only_companies_need_a_software_role(tmp_path):
     assert f.matches("ASIC Design Engineer - New College Grad 2027")  # other companies keep today's rules
     p = tmp_path / "c.yaml"
     p.write_text("companies:\n"
-                 "  - { name: NVIDIA, ats: workday, token: nvidia.wd5/Site, tier: A }\n"
-                 "  - { name: Stripe, ats: greenhouse, token: stripe, tier: A }\n"
-                 "  - { name: SpaceX, ats: greenhouse, token: spacex, tier: A, software_only: true }\n")
+                 "  - { name: NVIDIA, ats: workday, token: nvidia.wd5/Site, tier: reach }\n"
+                 "  - { name: Stripe, ats: greenhouse, token: stripe, tier: reach }\n"
+                 "  - { name: SpaceX, ats: greenhouse, token: spacex, tier: reach, software_only: true }\n")
     assert [c.software_only for c in load_companies(p)] == [True, False, True]

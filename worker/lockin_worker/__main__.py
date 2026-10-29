@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -60,17 +61,28 @@ def default_steps(env: dict):
         sid = _settings(db).get("sheet_id") or env.get("SHEET_ID")
         if not sid or not env.get("GOOGLE_SA_JSON"):
             return {"skipped": "not configured"}
-        return sheet.sync(db, session, sid, json.loads(env["GOOGLE_SA_JSON"]))
+        srcs, _ = jobs.load_sources(CONFIG_DIR)
+        return sheet.sync(db, session, sid, json.loads(env["GOOGLE_SA_JSON"]), index=jobs.tier_index(srcs))
 
     def jb(db, session, now):
         srcs, filters = jobs.load_sources(CONFIG_DIR)
         out = jobs.collect(db, srcs, filters, session, now)
+        out["tiered"] = jobs.tier_untiered(db, jobs.tier_index(srcs))
         if out["errors"]:
             # one board failing isn't a "jobs" failure; log only the source keys, and fail only if every source failed
             print("job sources failing:", sorted(out["errors"]))
             if len(out["errors"]) == len(srcs):
                 raise RuntimeError("all job sources failed")
-        topic = _settings(db).get("ntfy_topic") or env.get("NTFY_TOPIC")
+        settings = _settings(db)
+        topic = settings.get("ntfy_topic") or env.get("NTFY_TOPIC")
+        if settings.get("job_alerts") and topic and out.get("fresh"):
+            # New reach and Midwest postings one push each; volume ones in one summary. Best effort.
+            for title, body, priority, click in jobs.alerts(out["fresh"], settings.get("app_url")):
+                try:
+                    nudges.send(session, topic, nudges.Nudge("job", title, body, priority, click))
+                except Exception as exc:
+                    print(f"FAILED job alert: {_safe_err(exc)}", file=sys.stderr)
+                    break
         if out.get("alert") and topic:
             try:
                 nudges.send(session, topic, nudges.Nudge(
@@ -152,12 +164,19 @@ def finish(db, session, now: datetime, env: dict) -> list[str]:
     return failed
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    args = argparse.ArgumentParser(prog="lockin_worker")
+    args.add_argument("--only", choices=["jobs"], help="run one step and skip the plan and nudges (the 10-minute job scan)")
+    opts = args.parse_args(argv or [])
     env = dict(os.environ)
     db = RestDB(env["SUPABASE_URL"], env["SUPABASE_SERVICE_KEY"], env["LOCKIN_OWNER_ID"])
     session = requests.Session()
     session.headers["User-Agent"] = "lock-in-worker/1.0 (+personal)"
     now = clock.now()
+    if opts.only:
+        summary = run(db, session, now, env, steps=[s for s in default_steps(env) if s[0] == opts.only])
+        print("done", summary)
+        return 1 if summary["failed"] else 0
     summary = run(db, session, now, env)
     finish_failed = finish(db, session, now, env)
     print("done", summary, "finish failed:", finish_failed)
@@ -165,4 +184,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

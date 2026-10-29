@@ -126,3 +126,21 @@ def test_future_day_one_means_no_streak():
     db.insert("prep_sessions", [{"happened_on": "2026-10-14"}])
     st = day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ))
     assert st.active_streak == 0 and st.active_today is False
+
+
+def test_engineer_follow_ups_count_three_days_after_accepting():
+    db = MemoryDB()
+    db.insert("referrals", [
+        {"id": "a", "status": "accepted", "accepted_on": "2026-10-11", "followed_up_on": None},  # 3 days: due
+        {"id": "b", "status": "accepted", "accepted_on": "2026-10-12", "followed_up_on": None},  # 2 days: not yet
+        {"id": "c", "status": "accepted", "accepted_on": "2026-10-01", "followed_up_on": "2026-10-04"},  # done
+        {"id": "d", "status": "replied", "accepted_on": "2026-10-01", "followed_up_on": None},
+    ])
+    assert day_status(db, datetime(2026, 10, 14, 10, tzinfo=TZ)).followups_due == 1
+
+
+def test_a_sent_linkedin_note_counts_as_activity():
+    from lockin_worker.streaks import activity_days
+    db = MemoryDB()
+    db.insert("referrals", [{"id": "a", "sent_on": "2026-10-14"}])
+    assert activity_days(db) == {date(2026, 10, 14)}

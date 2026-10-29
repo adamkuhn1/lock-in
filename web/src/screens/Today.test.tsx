@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { createDemoApi } from '../data/demo';
 import { addDays, planDay, weekStart } from '../lib/time';
@@ -17,6 +17,13 @@ describe('Today', () => {
     const day = planDay(new Date());
     const emails = 2 + (addDays(day, -5) >= weekStart(day) ? 1 : 0);
     expect(screen.getByRole('img', { name: `Emails this week: ${emails} of 10` })).toBeInTheDocument();
+    // Demo LinkedIn notes went out 2 and 6 days ago.
+    const notes = [-2, -6].filter((d) => addDays(day, d) >= weekStart(day)).length;
+    expect(screen.getByRole('img', { name: `LinkedIn notes to engineers this week: ${notes} of 10` })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '4 Reach applications with no engineer contacted yet' })).toHaveAttribute('href', '/hunt/apps');
+    const replies = within(screen.getByRole('table', { name: 'Reply rate' }));
+    expect(replies.getByRole('row', { name: /^Reach/ })).toHaveTextContent('Reach25% 1/40% 0/2');
+    expect(replies.getByRole('row', { name: /^Volume/ })).toHaveTextContent('Volume— 0/050% 1/2');
     for (const t of ['Applications', 'Online assessments', 'Interviews', 'Offers']) expect(screen.getByText(t)).toBeInTheDocument();
     expect(screen.getByText('vs 9%')).toBeInTheDocument();
     expect(screen.getByText('vs 38%')).toBeInTheDocument(); // Offers: 5/13, rounded only at display
@@ -30,6 +37,7 @@ describe('Today', () => {
     const lc = await screen.findByRole('img', { name: /^LeetCode today/ });
     expect(lc.closest('a')).toHaveAttribute('href', '/grind/leetcode');
     expect(screen.getByRole('img', { name: /^Emails this week/ }).closest('a')).toHaveAttribute('href', '/hunt/outreach');
+    expect(screen.getByRole('img', { name: /^LinkedIn notes/ }).closest('a')).toHaveAttribute('href', '/hunt/engineers');
     expect(screen.getByText('Offers').closest('a')).toHaveAttribute('href', '/hunt/apps');
   });
 

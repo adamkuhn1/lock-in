@@ -76,8 +76,81 @@ title:
     # Hardware-only and support tracks at big employers (IBM posts eight cities of "Hardware Developer")
     - '^(?!.*\bsoftware\b).*\b(hardware|hw)\b'
     - '\btechnical support\b'
+    # More non-software tracks (Adam wants software engineering only). "Software", "engineer" or "developer" in
+    # the title keeps a role; "Technology Analyst"-style bank programs stay, they're software jobs.
+    - '\bproduct (manager|management|owner|marketing|operations|analyst)\b'
+    - '\b(program|project|operations) (manager|management|coordinator|analyst)\b'
+    - '^(?!.*\b(software|engineer|engineering|developer|technology|data engineer)\b).*\banalyst\b'
+    - '\b(customer|client) (success|support|experience)\b|\bsupport (engineer|specialist)\b'
+    - '\bsolutions? (consultant|architect|specialist)\b|\bpre-?sales\b'
+    - '\b(ux|user experience) research'
+    - '\b(human resources|hr|people (ops|operations|partner))\b|\btalent\b'
+    - '\b(supply chain|procurement|logistics|manufacturing|mechanical|electrical|civil|chemical|industrial|process) engineer'
+    - '\btechnician\b|\bfield (service|engineer)\b'
+    - '\b(financial|finance|investment|credit|risk) (analyst|associate|intern)\b|\binvestment banking\b'
+    - '\btrader\b|\btrading (intern|analyst|associate)\b|\bquantitative (researcher|research|trader|trading|analyst)\b'
+    - '\b(actuar(y|ial)|underwriter|economist)\b'
+    - '\b(communications|content|social media|copywriter|editor)\b'
+    - '\bresearch scientist\b'           # research-scientist tracks are PhD tracks; research *engineer* stays
+    # Wrong graduation year in the title: Adam graduates in 2027 (May, or December at the latest)
+    - '^(?!.*\b2027\b).*\b(class of |graduates? |grads? )?202[3-6]\b'
+    - '^(?!.*\b2027\b).*\b(class of |new grad(uate)? |graduates? )2028\b'
     # Security-clearance roles (CTJ = Clearance Jobs, Poly = polygraph, TS/SCI): out of reach for a new grad
     - '\bctj\b|\bpoly(graph)?\b|\bts\s*/\s*sci\b|\b(security )?clearance (required|needed)\b|\bactive (secret|ts) clearance\b'
+
+# Companies never on the radar, matched against the posting's company name (case-insensitive regexes).
+# Proprietary trading firms, market makers and quant funds. Banks and fintech companies stay in.
+# Applications already sent to these firms are kept as they are; only new postings are dropped.
+companies:
+  exclude:
+    - '\bjane street\b'
+    - '\bcitadel\b'                      # Citadel and Citadel Securities
+    - '\bhudson river trading\b|^hrt$'
+    - '\boptiver\b'
+    - '^imc$|\bimc trading\b|\bimc financial markets\b'
+    - '\bakuna\b'
+    - '^drw( holdings| trading)?$'
+    - '\bchicago trading (company|co)\b|^ctc$'
+    - '\bsusquehanna\b|^sig$'
+    - '\bjump trading\b'
+    - '\bfive rings\b'
+    - '\btwo sigma\b'
+    - '\btower research\b'
+    - '\bmaven securities\b'
+    - '\bedgehog\b'
+    - '\bbelvedere trading\b'
+    - '\bold mission\b'
+    # ...and similar
+    - '\bxtx\b'
+    - '\bsquarepoint\b'
+    - '\bflow traders\b'
+    - '\bgeneva trading\b'
+    - '\bvirtu\b'
+    - '\bpoint72\b|\bcubist\b'
+    - '\bd\.? ?e\.? shaw\b'
+    - '\brenaissance technologies\b'
+    - '\baqr\b'
+    - '\bworldquant\b'
+    - '\bpdt partners\b'
+    - '\bvoleon\b'
+    - '\bjump crypto\b'
+    - '\bwolverine trading\b'
+    - '\bpeak6\b'
+    - '\bgroup one trading\b'
+    - '\ballston trading\b'
+    - '\beagle seven\b'
+    - '\btransmarket\b'
+    - '\bvatic\b'
+    - '\bquantlab\b'
+    - '\bhudson trading\b'
+    - '\bradix trading\b'
+    - '\bheadlands tech'
+    - '\bteza\b'
+    - '\bgts\b'
+    - '\bda vinci (trading|derivatives)\b'
+    - '\btibra\b'
+    - '\bvalkyrie trading\b'
+    - '\bbalyasny\b'
 
 # Software-ish work. Required only for companies marked `software_only` in
 # companies.yaml (on by default for Workday and SmartRecruiters boards), where
@@ -100,7 +173,7 @@ role:
     - '\bprogramm(er|ing)\b'
     - '\btechnology (development )?program\b|\btdp\b'
     - '\b(product|solutions|forward[- ]deployed) engineer'
-    - '\bquant(itative)? (developer|engineer|research)'
+    - '\bquant(itative)? (developer|engineer)'
 
 # Where the job is. Checked against the posting's location plus any office /
 # country info the job board provides (see job_radar/location.py).

@@ -9,7 +9,7 @@ import yaml
 from . import location as loc
 
 ATS_TYPES = ("greenhouse", "lever", "ashby", "workday", "smartrecruiters", "amazon", "eightfold", "google", "apple", "meta", "oracle", "ibm")
-TIERS = ("A", "B", "C")
+TIERS = ("reach", "volume", "midwest")  # see config/companies.yaml
 BROAD_ATS = ("workday", "smartrecruiters", "amazon", "eightfold", "google", "apple", "meta", "oracle", "ibm")  # software_only defaults on for these
 
 
@@ -26,6 +26,7 @@ class Company:
     # Big employers (Workday/SmartRecruiters, hardware-heavy companies) post every kind of early-career
     # role; for them the title must also match filters.yaml `role` (software-ish work).
     software_only: bool = False
+    aliases: tuple[str, ...] = ()  # other names in the application Sheet
 
     @property
     def key(self) -> str:
@@ -37,7 +38,7 @@ class GitHubList:
     name: str
     repo: str
     sections: list[str] = field(default_factory=list)
-    tier: str = "B"
+    tier: str = "volume"
     apply_include: bool = False  # list is already curated; only apply excludes by default
     path: str | None = None  # file in the repo; None = the repo's README
     terms: list[str] = field(default_factory=list)  # keep rows whose Terms contain any of these
@@ -69,6 +70,10 @@ class Filters:
     exclude: re.Pattern
     location: LocationRules = LocationRules()
     role: re.Pattern | None = None  # required only for software_only companies
+    company_exclude: re.Pattern | None = None  # trading firms, market makers, quant funds: never on the radar
+
+    def excluded_company(self, company: str) -> bool:
+        return self.company_exclude is not None and bool(self.company_exclude.search((company or "").strip()))
 
     def matches(self, title: str, *, check_include: bool = True, software_only: bool = False) -> bool:
         if self.exclude.search(title):
@@ -106,13 +111,17 @@ def load_companies(path: Path) -> list[Company]:
             name, ats, token = str(raw["name"]).strip(), str(raw["ats"]).strip().lower(), str(raw["token"]).strip()
         except (KeyError, TypeError) as exc:
             raise ConfigError(f"{where}: needs name, ats, token") from exc
-        tier = str(raw.get("tier", "B")).strip().upper()
+        tier = str(raw.get("tier", "volume")).strip().lower()
         if ats not in ATS_TYPES:
             raise ConfigError(f"{where} ({name}): ats must be one of {ATS_TYPES}, got {ats!r}")
         if tier not in TIERS:
             raise ConfigError(f"{where} ({name}): tier must be one of {TIERS}, got {tier!r}")
         software_only = bool(raw.get("software_only", ats in BROAD_ATS))
-        company = Company(name=name, ats=ats, token=token, tier=tier, software_only=software_only)
+        aliases = raw.get("aliases") or []
+        if not isinstance(aliases, list):
+            raise ConfigError(f"{where} ({name}): aliases must be a list")
+        company = Company(name=name, ats=ats, token=token, tier=tier, software_only=software_only,
+                          aliases=tuple(str(a).strip() for a in aliases if str(a).strip()))
         if company.key in keys:
             raise ConfigError(f"{where} ({name}): duplicate {company.key}")
         keys.add(company.key)
@@ -124,7 +133,7 @@ def load_lists(path: Path) -> list[GitHubList]:
     data = _load_yaml(path)
     lists = []
     for raw in data.get("github_lists") or []:
-        tier = str(raw.get("tier", "B")).upper()
+        tier = str(raw.get("tier", "volume")).lower()
         if tier not in TIERS:
             raise ConfigError(f"{path.name} ({raw.get('repo')}): bad tier {tier!r}")
         lists.append(
@@ -158,6 +167,7 @@ def load_filters(path: Path) -> Filters:
         exclude=_compile(title.get("exclude") or [], "exclude"),
         location=_location_rules(data.get("location") or {}),
         role=_compile((data.get("role") or {}).get("include") or [], "role.include") if (data.get("role") or {}).get("include") else None,
+        company_exclude=_compile(excluded, "companies.exclude") if (excluded := (data.get("companies") or {}).get("exclude")) else None,
     )
 
 

@@ -262,6 +262,12 @@ export default function Settings() {
           <CardHead id="targets-h" title="Targets" />
           <NumberField label="Applications per week" value={s.weekly_app_target} min={1} max={200} onSave={(v) => update.mutate({ weekly_app_target: v })} />
           <NumberField label="Emails per week" value={s.weekly_email_target} min={1} max={100} onSave={(v) => update.mutate({ weekly_email_target: v })} />
+          <NumberField label="LinkedIn notes to engineers per week" value={s.weekly_engineer_target ?? 10} min={1} max={100}
+            onSave={(v) => update.mutate({ weekly_engineer_target: v })} />
+          <label className="check-row">
+            <input type="checkbox" checked={!!s.job_alerts} disabled={update.isPending} onChange={(e) => update.mutate({ job_alerts: e.target.checked })} />
+            <span>Phone alert for each new Reach or Midwest posting <span className="muted small">(Volume postings come as one summary. Turn on once job-radar's own alerts are off.)</span></span>
+          </label>
           <TextField label="Day 1" type="date" value={s.day_one} placeholder="2026-09-28"
             validate={(v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v ? null : 'Use YYYY-MM-DD.')}
             onSave={(v, cb) => update.mutate({ day_one: v }, cb)} />

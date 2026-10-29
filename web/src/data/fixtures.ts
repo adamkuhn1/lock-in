@@ -2,7 +2,8 @@ import prepItems from '../../../shared/prep_items.json';
 import { addDays, localDay, planDay } from '../lib/time';
 import type {
   Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting,
-  PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Rating, Settings, Solve, Stage, Story, SyncStatus, Topic, TopicState,
+  PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Rating, Referral, ReferralPick, Settings, Solve, Stage, Story, SyncStatus, Tier,
+  Topic, TopicState,
 } from './types';
 
 export interface DemoDb {
@@ -20,6 +21,7 @@ export interface DemoDb {
   postings: Posting[];
   outreach: Outreach[];
   contacts: Contact[];
+  referrals: Referral[];
   launchRequests: LaunchRequest[];
   syncStatus: SyncStatus[];
   stories: Story[];
@@ -92,16 +94,22 @@ const APPS: [string, string, Stage, string, number][] = [
   ['Whoop', 'Software Engineer Co-op', 'applied', 'Submitted', 1],
   ['Epic Games', 'Software Engineer Intern', 'applied', 'Submitted', 22],
 ];
-const POSTINGS: [string, string, string, string, string | null, boolean, string, number][] = [
-  ['p1', 'Stripe', 'Software Engineer Intern, Winter 2027', 'Chicago, IL', 'Winter 2027', true, 'A', 2],
-  ['p2', 'Ford', 'Software Engineering Co-op', 'Dearborn, MI', 'Winter 2027', true, 'B', 5],
-  ['p3', 'Ramp', 'Software Engineer, New Grad', 'New York, NY', null, false, 'A', 8],
-  ['p4', 'Cloudflare', 'Software Engineer Intern', 'Remote - US', 'Summer 2027', false, 'A', 20],
-  ['p5', 'Duolingo', 'Software Engineer Intern', 'Pittsburgh, PA', 'Summer 2027', false, 'B', 26],
-  ['p6', 'Rocket Companies', 'Software Engineer Intern', 'Detroit, MI', 'Spring 2027', true, 'B', 30],
-  ['p7', 'Datadog', 'Software Engineer, Early Career', 'New York, NY; Boston, MA', null, false, 'A', 40],
-  ['p8', 'Robinhood', 'Software Engineer Intern', 'Menlo Park, CA', 'Summer 2027', false, 'A', 50],
+const POSTINGS: [string, string, string, string, string | null, boolean, Tier, number][] = [
+  ['p1', 'Stripe', 'Software Engineer Intern, Winter 2027', 'Chicago, IL', 'Winter 2027', true, 'reach', 2],
+  ['p2', 'Ford', 'Software Engineering Co-op', 'Dearborn, MI', 'Winter 2027', true, 'midwest', 5],
+  ['p3', 'Ramp', 'Software Engineer, New Grad', 'New York, NY', null, false, 'reach', 8],
+  ['p4', 'Cloudflare', 'Software Engineer Intern', 'Remote - US', 'Summer 2027', false, 'volume', 20],
+  ['p5', 'Duolingo', 'Software Engineer Intern', 'Pittsburgh, PA', 'Summer 2027', false, 'reach', 26],
+  ['p6', 'Rocket Companies', 'Software Engineer Intern', 'Detroit, MI', 'Spring 2027', true, 'midwest', 30],
+  ['p7', 'Datadog', 'Software Engineer, Early Career', 'New York, NY; Boston, MA', null, false, 'volume', 40],
+  ['p8', 'Robinhood', 'Software Engineer Intern', 'Menlo Park, CA', 'Summer 2027', false, 'volume', 50],
 ];
+
+/** Demo tiers, as the worker's Sheet sync would set them from worker/config/companies.yaml. */
+const APP_TIER: Record<string, Tier> = {
+  Stripe: 'reach', Ramp: 'reach', Figma: 'reach', Amazon: 'reach', Duolingo: 'reach', Palantir: 'reach', Plaid: 'reach', Coinbase: 'reach',
+  Ford: 'midwest', GM: 'midwest', 'Rocket Companies': 'midwest', Stryker: 'midwest', "Domino's": 'midwest', Ally: 'midwest',
+};
 
 /** Demo Best fit shortlist: what a Find best fits run saves. */
 const BEST_FIT: Record<string, Partial<Posting>> = {
@@ -115,6 +123,12 @@ export function createFixtures(now: Date): DemoDb {
   const at = (daysAgo: number) => `${addDays(today, -daysAgo)}T18:00:00Z`; // 14:00 EDT / 13:00 EST that day
   const minsAgo = (m: number) => new Date(now.getTime() - m * 60_000).toISOString();
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  const ref = (id: string, request_id: string, company: string, role: string, posting_id: string | null, name: string, title: string,
+    pick: ReferralPick, why: string, note: string, over: Partial<Referral>): Referral => ({
+    id, request_id, company, role, posting_id, job_url: null, tier: APP_TIER[company] ?? 'reach', name, title, pick, why, note,
+    profile_url: `https://www.linkedin.com/in/example-${name.toLowerCase().replace(/[^a-z]+/g, '-')}`,
+    status: 'drafted', sent_on: null, accepted_on: null, followed_up_on: null, replied_on: null, referred_on: null, created_at: now.toISOString(), ...over,
+  });
   let solveId = 1;
   const solve = (slug: string, accepted_at: string, rating: Rating | null): Solve => ({
     id: solveId++, slug, title: PROBLEMS.find((p) => p[0] === slug)![1], accepted_at, rating,
@@ -126,7 +140,7 @@ export function createFixtures(now: Date): DemoDb {
       nudge_times: ['10:00', '18:00', '22:00'], daily_lc_count: 6, weekly_app_target: 25, ntfy_topic: null,
       resume_root: '~/Desktop/Adam_Kuhn_Resumes', sheet_id: 'demo-sheet-id', lc_username: 'adamkuhn',
       lc_started_on: addDays(day, -11), lc_focus_topic: 'Sliding Window', lc_focus_since: addDays(day, -3), app_url: null,
-      day_one: addDays(day, -20), weekly_email_target: 10,
+      day_one: addDays(day, -20), weekly_email_target: 10, weekly_engineer_target: 10, job_alerts: false,
     },
     dailySet: {
       day, focus: 'Sliding Window', mixed_day: false,
@@ -177,7 +191,7 @@ export function createFixtures(now: Date): DemoDb {
     ],
     applications: APPS.map(([company, role, stage, status, d], id) => ({
       id: id + 1, company, role, stage, status, track: role.includes('New Grad') ? 'New grad' : 'Internship', term: null,
-      location: null, priority: null, applied_on: addDays(today, -d),
+      location: null, priority: null, applied_on: addDays(today, -d), tier: APP_TIER[company] ?? 'volume',
     })),
     postings: [
       ...POSTINGS.map(([id, company, title, location, term, starred, tier, h]) => ({
@@ -187,16 +201,53 @@ export function createFixtures(now: Date): DemoDb {
       })),
       {
         id: 'p9', company: 'Lakeshore Labs', title: 'Software Engineer, New Grad 2027', location: 'Chicago, IL', term: null, starred: true,
-        tier: null, status: 'new' as const, posted_at: null, found_at: hoursAgo(1), url: 'https://jobs.ashbyhq.com/lakeshorelabs/2027-new-grad',
+        tier: 'midwest' as const, status: 'new' as const, posted_at: null, found_at: hoursAgo(1), url: 'https://jobs.ashbyhq.com/lakeshorelabs/2027-new-grad',
         fit_rank: 2, fit_reason: 'Found on their careers page: TypeScript + Postgres backend, Chicago, 2027 grads.', found_by: 'claude',
+      },
+      {
+        id: 'p10', company: 'Anduril', title: 'Software Engineer, New Grad', location: 'Costa Mesa, CA', term: null, starred: false,
+        tier: 'reach' as const, status: 'filtered' as const, posted_at: hoursAgo(12), found_at: hoursAgo(11),
+        url: 'https://boards.greenhouse.io/andurilindustries/jobs/4000012', filtered_reason: 'Needs 2+ years of experience',
+      },
+      {
+        id: 'p11', company: 'Notion', title: 'Software Engineer, New Grad 2026', location: 'San Francisco, CA', term: null, starred: false,
+        tier: 'volume' as const, status: 'filtered' as const, posted_at: hoursAgo(30), found_at: hoursAgo(30),
+        url: 'https://jobs.ashbyhq.com/notion/2026', filtered_reason: "Title doesn't fit (filters.yaml)",
       },
     ],
     outreach: [
-      { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: minsAgo(5) },
-      { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), followups: 0, created_at: hoursAgo(30) },
-      { id: 'o4', job_url: 'https://jobs.lever.co/palantir/2', company: 'Palantir', role: 'FDSE Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 6), followups: 0, created_at: hoursAgo(50) },
-      { id: 'o5', job_url: 'https://jobs.lever.co/figma/3', company: 'Figma', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: addDays(day, -5), follow_up_on: day, followups: 0, created_at: hoursAgo(130) },
-      { id: 'o1', job_url: 'https://boards.greenhouse.io/stripe/jobs/4000002', company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', resume_path: '/Users/adamk/Desktop/Adam_Kuhn_Resumes/Stripe_SWE_Intern_2027/Adam_Kuhn_Resume.pdf', status: 'drafted', sent_on: null, follow_up_on: null, followups: 0, created_at: hoursAgo(26) },
+      { id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c', company: 'Ramp', role: 'Software Engineer Intern', resume_path: null, status: 'queued', sent_on: null, follow_up_on: null, followups: 0, created_at: minsAgo(5), tier: 'reach', replied_on: null },
+      { id: 'o3', job_url: 'https://jobs.lever.co/datadog/1', company: 'Datadog', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 1), followups: 0, created_at: hoursAgo(30), tier: 'volume', replied_on: null },
+      { id: 'o4', job_url: 'https://jobs.lever.co/palantir/2', company: 'Palantir', role: 'FDSE Intern', resume_path: null, status: 'sent', sent_on: day, follow_up_on: addDays(day, 6), followups: 0, created_at: hoursAgo(50), tier: 'reach', replied_on: null },
+      { id: 'o5', job_url: 'https://jobs.lever.co/figma/3', company: 'Figma', role: 'Software Engineer Intern', resume_path: null, status: 'sent', sent_on: addDays(day, -5), follow_up_on: day, followups: 0, created_at: hoursAgo(130), tier: 'reach', replied_on: null },
+      { id: 'o6', job_url: 'https://capitalone.wd12.myworkdayjobs.com/Capital_One/job/1', company: 'Capital One', role: 'Technology Internship Program', resume_path: null, status: 'replied', sent_on: addDays(day, -12), follow_up_on: addDays(day, -7), followups: 0, created_at: hoursAgo(300), tier: 'volume', replied_on: addDays(day, -9) },
+      { id: 'o1', job_url: 'https://boards.greenhouse.io/stripe/jobs/4000002', company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', resume_path: '/Users/adamk/Desktop/Adam_Kuhn_Resumes/Stripe_SWE_Intern_2027/Adam_Kuhn_Resume.pdf', status: 'drafted', sent_on: null, follow_up_on: null, followups: 0, created_at: hoursAgo(26), tier: 'reach', replied_on: null },
+    ],
+    referrals: [
+      ref('f1', 'rq-stripe', 'Stripe', 'Software Engineer Intern, Winter 2027', 'p1', 'Maya Chen', 'Software Engineer, Payments', 'ex_apple',
+        'Snippet: "Software Engineer at Stripe · Previously Apple (Apple Pay)".',
+        "Hi Maya, I was a SWE intern at Apple this summer and saw you moved from Apple Pay to Stripe Payments. I just applied to the Software Engineer Intern, Winter 2027 role. Would you be open to referring me? Thanks! Adam",
+        { status: 'accepted', sent_on: addDays(day, -6), accepted_on: addDays(day, -3), created_at: hoursAgo(160) }),
+      ref('f2', 'rq-stripe', 'Stripe', 'Software Engineer Intern, Winter 2027', 'p1', 'Jordan Fields', 'Software Engineer', 'cmu',
+        'Snippet: "Central Michigan University · Software Engineer at Stripe".',
+        "Hi Jordan, fellow CMU Chippewa here! I was a SWE intern at Apple this summer and just applied to Stripe's Software Engineer Intern, Winter 2027 role. Could I ask you one quick question about the team? Thanks, Adam",
+        { status: 'sent', sent_on: addDays(day, -2), created_at: hoursAgo(160) }),
+      ref('f3', 'rq-ramp', 'Ramp', 'Software Engineer, New Grad', 'p3', 'Ava Park', 'Software Engineer, Card Platform', 'ex_apple',
+        'Snippet: "Ramp · Apple (Wallet) 2021-2024".',
+        "Hi Ava, I was a SWE intern at Apple this summer and noticed you were on Wallet before Ramp. I'm applying to Ramp's Software Engineer, New Grad role. Would you be open to referring me? Thanks! Adam",
+        { created_at: minsAgo(40) }),
+      ref('f4', 'rq-ramp', 'Ramp', 'Software Engineer, New Grad', 'p3', 'Leo Brandt', 'Backend Engineer', 'team',
+        'Works on the Bill Pay team named in the posting (engineering blog post).',
+        "Hi Leo, I was a SWE intern at Apple this summer and just read your Bill Pay post. I'm applying to Ramp's Software Engineer, New Grad role. Could I ask one quick question about the team? Thanks, Adam",
+        { created_at: minsAgo(40) }),
+      ref('f5', 'rq-figma', 'Figma', 'Software Engineer Intern, Spring 2027', null, 'Nina Shah', 'Software Engineer', 'ex_apple',
+        'Snippet: "Figma · ex-Apple (Xcode)".',
+        "Hi Nina, I was a SWE intern at Apple this summer and saw you came to Figma from the Xcode team. I applied to the Software Engineer Intern, Spring 2027 role. Would you be open to referring me? Thanks! Adam",
+        { status: 'referred', sent_on: addDays(day, -10), accepted_on: addDays(day, -9), followed_up_on: addDays(day, -6), replied_on: addDays(day, -5), referred_on: addDays(day, -4), created_at: hoursAgo(260) }),
+      ref('f6', 'rq-palantir', 'Palantir', 'Forward Deployed SWE Intern', null, 'Chris Moreno', 'Forward Deployed Engineer', 'team',
+        'Forward Deployed Engineer, same org as the role (conference talk).',
+        "Hi Chris, I was a SWE intern at Apple this summer and I'm in the running for Palantir's Forward Deployed SWE Intern role. Could I ask you one quick question about the work? Thanks, Adam",
+        { status: 'closed', sent_on: addDays(day, -14), created_at: hoursAgo(350) }),
     ],
     contacts: [
       {
@@ -218,6 +269,7 @@ export function createFixtures(now: Date): DemoDb {
       },
     ],
     launchRequests: [
+      { id: 'rq-ramp', kind: 'find_engineers', payload: { posting_id: 'p3', company: 'Ramp', role: 'Software Engineer, New Grad', tier: 'reach' }, status: 'launched', error: null, created_at: minsAgo(45) },
       { id: 'r1', kind: 'outreach', payload: { outreach_id: 'o2', job_url: 'https://jobs.ashbyhq.com/ramp/7d1c' }, status: 'queued', error: null, created_at: minsAgo(5) },
     ],
     syncStatus: [

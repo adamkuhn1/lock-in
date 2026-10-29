@@ -6,7 +6,7 @@ from job_radar.models import FetchError, Job
 
 from .conftest import FakeResponse, FakeSession, fixture_json
 
-STRIPE = Company("Stripe", "greenhouse", "stripe", "A")
+STRIPE = Company("Stripe", "greenhouse", "stripe", "reach")
 URL = "https://boards-api.greenhouse.io/v1/boards/stripe/jobs?content=true"
 
 

@@ -53,6 +53,13 @@ US_CITIES = {
     "philadelphia": "PA", "pittsburgh": "PA", "portland": "OR", "phoenix": "AZ",
     "salt lake city": "UT", "minneapolis": "MN", "detroit": "MI", "nashville": "TN",
     "raleigh": "NC", "charlotte": "NC", "baltimore": "MD", "mclean": "VA", "reston": "VA",
+    # Midwest, for the midwest tier (job_radar/tiers.py)
+    "ann arbor": "MI", "grand rapids": "MI", "lansing": "MI", "east lansing": "MI", "kalamazoo": "MI",
+    "midland": "MI", "dearborn": "MI", "auburn hills": "MI", "mount pleasant": "MI", "southfield": "MI",
+    "evanston": "IL", "naperville": "IL", "northbrook": "IL", "deerfield": "IL", "schaumburg": "IL",
+    "columbus": "OH", "cleveland": "OH", "cincinnati": "OH", "indianapolis": "IN", "milwaukee": "WI",
+    "madison": "WI", "st. louis": "MO", "st louis": "MO", "saint louis": "MO", "kansas city": "MO",
+    "des moines": "IA", "st. paul": "MN", "saint paul": "MN",
 }
 
 # Countries / regions that are never the US. ("Georgia" and "Jersey" are left

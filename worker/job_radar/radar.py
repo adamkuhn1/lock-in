@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from . import posted
+from . import posted, tiers
 from . import state as state_mod
 from .config import Company, Filters, GitHubList, term_matches
 from .fetchers import amazon, apple, ashby, eightfold, google, greenhouse, ibm, lever, meta, oracle, simplify, smartrecruiters, workday
@@ -36,6 +36,8 @@ class Source:
         # term-based title rules work for rows like "Middleware Software Intern".
         text = f"{job.title} ({job.term})" if job.term else job.title
         software_only = isinstance(self.target, Company) and self.target.software_only
+        if filters.excluded_company(job.company):
+            return False
         return (filters.matches(text, check_include=self.check_include, software_only=software_only)
                 and term_matches(job.term, self.terms)
                 and filters.location.allows(filters.placement(job.location_texts)))
@@ -50,7 +52,7 @@ class Candidate:
 
 
 def _priority(tier: str, preferred: bool) -> str:
-    return "high" if tier == "A" or preferred else "default"
+    return "high" if tier == tiers.REACH or preferred else "default"
 
 
 def build_sources(companies: list[Company], lists: list[GitHubList]) -> list[Source]:
@@ -150,7 +152,7 @@ def run(*, sources: list[Source], filters: Filters, state: dict, notifier: Notif
             if job.id in seen:
                 continue
             if src.matches(job, filters):
-                tier = tier_by_company.get(_norm(job.company), src.tier)
+                tier = tiers.posting_tier(tier_by_company.get(_norm(job.company), src.tier), job.location_texts)
                 preferred = filters.placement(job.location_texts).preferred
                 candidates.append(Candidate(job, src.key, tier, preferred))
             else:
@@ -161,7 +163,7 @@ def run(*, sources: list[Source], filters: Filters, state: dict, notifier: Notif
     # ---- de-dupe across sources / previous alerts ----
     to_alert: list[Candidate] = []
     fps_this_run: set[str] = set()
-    for c in sorted(candidates, key=lambda c: (not c.preferred, c.tier, c.job.company, c.job.title)):
+    for c in sorted(candidates, key=lambda c: (not c.preferred, tiers.RANK.get(c.tier, 9), c.job.company, c.job.title)):
         fp = fingerprint(c.job)
         if fp in state["alerted"] or fp in fps_this_run:
             state["sources"][c.source_key]["seen"][c.job.id] = today
@@ -266,7 +268,7 @@ def recent(*, sources: list[Source], filters: Filters, notifier: Notifier, n: in
             if not j.posted_at and (j.age or "").strip() in SIMPLIFY_FRESH_AGES:
                 j = posted.resolve(j, session, cache, log=log)
             if j.posted_at and posted._parse(j.posted_at):
-                pool.append((j, tier_by_company.get(_norm(j.company), src.tier)))
+                pool.append((j, tiers.posting_tier(tier_by_company.get(_norm(j.company), src.tier), j.location_texts)))
 
     pool.sort(key=lambda p: posted._parse(p[0].posted_at), reverse=True)
     picked, fps = [], set()

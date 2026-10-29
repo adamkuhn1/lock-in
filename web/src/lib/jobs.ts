@@ -1,8 +1,10 @@
-import type { Posting } from '../data/types';
+import type { Posting, Tier } from '../data/types';
+import { tierRank } from './tiers';
 
 export type Track = 'internship' | 'new_grad';
-export interface JobFilters { bestFit: boolean; starred: boolean; topTier: boolean; track: Track | null; term: string | null; location: string | null }
-export const NO_FILTERS: JobFilters = { bestFit: false, starred: false, topTier: false, track: null, term: null, location: null };
+export interface JobFilters { bestFit: boolean; starred: boolean; tier: Tier | null; track: Track | null; term: string | null; location: string | null }
+export const NO_FILTERS: JobFilters = { bestFit: false, starred: false, tier: null, track: null, term: null, location: null };
+export type JobSort = 'tier' | 'newest';
 
 export const isBestFit = (p: Posting) => p.fit_rank != null;
 
@@ -23,7 +25,7 @@ export function filterPostings(ps: Posting[], f: JobFilters): Posting[] {
   return ps.filter((p) =>
     (!f.bestFit || isBestFit(p)) &&
     (!f.starred || p.starred) &&
-    (!f.topTier || p.tier === 'A') &&
+    (!f.tier || p.tier === f.tier) &&
     (!f.track || postingTrack(p.title) === f.track) &&
     (!f.term || p.term === f.term) &&
     (!f.location || locationKey(p.location) === f.location));
@@ -31,11 +33,10 @@ export function filterPostings(ps: Posting[], f: JobFilters): Posting[] {
 
 const when = (p: Posting) => Date.parse(p.posted_at ?? p.found_at);
 
-/** Company tier from companies.yaml: A first, then B, C, and postings with no tier (from the GitHub lists) last. */
-const tierRank = (p: Posting) => ({ A: 0, B: 1, C: 2 } as Record<string, number>)[p.tier ?? ''] ?? 3;
-
-export function sortPostings(ps: Posting[]): Posting[] {
-  return [...ps].sort((a, b) => tierRank(a) - tierRank(b) || Number(b.starred) - Number(a.starred) || when(b) - when(a));
+/** By tier (reach, Midwest, volume), starred first within a tier, newest first; or newest first overall. */
+export function sortPostings(ps: Posting[], by: JobSort = 'tier'): Posting[] {
+  if (by === 'newest') return [...ps].sort((a, b) => when(b) - when(a));
+  return [...ps].sort((a, b) => tierRank(a.tier) - tierRank(b.tier) || Number(b.starred) - Number(a.starred) || when(b) - when(a));
 }
 
 export function topLocations(ps: Posting[], n = 6): string[] {

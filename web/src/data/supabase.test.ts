@@ -122,7 +122,12 @@ describe('supabase api', () => {
       ? json({ code: '42703', message: 'column applications.sheet_row does not exist' }, 400)
       : json([row])));
     expect(await before.api.listApplications()).toEqual([row]);
-    expect(before.calls).toHaveLength(2);
+    expect(before.calls).toHaveLength(3); // with tier, then without, then without sheet_row
+    const noTier = harness((c) => (c.url.searchParams.get('select')?.includes('tier')
+      ? json({ code: '42703', message: 'column applications.tier does not exist' }, 400)
+      : json([{ ...row, sheet_row: 7 }])));
+    expect(await noTier.api.listApplications()).toEqual([{ ...row, sheet_row: 7 }]);
+    expect(noTier.calls).toHaveLength(2);
     const other = harness(() => json({ message: 'permission denied for table applications' }, 403));
     await expect(other.api.listApplications()).rejects.toThrow('permission denied');
   });
@@ -235,5 +240,17 @@ describe('supabase api', () => {
     const { api, calls } = harness(() => json([]));
     await api.listIdeas();
     expect(calls[0].url.searchParams.get('select')).toContain('started_at');
+  });
+  it('listReferrals is empty before migration 0011 adds the table', async () => {
+    const before = harness(() => json({ code: '42P01', message: 'relation "public.referrals" does not exist' }, 404));
+    expect(await before.api.listReferrals()).toEqual([]);
+    const other = harness(() => json({ message: 'permission denied for table referrals' }, 403));
+    await expect(other.api.listReferrals()).rejects.toThrow('permission denied');
+  });
+  it('findEngineers queues a find_engineers launch with the job', async () => {
+    const h = harness(() => json(null, 201));
+    await h.api.findEngineers({ posting_id: 'p1', job_url: 'https://x/1', company: 'Stripe', role: 'SWE', tier: 'reach' });
+    expect(h.calls[0].body).toEqual({ kind: 'find_engineers',
+      payload: { company: 'Stripe', role: 'SWE', tier: 'reach', posting_id: 'p1', job_url: 'https://x/1' } });
   });
 });

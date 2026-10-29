@@ -20,21 +20,49 @@ describe('Jobs', () => {
     const titles = [...container.querySelectorAll('[data-primary] .job-title')].map((n) => n.textContent ?? '');
     expect(titles).toHaveLength(9);
     const company = (t: string) => t.replace(/^.*?Starred: /, '').split(' · ')[0];
-    // Tier A (Stripe starred, then Ramp, Cloudflare, Datadog, Robinhood newest first), then tier B (Ford and Rocket starred, then Duolingo),
-    // then untiered (Lakeshore Labs, which Claude found on the web)
-    expect(titles.map(company)).toEqual(['Stripe', 'Ramp', 'Cloudflare', 'Datadog', 'Robinhood', 'Ford', 'Rocket Companies', 'Duolingo', 'Lakeshore Labs']);
-    expect(screen.getAllByText(/^Tier A · /)).toHaveLength(5);
+    // Reach (Stripe starred, then Ramp, Duolingo newest first), then Midwest (all starred: Lakeshore Labs, Ford, Rocket newest first),
+    // then volume (Cloudflare, Datadog, Robinhood)
+    expect(titles.map(company)).toEqual(['Stripe', 'Ramp', 'Duolingo', 'Lakeshore Labs', 'Ford', 'Rocket Companies', 'Cloudflare', 'Datadog', 'Robinhood']);
+    expect(screen.getAllByText(/^Reach · /)).toHaveLength(3);
   });
-  it('Tier A chip shows only top-tier companies', async () => {
-    renderWithData(tree);
-    await userEvent.click(await screen.findByRole('button', { name: 'Tier A' }));
-    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(5);
+  it('tier chips show one tier, and Newest first ignores tiers', async () => {
+    const { container } = renderWithData(tree);
+    await userEvent.click(await screen.findByRole('button', { name: 'Reach (3)' }));
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(3);
+    await userEvent.click(screen.getByRole('button', { name: 'Midwest (3)' }));
+    expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(3);
+    await userEvent.click(screen.getByRole('button', { name: 'Midwest (3)' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort' }), 'newest');
+    const first = container.querySelector('[data-primary] .job-title')?.textContent ?? '';
+    expect(first).toContain('Lakeshore Labs'); // found an hour ago
+  });
+  it('Reach rows offer Find engineers and queue it with the posting', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'findEngineers');
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByRole('button', { name: 'Find engineers: Duolingo Software Engineer Intern' }));
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ posting_id: 'p5', company: 'Duolingo', tier: 'reach' }));
+    expect(await screen.findByRole('button', { name: /^Find engineers: Duolingo/ })).toHaveTextContent('Queued for Mac');
+    // Ramp has two drafted, Stripe two sent; Cloudflare is volume, so no button
+    expect(screen.getByRole('link', { name: /2 engineers to message/ })).toHaveAttribute('href', '/hunt/engineers');
+    expect(screen.getByRole('link', { name: /2 of 2 notes sent/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Find engineers: Cloudflare/ })).not.toBeInTheDocument();
+  });
+  it('filtered postings sit under Filtered with the reason, and can be restored', async () => {
+    const api = createDemoApi();
+    const spy = vi.spyOn(api, 'restorePosting');
+    renderWithData(tree, { api });
+    await userEvent.click(await screen.findByText('Filtered (2)'));
+    expect(screen.getByText(/Needs 2\+ years of experience/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Restore Anduril Software Engineer, New Grad' }));
+    expect(spy).toHaveBeenCalledWith('p10');
+    expect(await screen.findAllByRole('button', { name: 'Cold email' })).toHaveLength(10);
   });
   it('filters by star and clears', async () => {
     renderWithData(tree);
     await userEvent.click(await screen.findByRole('button', { name: '⭐ Starred' }));
     expect(screen.getAllByRole('button', { name: 'Cold email' })).toHaveLength(4);
-    await userEvent.click(screen.getByRole('button', { name: 'Tier A' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reach (3)' }));
     await userEvent.click(screen.getByRole('button', { name: 'New grad' }));
     expect(screen.getByText('Nothing matches these filters.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
@@ -96,7 +124,7 @@ describe('Jobs', () => {
     await screen.findAllByRole('button', { name: 'Cold email' });
     const stripe = [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes('Stripe')) as HTMLElement;
     await userEvent.click(within(stripe).getByRole('button', { name: 'Cold email' }));
-    expect(queue).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027' });
+    expect(queue).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', tier: 'reach' });
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
   });
@@ -109,7 +137,7 @@ describe('Jobs', () => {
     await screen.findAllByRole('button', { name: 'Tailor resume' });
     const stripe = [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes('Stripe')) as HTMLElement;
     await userEvent.click(within(stripe).getByRole('button', { name: 'Tailor resume' }));
-    expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027' });
+    expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', tier: 'reach' });
     expect(cold).not.toHaveBeenCalled();
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
@@ -122,7 +150,7 @@ describe('Jobs', () => {
     await screen.findAllByRole('button', { name: 'Tailor & fill out app' });
     const stripe = [...container.querySelectorAll('li.job')].find((li) => li.textContent?.includes('Stripe')) as HTMLElement;
     await userEvent.click(within(stripe).getByRole('button', { name: 'Tailor & fill out app' }));
-    expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', fill: true });
+    expect(tailor).toHaveBeenCalledWith({ job_url: expect.stringMatching(/^https:\/\/boards\.greenhouse\.io\/stripe\//), company: 'Stripe', role: 'Software Engineer Intern, Winter 2027', tier: 'reach', fill: true });
     expect(await screen.findByText('outreach page')).toBeInTheDocument();
     expect(status).toHaveBeenCalledWith('p1', 'outreach');
   });

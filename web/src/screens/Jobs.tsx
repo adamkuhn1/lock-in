@@ -1,12 +1,17 @@
-import { ClipboardPen, ExternalLink as ExternalIcon, FileText, Mail, Sparkles } from 'lucide-react';
+import { ClipboardPen, ExternalLink as ExternalIcon, FileText, Mail, Sparkles, UserSearch } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
-  useLaunchRequests, useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useRequestLaunch, useSetPostingStatus, useUndoApplied,
+  useFindEngineers, useLaunchRequests, useNow, useOutreach, usePostings, useQueueOutreach, useQueueTailor, useReferrals, useRequestLaunch,
+  useRestorePosting, useSetPostingStatus, useUndoApplied,
 } from '../data/hooks';
-import type { Posting, PostingStatus } from '../data/types';
+import type { LaunchRequest, Posting, PostingStatus, Referral } from '../data/types';
 import { launchState } from '../lib/ideas';
-import { NO_FILTERS, capPerCompany, filterPostings, isBestFit, sortByFit, sortPostings, termsOf, topLocations, type JobFilters } from '../lib/jobs';
+import {
+  NO_FILTERS, capPerCompany, filterPostings, isBestFit, sortByFit, sortPostings, termsOf, topLocations, type JobFilters, type JobSort,
+} from '../lib/jobs';
+import { latestFind } from '../lib/referrals';
+import { TIERS, TIER_LABEL, tierLabel } from '../lib/tiers';
 import { relativeTime } from '../lib/time';
 import { safeHref } from '../lib/url';
 import { IApplied } from '../ui/IApplied';
@@ -14,12 +19,39 @@ import { Badge, Button, Card, CardHead, Chip, Disclosure, Empty, ErrorDetail, Ex
 
 const PER_COMPANY = 3; // inbox rows per company before "Show N more"
 
-function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onFill, onDismiss, onApplied }: {
+/** Reach rows: find an engineer to ask for a referral before applying. Shows how far that has got. */
+function FindEngineers({ p, engineers, request, busy, onFind }: {
+  p: Posting; engineers: Referral[]; request: LaunchRequest | null; busy: boolean; onFind: () => void;
+}) {
+  if (engineers.length > 0) {
+    const sent = engineers.filter((r) => r.sent_on).length;
+    return (
+      <Link className="btn" to="/hunt/engineers">
+        <UserSearch size={18} aria-hidden />{sent > 0 ? `${sent} of ${engineers.length} notes sent` : `${engineers.length} engineer${engineers.length === 1 ? '' : 's'} to message`}
+      </Link>
+    );
+  }
+  const waiting = request?.status === 'queued';
+  const skipped = typeof request?.payload.skipped === 'string' ? request.payload.skipped : null;
+  return (
+    <>
+      <Button variant="primary" className="job-find" aria-label={`Find engineers: ${p.company} ${p.title}`} disabled={busy || waiting} onClick={onFind}>
+        <UserSearch size={18} aria-hidden />{waiting ? 'Queued for Mac' : request?.status === 'failed' ? 'Try again' : 'Find engineers'}
+      </Button>
+      {request?.status === 'launched' && !skipped && <span className="muted small">Opened on Mac</span>}
+      {skipped && <span className="muted small">Skipped: {skipped}</span>}
+    </>
+  );
+}
+
+function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onFill, onDismiss, onApplied, find }: {
   p: Posting; now: Date; busy: boolean; queued: boolean; onOpen?: () => void; onApplied: () => void;
   onCold: (href: string) => void; onTailor: (href: string) => void; onFill: (href: string) => void; onDismiss: () => void;
+  /** Reach postings only. */
+  find?: { engineers: Referral[]; request: LaunchRequest | null; onFind: () => void };
 }) {
   const href = safeHref(p.url);
-  const meta = [p.tier && `Tier ${p.tier}`, p.location, p.term, relativeTime(p.posted_at ?? p.found_at, now)].filter(Boolean).join(' · ');
+  const meta = [p.tier && tierLabel(p.tier), p.location, p.term, relativeTime(p.posted_at ?? p.found_at, now)].filter(Boolean).join(' · ');
   return (
     <li className="job">
       <div>
@@ -35,6 +67,7 @@ function JobRow({ p, now, busy, queued, onOpen, onCold, onTailor, onFill, onDism
         {!href && p.url && <p className="muted small">Link: {p.url}</p>}
       </div>
       <div className="row-actions">
+        {find && <FindEngineers p={p} engineers={find.engineers} request={find.request} busy={busy} onFind={find.onFind} />}
         <Button className="job-cold" disabled={!href || busy || queued} onClick={() => { if (href) onCold(href); }}><Mail size={18} aria-hidden />Cold email</Button>
         <Button className="job-tailor" disabled={!href || busy || queued} onClick={() => { if (href) onTailor(href); }}><FileText size={18} aria-hidden />Tailor resume</Button>
         <Button className="job-fill" disabled={!href || busy || queued} onClick={() => { if (href) onFill(href); }}><ClipboardPen size={18} aria-hidden />Tailor &amp; fill out app</Button>
@@ -62,27 +95,33 @@ export default function Jobs() {
   const requests = useLaunchRequests();
   const launch = useRequestLaunch();
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [sort, setSort] = useState<JobSort>('tier');
+  const referrals = useReferrals();
+  const findEngineers = useFindEngineers();
+  const restore = useRestorePosting();
 
   const all = postings.data ?? [];
   const fresh = all.filter((p) => p.status === 'new');
   // Opening a link isn't acting on it: an opened posting stays in the inbox (tagged Opened) until it's applied, emailed or dismissed.
   const open = all.filter((p) => p.status === 'new' || p.status === 'seen');
   const matching = filterPostings(open, f);
-  const inbox = f.bestFit ? sortByFit(matching) : sortPostings(matching);
+  const inbox = f.bestFit ? sortByFit(matching) : sortPostings(matching, sort);
+  const filtered = all.filter((p) => p.status === 'filtered');
+  const tierCount = (t: string) => open.filter((p) => p.tier === t).length;
   // The shortlist is short and ranked, so it's never capped; the full inbox shows a few rows per company.
   const items = f.bestFit ? inbox.map((p) => ({ kind: 'posting' as const, p })) : capPerCompany(inbox, PER_COMPANY, expanded);
   const bestFits = open.filter(isBestFit).length;
   const fit = launchState(requests.data ?? [], (r) => r.kind === 'best_fit', now);
   const terms = termsOf(open);
   const places = topLocations(open);
-  const filtering = f.bestFit || f.starred || f.topTier || f.track !== null || f.term !== null || f.location !== null;
+  const filtering = f.bestFit || f.starred || f.tier !== null || f.track !== null || f.term !== null || f.location !== null;
   const toggle = <K extends keyof JobFilters>(k: K, v: JobFilters[K]) => setF({ ...f, [k]: f[k] === v ? NO_FILTERS[k] : v });
 
   // Wait for the posting to leave the inbox before navigating, so coming back can't queue a second outreach for it.
   const queuedUrls = new Set((outreach.data ?? []).filter((o) => o.status === 'queued').map((o) => o.job_url));
   const startOutreach = async (p: Posting, href: string, mode: 'cold' | 'tailor' | 'fill') => {
     try {
-      const job = { job_url: href, company: p.company, role: p.title };
+      const job = { job_url: href, company: p.company, role: p.title, tier: p.tier };
       await (mode === 'cold' ? queue.mutateAsync(job) : tailor.mutateAsync(mode === 'fill' ? { ...job, fill: true } : job));
       await setStatus.mutateAsync({ id: p.id, status: 'outreach' });
       navigate('/hunt/outreach');
@@ -115,7 +154,12 @@ export default function Jobs() {
       onTailor={(href) => void startOutreach(p, href, 'tailor')}
       onFill={(href) => void startOutreach(p, href, 'fill')}
       onDismiss={() => dismiss(p)}
-      onApplied={() => { setDismissed(null); setApplied({ p, prev: p.status }); }} />
+      onApplied={() => { setDismissed(null); setApplied({ p, prev: p.status }); }}
+      find={p.tier === 'reach' ? {
+        engineers: (referrals.data ?? []).filter((r) => r.posting_id === p.id),
+        request: latestFind(requests.data ?? [], { posting_id: p.id, company: p.company }),
+        onFind: () => findEngineers.mutate({ posting_id: p.id, job_url: safeHref(p.url), company: p.company, role: p.title, tier: p.tier }),
+      } : undefined} />
   );
 
   return (
@@ -141,7 +185,9 @@ export default function Jobs() {
 
       <div className="chips" role="group" aria-label="Filters">
         <Chip pressed={f.bestFit} onToggle={() => setF({ ...f, bestFit: !f.bestFit })}>Best fit{bestFits > 0 && ` (${bestFits})`}</Chip>
-        <Chip pressed={f.topTier} onToggle={() => setF({ ...f, topTier: !f.topTier })}>Tier A</Chip>
+        {TIERS.map((t) => (
+          <Chip key={t} pressed={f.tier === t} onToggle={() => toggle('tier', t)}>{TIER_LABEL[t]}{tierCount(t) > 0 && ` (${tierCount(t)})`}</Chip>
+        ))}
         <Chip pressed={f.starred} onToggle={() => setF({ ...f, starred: !f.starred })}>⭐ Starred</Chip>
         <Chip pressed={f.track === 'internship'} onToggle={() => toggle('track', 'internship')}>Internship</Chip>
         <Chip pressed={f.track === 'new_grad'} onToggle={() => toggle('track', 'new_grad')}>New grad</Chip>
@@ -155,7 +201,17 @@ export default function Jobs() {
         </Disclosure>
       )}
 
-      {(queue.isError || tailor.isError || setStatus.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
+      {!f.bestFit && (
+        <label className="sort">
+          <span className="small muted">Sort</span>
+          <select value={sort} onChange={(e) => setSort(e.target.value as JobSort)}>
+            <option value="tier">Tier: Reach, Midwest, Volume</option>
+            <option value="newest">Newest first</option>
+          </select>
+        </label>
+      )}
+
+      {(queue.isError || tailor.isError || setStatus.isError || findEngineers.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
       {unapply.isError && <p role="alert" className="error small">{unapply.error.message}</p>}
       <div role="status" className="undo">
         {dismissed && (<>
@@ -197,6 +253,27 @@ export default function Jobs() {
           </ul>
         )}
       </Card>
+
+      {filtered.length > 0 && (
+        <Disclosure summary={`Filtered (${filtered.length})`}>
+          <p className="muted small">The scanner read these postings and filed them away. Restore one if it got it wrong.</p>
+          <ul>
+            {filtered.map((p) => (
+              <li key={p.id} className="job">
+                <div>
+                  <p className="job-title">{p.company} · {p.title}</p>
+                  <p className="muted small">{[p.filtered_reason ?? 'Filtered', p.tier && tierLabel(p.tier), p.location].filter(Boolean).join(' · ')}</p>
+                </div>
+                <div className="row-actions">
+                  {safeHref(p.url) && <ExternalLink className="btn btn-quiet" href={p.url}>Open</ExternalLink>}
+                  <Button variant="quiet" aria-label={`Restore ${p.company} ${p.title}`} disabled={restore.isPending}
+                    onClick={() => restore.mutate(p.id)}>Restore</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
     </div>
   );
 }

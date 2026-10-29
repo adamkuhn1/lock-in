@@ -115,3 +115,16 @@ def test_step_output_prints_counts_only(capsys):
     assert "github {'commits': 2, 'errors': ['o/r']}" in out
     assert "sheet {}" in out
     assert "SECRET" not in out and "HTTP 500" not in out
+
+
+def test_only_jobs_runs_just_the_job_scan(monkeypatch):
+    db = _finish_db()
+    for k in ("SUPABASE_URL", "SUPABASE_SERVICE_KEY", "LOCKIN_OWNER_ID"):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.setattr(m, "RestDB", lambda *a: db)
+    monkeypatch.setattr(m.clock, "now", lambda: NOW)
+    ran = []
+    monkeypatch.setattr(m, "default_steps", lambda env: [(n, lambda *a, n=n: ran.append(n) or {}) for n in ("leetcode", "jobs")])
+    monkeypatch.setattr(m, "finish", lambda *a: (_ for _ in ()).throw(AssertionError("finish must not run")))
+    assert m.main(["--only", "jobs"]) == 0
+    assert ran == ["jobs"]

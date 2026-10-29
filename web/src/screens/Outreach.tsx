@@ -203,7 +203,7 @@ export default function Outreach() {
       prompt={() => copyPrompt(o, settings.data?.profile)} busy={update.isPending || launch.isPending} contactsLoaded={contacts.isSuccess} applied={!!o.company && inSheet.has(key(o.company, o.role))}
       onSent={() => update.mutate({ id: o.id, patch: { status: 'sent', sent_on: today, follow_up_on: followUpOn(today), followups: 0 } })}
       onFollowedUp={() => update.mutate({ id: o.id, patch: { followups: o.followups + 1, follow_up_on: addDays(today, FOLLOW_UP_RETRY_DAYS) } })}
-      onReplied={() => update.mutate({ id: o.id, patch: { status: 'replied' } })}
+      onReplied={() => update.mutate({ id: o.id, patch: { status: 'replied', replied_on: today } })}
       onClose={() => update.mutate({ id: o.id, patch: { status: 'closed' } })}
       onReopen={() => update.mutate({ id: o.id, patch: { status: o.sent_on !== null ? 'sent' : (contacts.data ?? []).some((c) => c.outreach_id === o.id) ? 'drafted' : 'queued' } })}
       onRetry={() => launch.mutate({

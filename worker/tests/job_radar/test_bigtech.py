@@ -78,7 +78,7 @@ def test_eightfold_entry_hint_skips_leveled_titles_and_keeps_partial_results(mon
         return FakeResp(429, {})
 
     session = type("S", (), {"get": staticmethod(get)})()
-    jobs = {j.id: j for j in eightfold.fetch(Company("Microsoft", "eightfold", "h.example/microsoft.com", "A"), session)}
+    jobs = {j.id: j for j in eightfold.fetch(Company("Microsoft", "eightfold", "h.example/microsoft.com", "reach"), session)}
     assert jobs["1"].term == "Entry level" and jobs["2"].term is None
     assert calls == ["Entry", "Intern"]  # stopped at the 429, kept the first page
 
@@ -87,7 +87,7 @@ def test_eightfold_first_request_failure_raises(monkeypatch):
     from job_radar.config import Company
     session = type("S", (), {"get": staticmethod(lambda url, timeout, params, headers: FakeResp(429, {}))})()
     with pytest.raises(FetchError, match="429"):
-        eightfold.fetch(Company("Microsoft", "eightfold", "h.example/microsoft.com", "A"), session)
+        eightfold.fetch(Company("Microsoft", "eightfold", "h.example/microsoft.com", "reach"), session)
 
 
 def test_meta_parse():

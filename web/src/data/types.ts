@@ -5,10 +5,14 @@ export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type Level = 'locked' | 'available' | 'learning' | 'practicing' | 'solid' | 'mastered';
 export type Stage = 'applied' | 'oa' | 'interview' | 'offer' | 'closed' | 'other';
 export type IdeaStatus = 'todo' | 'today' | 'in_progress' | 'done' | 'dropped';
-export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach' | 'applied';
+export type PostingStatus = 'new' | 'seen' | 'dismissed' | 'outreach' | 'applied' | 'filtered';
+/** reach = top startups, FAANG, Apple; volume = big new-grad programs; midwest = Midwest/Chicago (worker/config/companies.yaml). */
+export type Tier = 'reach' | 'volume' | 'midwest';
+/** filtered_reason on a posting Adam restored from Filtered; the worker won't file it away again. */
+export const KEPT = 'Kept by Adam';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
-export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report';
+export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report' | 'find_engineers';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {
@@ -25,11 +29,15 @@ export interface Settings {
   app_url: string | null;
   day_one: string;
   weekly_email_target: number;
+  /** LinkedIn notes to engineers per week (migration 0011; reads as 10 before it). */
+  weekly_engineer_target?: number;
+  /** Phone alert for each new reach or Midwest posting (migration 0011). */
+  job_alerts?: boolean;
   /** Adam's profile, edited on Me (migration 0008). Absent before the migration. */
   profile?: Profile;
 }
 export type SettingsPatch = Partial<
-  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target' | 'profile'>
+  Pick<Settings, 'nudge_times' | 'daily_lc_count' | 'weekly_app_target' | 'resume_root' | 'app_url' | 'lc_focus_topic' | 'lc_focus_since' | 'day_one' | 'weekly_email_target' | 'weekly_engineer_target' | 'job_alerts' | 'profile'>
 >;
 
 export interface SetItem { slug: string; slot: Slot; order: number; done: boolean }
@@ -101,6 +109,8 @@ export interface Application {
   applied_on: string | null;
   /** 1-based row in the Sheet, set by the worker's sync (null/absent until then). */
   sheet_row?: number | null;
+  /** Set by the worker's Sheet sync from the company and location (migration 0011). */
+  tier?: Tier | null;
 }
 export interface MarkAppliedInput { posting_id?: string; outreach_id?: string; force?: boolean }
 export interface UndoAppliedInput { company: string; role: string | null; sheet_row?: number | null }
@@ -112,7 +122,7 @@ export interface Posting {
   url: string | null;
   term: string | null;
   posted_at: string | null;
-  tier: string | null;
+  tier: Tier | null;
   starred: boolean;
   status: PostingStatus;
   found_at: string;
@@ -122,6 +132,8 @@ export interface Posting {
   fit_reason?: string | null;
   /** 'claude' when Claude found it on the web rather than the job scanner. */
   found_by?: string | null;
+  /** Why the worker filed it away (status 'filtered'), e.g. "Needs 3+ years of experience" (migration 0011). */
+  filtered_reason?: string | null;
 }
 export interface Outreach {
   id: string;
@@ -135,8 +147,12 @@ export interface Outreach {
   /** Follow-ups sent so far (migration 0006; reads as 0 before it is applied). */
   followups: number;
   created_at: string;
+  /** Copied from the posting when queued, otherwise set by the worker (migration 0011). */
+  tier?: Tier | null;
+  /** When the recruiter replied (migration 0011). Older replied cards have none. */
+  replied_on?: string | null;
 }
-export type OutreachPatch = Partial<Pick<Outreach, 'status' | 'sent_on' | 'follow_up_on' | 'followups'>>;
+export type OutreachPatch = Partial<Pick<Outreach, 'status' | 'sent_on' | 'follow_up_on' | 'followups' | 'replied_on'>>;
 export interface Contact {
   id: string;
   outreach_id: string;
@@ -149,6 +165,36 @@ export interface Contact {
   draft_subject: string | null;
   draft_body: string | null;
 }
+export type ReferralStatus = 'drafted' | 'sent' | 'accepted' | 'replied' | 'referred' | 'closed';
+/** Why Claude picked this engineer, in rank order: ex-Apple, Central Michigan alumni, same team or stack. */
+export type ReferralPick = 'ex_apple' | 'cmu' | 'team' | 'other';
+/** One engineer Claude suggested for a job, with the LinkedIn note Adam sends himself (migration 0011). */
+export interface Referral {
+  id: string;
+  request_id: string | null;
+  posting_id: string | null;
+  job_url: string | null;
+  company: string;
+  role: string | null;
+  tier: Tier | null;
+  name: string;
+  title: string | null;
+  profile_url: string | null;
+  pick: ReferralPick;
+  why: string | null;
+  note: string;
+  status: ReferralStatus;
+  sent_on: string | null;
+  accepted_on: string | null;
+  followed_up_on: string | null;
+  replied_on: string | null;
+  referred_on: string | null;
+  created_at: string;
+}
+export type ReferralPatch = Partial<Pick<Referral, 'status' | 'sent_on' | 'accepted_on' | 'followed_up_on' | 'replied_on' | 'referred_on'>>;
+/** What Find engineers needs: a posting from Jobs, or just the company and role of an application. */
+export interface FindEngineersInput { posting_id?: string | null; job_url?: string | null; company: string; role?: string | null; tier?: Tier | null }
+
 export interface LaunchRequest {
   id: string;
   kind: LaunchKind;

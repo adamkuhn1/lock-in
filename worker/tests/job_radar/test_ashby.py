@@ -6,7 +6,7 @@ from job_radar.models import FetchError
 
 from .conftest import FakeResponse, FakeSession, fixture_json
 
-RAMP = Company("Ramp", "ashby", "ramp", "A")
+RAMP = Company("Ramp", "ashby", "ramp", "reach")
 URL = "https://api.ashbyhq.com/posting-api/job-board/ramp"
 
 

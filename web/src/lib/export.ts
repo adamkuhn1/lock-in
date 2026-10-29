@@ -51,12 +51,13 @@ export function exportSummary(d: {
 export async function buildExport(api: DataApi, now: Date) {
   const [
     settings, problems, topics, topicStates, problemStates, solves, projects, commits, ideas, applications, postings,
-    outreach, contacts, launchRequests, syncStatus, stories, prepSessions, prepItems, prepProgress, companyPrep, events,
+    outreach, contacts, launchRequests, syncStatus, stories, prepSessions, prepItems, prepProgress, companyPrep, events, referrals,
   ] = await Promise.all([
     api.getSettings(), api.listProblems(), api.listTopics(), api.listTopicStates(), api.listProblemStates(), api.listSolves(),
     api.listProjects(), api.listCommits(EPOCH), api.listIdeas(), api.listApplications(), api.listPostings(EPOCH),
     api.listOutreach(), api.listContacts(), api.listLaunchRequests(), api.listSyncStatus(), api.listStories(),
     api.listPrepSessions(EPOCH.slice(0, 10)), api.listPrepItems(), api.listPrepProgress(), api.listCompanyPrep(), api.listEvents(),
+    api.listReferrals(),
   ]);
   const root = settings.resume_root.replace(/\/$/, '');
   const profile = mergedProfile(settings.profile);
@@ -81,7 +82,7 @@ export async function buildExport(api: DataApi, now: Date) {
     leetcode: { solves, problem_states: problemStates, topic_states: topicStates, topics, problems },
     applications,
     postings,
-    outreach: { cards: outreach, contacts },
+    outreach: { cards: outreach, contacts, engineers: referrals },
     projects: { projects, commits, ideas },
     prep: { stories, sessions: prepSessions, items: prepItems, progress: prepProgress, companies: companyPrep },
     calendar: events,

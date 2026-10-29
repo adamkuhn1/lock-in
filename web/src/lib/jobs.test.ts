@@ -4,7 +4,7 @@ import { NO_FILTERS, filterPostings, locationKey, postingTrack, sortPostings, te
 
 const J = (id: string, over: Partial<Posting> = {}): Posting => ({
   id, company: 'Co', title: 'Software Engineer Intern', location: 'Detroit, MI', url: 'https://x.com/' + id,
-  term: 'Winter 2027', posted_at: null, tier: 'A', starred: false, status: 'new', found_at: '2026-10-14T12:00:00Z', ...over,
+  term: 'Winter 2027', posted_at: null, tier: 'reach', starred: false, status: 'new', found_at: '2026-10-14T12:00:00Z', ...over,
 });
 
 describe('jobs', () => {
@@ -33,13 +33,15 @@ describe('jobs', () => {
     const ps = [J('old', { posted_at: '2026-10-10T00:00:00Z' }), J('new', { posted_at: '2026-10-14T00:00:00Z' }), J('star', { starred: true, posted_at: '2026-10-01T00:00:00Z' })];
     expect(sortPostings(ps).map((p) => p.id)).toEqual(['star', 'new', 'old']);
   });
-  it('sorts by tier first (A, B, C, then untiered), then starred, then newest', () => {
+  it('sorts by tier first (reach, Midwest, volume, then untiered), then starred, then newest', () => {
     const ps = [
-      J('c', { tier: 'C', starred: true }), J('none', { tier: null }), J('b-old', { tier: 'B', posted_at: '2026-10-01T00:00:00Z' }),
-      J('a', { tier: 'A', posted_at: '2026-09-01T00:00:00Z' }), J('b-new', { tier: 'B', posted_at: '2026-10-13T00:00:00Z' }),
+      J('v', { tier: 'volume', starred: true }), J('none', { tier: null }), J('m-old', { tier: 'midwest', posted_at: '2026-10-01T00:00:00Z' }),
+      J('r', { tier: 'reach', posted_at: '2026-09-01T00:00:00Z' }), J('m-new', { tier: 'midwest', posted_at: '2026-10-13T00:00:00Z' }),
     ];
-    expect(sortPostings(ps).map((p) => p.id)).toEqual(['a', 'b-new', 'b-old', 'c', 'none']);
-    expect(filterPostings(ps, { ...NO_FILTERS, topTier: true }).map((p) => p.id)).toEqual(['a']);
+    expect(sortPostings(ps).map((p) => p.id)).toEqual(['r', 'm-new', 'm-old', 'v', 'none']);
+    expect(sortPostings(ps, 'newest').map((p) => p.id)).toEqual(['v', 'none', 'm-new', 'm-old', 'r']); // no post time: found_at
+    expect(filterPostings(ps, { ...NO_FILTERS, tier: 'reach' }).map((p) => p.id)).toEqual(['r']);
+    expect(filterPostings(ps, { ...NO_FILTERS, tier: 'midwest' }).map((p) => p.id)).toEqual(['m-old', 'm-new']);
   });
   it('topLocations and termsOf', () => {
     const ps = [J('1'), J('2'), J('3', { location: 'Ann Arbor, MI', term: null })];

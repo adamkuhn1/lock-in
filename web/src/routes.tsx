@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 import Applications from './screens/Applications';
 import Calendar from './screens/Calendar';
+import Engineers from './screens/Engineers';
 import Grind from './screens/Grind';
 import Hunt from './screens/Hunt';
 import Jobs from './screens/Jobs';
@@ -34,6 +35,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="jobs" replace />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="apps" element={<Applications />} />
+          <Route path="engineers" element={<Engineers />} />
           <Route path="outreach" element={<Outreach />} />
         </Route>
         <Route path="projects" element={<Projects />} />

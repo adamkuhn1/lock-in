@@ -64,7 +64,7 @@ def test_fetch_runs_each_query_dedupes_and_stops_on_a_short_page():
     def pages(body):  # every query returns the same 20 + 3 rows
         return Resp(200, {"jobPostings": [row(i) for i in range(20)] if body["offset"] == 0 else [row(20 + i) for i in range(3)]})
     s = Session(pages)
-    jobs = workday.fetch(Company("NVIDIA", "workday", "nvidia.wd5/Site", "A"), s, now=NOW)
+    jobs = workday.fetch(Company("NVIDIA", "workday", "nvidia.wd5/Site", "reach"), s, now=NOW)
     assert len(jobs) == 23
     assert s.calls[0] == ("https://nvidia.wd5.myworkdayjobs.com/wday/cxs/nvidia/Site/jobs", "new grad", 0)
     assert len(s.calls) == 2 * len(workday.QUERIES)
@@ -73,4 +73,4 @@ def test_fetch_runs_each_query_dedupes_and_stops_on_a_short_page():
 def test_fetch_error_status_raises():
     s = Session(lambda body: Resp(429, {}))
     with pytest.raises(FetchError, match="HTTP 429"):
-        workday.fetch(Company("X", "workday", "x.wd1/S", "B"), s, now=NOW)
+        workday.fetch(Company("X", "workday", "x.wd1/S", "volume"), s, now=NOW)

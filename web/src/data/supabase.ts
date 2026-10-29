@@ -1,8 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AlreadyCountedError, type DataApi } from './api';
+import { KEPT } from './types';
 import type {
   Application, CalEvent, Commit, CompanyPrep, Contact, DailySet, Idea, LaunchRequest, Outreach, Posting, PrepItem, PrepProgress,
-  PrepSession, Problem, ProblemState, Project, Settings, Solve, Story, SyncResult, SyncStatus, Topic, TopicState,
+  PrepSession, Problem, ProblemState, Project, Referral, Settings, Solve, Story, SyncResult, SyncStatus, Tier, Topic, TopicState,
 } from './types';
 
 type PgError = { message: string } | null;
@@ -27,6 +28,28 @@ export async function allPages<T>(build: (from: number, to: number) => PromiseLi
 
 /** Only unapplied solves can still be rated; the worker applies each solve once. */
 export { canRate } from '../lib/today';
+
+/** A column or table a migration adds isn't there yet (PostgREST: "does not exist" / "schema cache"). */
+export function missing(e: unknown, names: string[]): boolean {
+  if (!(e instanceof Error)) return false;
+  return names.some((n) => new RegExp(`${n}\\b.*(does not exist|schema cache)|could not find .*${n}\\b`, 'i').test(e.message));
+}
+const V3_POSTINGS = ['filtered_reason'];
+const V3_OUTREACH = ['tier', 'replied_on'];
+const REFERRAL_COLS = 'id,request_id,posting_id,job_url,company,role,tier,name,title,profile_url,pick,why,note,status,sent_on,accepted_on,'
+  + 'followed_up_on,replied_on,referred_on,created_at';
+
+/** Try each select in turn; fall to the next only when the error names one of that try's newer columns. */
+export async function firstThatWorks<T>(page: (select: string) => Promise<T[]>, tries: [string, string[]][]): Promise<T[]> {
+  for (const [i, [select, optional]] of tries.entries()) {
+    try {
+      return await page(select);
+    } catch (e) {
+      if (i === tries.length - 1 || !missing(e, optional)) throw e;
+    }
+  }
+  return [];
+}
 
 async function exec(p: PromiseLike<{ error: PgError }>): Promise<void> {
   const { error } = await p;
@@ -75,9 +98,16 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
   const requestLaunch: DataApi['requestLaunch'] = (kind, payload) =>
     exec(sb.from('launch_requests').insert({ kind, payload }));
 
-  const queueWith = async (kind: 'outreach' | 'tailor_resume', i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => {
-    const o = await rows<Outreach>(sb.from('outreach')
-      .insert({ job_url: i.job_url, company: i.company ?? null, role: i.role ?? null }).select().single());
+  const queueWith = async (kind: 'outreach' | 'tailor_resume', i: { job_url: string; company?: string | null; role?: string | null; fill?: boolean; tier?: Tier | null }) => {
+    const row = { job_url: i.job_url, company: i.company ?? null, role: i.role ?? null };
+    const insert = (r: Record<string, unknown>) => rows<Outreach>(sb.from('outreach').insert(r).select().single());
+    let o: Outreach;
+    try {
+      o = await insert(i.tier ? { ...row, tier: i.tier } : row);
+    } catch (e) {
+      if (!i.tier || !missing(e, ['tier'])) throw e;
+      o = await insert(row); // before migration 0011; the worker can't tier it either, so it stays untiered
+    }
     await requestLaunch(kind, { outreach_id: o.id, job_url: o.job_url, ...(i.fill ? { fill_application: true } : {}) });
     return o;
   };
@@ -141,42 +171,43 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
         .order('position').order('id').range(a, b)),
     addIdea: (i) => exec(sb.from('ideas').insert({ ...i, status: 'todo', source: 'me' })),
     updateIdea: (id, patch) => exec(sb.from('ideas').update(patch).eq('id', id)),
-    async listApplications() {
+    listApplications() {
       const cols = 'id,company,role,track,term,location,status,stage,priority,applied_on';
-      const page = (select: string) => allPages<Application>((a, b) => sb.from('applications').select(select).order('id').range(a, b));
-      try {
-        return await page(`${cols},sheet_row`);
-      } catch (e) {
-        // Before migration 0005 the column doesn't exist; the app still works without it.
-        if (e instanceof Error && /sheet_row.*(does not exist|schema cache)|column.*sheet_row/i.test(e.message)) return page(cols);
-        throw e;
-      }
+      // tier: migration 0011; sheet_row: migration 0005. The app works without either.
+      return firstThatWorks((select) => allPages<Application>((a, b) => sb.from('applications').select(select).order('id').range(a, b)), [
+        [`${cols},sheet_row,tier`, ['tier', 'sheet_row']], [`${cols},sheet_row`, ['sheet_row']], [cols, []]]);
     },
-    async listPostings(since) {
+    listPostings(since) {
       const cols = 'id,company,title,location,url,term,posted_at,tier,starred,status,found_at';
-      const page = (select: string) => allPages<Posting>((a, b) => sb.from('postings').select(select)
-        .in('status', ['new', 'seen']).gte('found_at', since).order('found_at', { ascending: false }).order('id').range(a, b));
-      try {
-        return await page(`${cols},fit_rank,fit_reason,found_by`);
-      } catch (e) {
-        // Before migration 0009 the Best fit columns don't exist; nothing is on the shortlist.
-        if (e instanceof Error && /(fit_rank|fit_reason|found_by).*(does not exist|schema cache)|column.*(fit_rank|fit_reason|found_by)/i.test(e.message)) return page(cols);
-        throw e;
-      }
+      const fit = ['fit_rank', 'fit_reason', 'found_by'];
+      // Filtered postings come too (Jobs shows them under Filtered). filtered_reason: 0011; Best fit columns: 0009.
+      return firstThatWorks((select) => allPages<Posting>((a, b) => sb.from('postings').select(select)
+        .in('status', ['new', 'seen', 'filtered']).gte('found_at', since).order('found_at', { ascending: false }).order('id').range(a, b)), [
+        [`${cols},${fit.join(',')},${V3_POSTINGS.join(',')}`, [...fit, ...V3_POSTINGS]], [`${cols},${fit.join(',')}`, fit], [cols, []]]);
     },
     setPostingStatus: (id, status) => exec(sb.from('postings').update({ status }).eq('id', id)),
+    restorePosting: (id) => exec(sb.from('postings').update({ status: 'new', filtered_reason: KEPT }).eq('id', id)),
     async listOutreach() {
       const cols = 'id,job_url,company,role,resume_path,status,sent_on,follow_up_on,created_at';
-      const page = (select: string) => allPages<Outreach>((a, b) => sb.from('outreach').select(select)
-        .order('created_at', { ascending: false }).order('id').range(a, b));
+      // tier, replied_on: 0011; followups: 0006 (reads as no follow-ups sent before it).
+      const list = await firstThatWorks((select) => allPages<Outreach>((a, b) => sb.from('outreach').select(select)
+        .order('created_at', { ascending: false }).order('id').range(a, b)), [
+        [`${cols},followups,${V3_OUTREACH.join(',')}`, ['followups', ...V3_OUTREACH]], [`${cols},followups`, ['followups']], [cols, []]]);
+      return list.map((o) => ({ ...o, followups: o.followups ?? 0 }));
+    },
+    async listReferrals() {
       try {
-        return await page(`${cols},followups`);
+        return await allPages<Referral>((a, b) => sb.from('referrals').select(REFERRAL_COLS).order('created_at').order('id').range(a, b));
       } catch (e) {
-        // Before migration 0006 the column doesn't exist; every row reads as no follow-ups sent.
-        if (e instanceof Error && /followups.*(does not exist|schema cache)|column.*followups/i.test(e.message)) return (await page(cols)).map((o) => ({ ...o, followups: 0 }));
+        if (missing(e, ['referrals'])) return []; // before migration 0011
         throw e;
       }
     },
+    updateReferral: (id, patch) => exec(sb.from('referrals').update(patch).eq('id', id)),
+    findEngineers: (i) => requestLaunch('find_engineers', {
+      company: i.company, role: i.role ?? null, tier: i.tier ?? null,
+      ...(i.posting_id ? { posting_id: i.posting_id } : {}), ...(i.job_url ? { job_url: i.job_url } : {}),
+    }),
     listContacts: () =>
       allPages<Contact>((a, b) => sb.from('contacts')
         .select('id,outreach_id,name,title,linkedin_url,email_guess,email_confidence,why,draft_subject,draft_body').order('id').range(a, b)),

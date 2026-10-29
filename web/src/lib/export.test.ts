@@ -11,7 +11,8 @@ describe('export', () => {
     const out = await buildExport(api, NOW);
     expect(out.exported_at).toBe(NOW.toISOString());
     expect(out.applications).toHaveLength(21);
-    expect(out.postings).toHaveLength(9);
+    expect(out.postings).toHaveLength(11); // 9 in the inbox, 2 filtered
+    expect(out.outreach.engineers.length).toBeGreaterThan(0);
     expect(out.projects.projects.map((p) => p.id)).toEqual(['27b', 'showboat', 'lego']);
     expect(out.summary.applications.total).toBe(21);
     expect(out.summary.leetcode.solved).toBe(new Set(out.leetcode.solves.map((s) => s.slug)).size);

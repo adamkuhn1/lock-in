@@ -175,3 +175,15 @@ vercel.json ships only conservative headers (nosniff, Referrer-Policy, no-cache 
   3. **Vercel env vars** (below), then **deploy the web app**. The web app also works before 0005 (it reads `sheet_row` only if the column exists), but `/api/sheet` and "I applied" need 0005, because `postings.status = 'applied'` is rejected without it.
 
   In Vercel (Production and Preview) add these **server-only** env vars (never `VITE_`-prefixed): `GOOGLE_SA_JSON` (the service-account key JSON, one line; the account needs Editor on the Sheet), `SHEET_ID` (the only Sheet `/api/sheet` will ever write) and `LOCKIN_OWNER_ID` (your Supabase user id, the same value as the GitHub secret). Without all three, `/api/sheet` refuses with "Sheet writes aren't configured." and only `LOCKIN_OWNER_ID` may write. The Status picker shows exactly the options in the Sheet's Status dropdown, so add new wording (e.g. "Rejected after OA", "Rejected after interview") to the dropdown in the Sheet first; if the Status column has no dropdown, the picker is hidden.
+
+## 11. v3 (2026-10-28): engineer outreach, tiers, faster job scans
+
+Deploy in this order. The new worker writes columns that only exist after the migration.
+
+1. Run `supabase/migrations/0011_engineers_tiers.sql` in the SQL editor. It re-tiers postings, adds the `referrals` table and the reply dates, files trading-firm postings out of the inbox (applications to them are untouched), and schedules `lockin-jobs`, a jobs-only scan at :17, :27, :47 and :57.
+2. Restart the launcher so it knows `find_engineers`: `launchctl kickstart -k gui/$(id -u)/com.lockin.launcher`.
+3. Push to main. `jobs.yml` must be on main before pg_cron dispatches it; until then those dispatches fail harmlessly.
+4. Check: `select * from cron.job where jobname = 'lockin-jobs';` and, after ~10 minutes, `gh run list --workflow jobs`.
+5. Phone alerts for new postings: once job-radar's own alerts are off (step 8), turn on **Me → Settings → Phone alert for each new Reach or Midwest posting**. Until then they stay off so nothing alerts twice.
+
+The first scan after the migration re-tiers and re-checks the whole open inbox, so expect a burst of postings under Jobs → Filtered. Anything there can be restored, and the scanner won't file a restored posting again.

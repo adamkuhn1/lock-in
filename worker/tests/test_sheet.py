@@ -78,3 +78,16 @@ def test_sync_persists_sheet_row(monkeypatch):
     monkeypatch.setattr(sheet, "fetch_values", lambda *a: TITLE + [HEADER, ["New", "r", "", "", "", "OA invited", "", ""]])
     sheet.sync(db, None, "sid", {})
     assert db.select("applications")[0]["sheet_row"] == 6
+
+
+def test_sync_tags_each_application_with_a_tier(monkeypatch):
+    from job_radar.config import Company
+    from job_radar.tiers import TierIndex
+    db = MemoryDB()
+    monkeypatch.setattr(sheet, "fetch_values", lambda *a: [HEADER,
+        ["Apple Inc.", "SWE", "", "", "Cupertino, CA", "Applied", "", ""],
+        ["Acme", "SWE", "", "", "Chicago, IL", "Applied", "", ""],
+        ["Jane Street", "SWE", "", "", "New York, NY", "Applied", "", ""]])
+    sheet.sync(db, None, "sid", {}, index=TierIndex([Company("Apple", "apple", "apple", "reach")]))
+    assert [(r["company"], r["tier"]) for r in db.select("applications")] == [
+        ("Apple Inc.", "reach"), ("Acme", "midwest"), ("Jane Street", "volume")]  # kept as-is, just untiered

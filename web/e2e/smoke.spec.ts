@@ -7,6 +7,7 @@ const SCREENS = [
   { name: 'grind-prep', path: '/grind/prep', heading: 'Prep' },
   { name: 'hunt-jobs', path: '/hunt/jobs', heading: 'Jobs' },
   { name: 'hunt-apps', path: '/hunt/apps', heading: 'Applications' },
+  { name: 'hunt-engineers', path: '/hunt/engineers', heading: 'Engineers' },
   { name: 'hunt-outreach', path: '/hunt/outreach', heading: 'Outreach' },
   { name: 'projects', path: '/projects', heading: 'Projects' },
   { name: 'calendar', path: '/calendar', heading: 'Calendar' },

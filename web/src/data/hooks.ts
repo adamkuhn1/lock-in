@@ -4,7 +4,7 @@ import type { DataApi } from './api';
 import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
-  Application, CompanyPrepInput, Idea, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  Application, CompanyPrepInput, FindEngineersInput, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
   PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
@@ -24,6 +24,7 @@ export const keys = {
   postings: ['postings'],
   outreach: ['outreach'],
   contacts: ['contacts'],
+  referrals: ['referrals'],
   launchRequests: ['launchRequests'],
   syncStatus: ['syncStatus'],
   stories: ['stories'],
@@ -71,6 +72,11 @@ export const useOutreach = () => {
   });
 };
 export const useContacts = () => { const api = useApi(); return useQuery({ queryKey: keys.contacts, queryFn: () => api.listContacts() }); };
+export const useReferrals = () => { const api = useApi(); return useQuery({ queryKey: keys.referrals, queryFn: () => api.listReferrals() }); };
+export const useUpdateReferral = () =>
+  useApiMutation((api, v: { id: string; patch: ReferralPatch }) => api.updateReferral(v.id, v.patch), [keys.referrals]);
+export const useFindEngineers = () =>
+  useApiMutation((api, v: FindEngineersInput) => api.findEngineers(v), [keys.launchRequests, keys.referrals]);
 export const useLaunchRequests = () => {
   const api = useApi();
   return useQuery({
@@ -121,11 +127,12 @@ export const useSwapIdea = () =>
   }, [keys.ideas]);
 export const useSetPostingStatus = () =>
   useApiMutation((api, v: { id: string; status: PostingStatus }) => api.setPostingStatus(v.id, v.status), [keys.postings]);
+export const useRestorePosting = () => useApiMutation((api, id: string) => api.restorePosting(id), [keys.postings]);
 export const useQueueOutreach = () =>
-  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null }) => api.queueOutreach(v),
+  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null; tier?: Tier | null }) => api.queueOutreach(v),
     [keys.outreach, keys.launchRequests]);
 export const useQueueTailor = () =>
-  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null; fill?: boolean }) => api.queueTailor(v),
+  useApiMutation((api, v: { job_url: string; company?: string | null; role?: string | null; fill?: boolean; tier?: Tier | null }) => api.queueTailor(v),
     [keys.outreach, keys.launchRequests]);
 export const useUpdateOutreach = () =>
   useApiMutation((api, v: { id: string; patch: OutreachPatch }) => api.updateOutreach(v.id, v.patch), [keys.outreach]);
