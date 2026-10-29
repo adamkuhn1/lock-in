@@ -117,7 +117,7 @@ const APP_TIER: Record<string, Tier> = {
   Ford: 'midwest', GM: 'midwest', 'Rocket Companies': 'midwest', Stryker: 'midwest', "Domino's": 'midwest', Ally: 'midwest',
 };
 
-type RawItem = { id: string; type: string; title: string; url: string | null; hours: number; project?: string | null; check?: string | null; details?: string };
+type RawItem = { id: string; type: string; title: string; url: string | null; hours: number; project?: string | null; check?: string | null; details?: string; why?: string };
 /** The real tracks from shared/learning.json, shaped like the learn_modules / learn_items rows the worker writes. */
 export function learningContent(): { modules: LearnModule[]; items: LearnItem[] } {
   const modules: LearnModule[] = [];
@@ -127,7 +127,8 @@ export function learningContent(): { modules: LearnModule[]; items: LearnItem[] 
       modules.push({ id: m.id, track: t.id as LearnTrack, ord: m.ord, title: m.title, summary: m.summary ?? '' });
       (m.items as RawItem[]).forEach((it, i) => items.push({
         id: it.id, module_id: m.id, ord: i + 1, type: it.type as LearnType, title: it.title, url: it.url ?? null, hours: it.hours,
-        project: it.type === 'build' ? it.project ?? null : null, check_kind: (it.check ?? null) as LearnItem['check_kind'], details: it.details ?? '',
+        project: it.type === 'build' ? it.project ?? null : null, check_kind: (it.check ?? null) as LearnItem['check_kind'],
+        details: it.why ? `${(it.details ?? '').trim()} Why this: ${it.why.trim()}`.trim() : it.details ?? '',
       }));
     }
   }

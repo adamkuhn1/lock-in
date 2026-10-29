@@ -144,3 +144,8 @@ def test_build_check_and_review_prompts(tmp_path, monkeypatch):
 
 def test_rating_for():
     assert [learn.rating_for(s, 6) for s in (6, 5, 4, 3, 2)] == ["nailed", "nailed", "struggled", "struggled", "help"]
+
+
+def test_why_is_shown_after_the_details():
+    assert learn.details({"details": "Lectures 1-4.", "why": "Best rated course."}) == "Lectures 1-4. Why this: Best rated course."
+    assert learn.details({"details": "Do it."}) == "Do it."

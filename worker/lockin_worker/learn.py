@@ -54,11 +54,17 @@ def load(path: Path = CONTENT) -> tuple[list[dict], list[dict]]:
                 kinds.add(typ)
                 items.append({"id": iid, "module_id": mid, "ord": i + 1, "type": typ, "title": it["title"], "url": url,
                               "hours": float(it.get("hours") or 0), "project": it.get("project") if typ == "build" else None,
-                              "check_kind": check, "details": it.get("details") or ""})
+                              "check_kind": check, "details": details(it)})
             missing = set(TYPES) - kinds
             if missing:
                 raise ContentError(f"{mid}: needs at least one item of each type; missing {sorted(missing)}")
     return modules, items
+
+
+def details(it: dict) -> str:
+    """What to do, then (for watch and do items) why it's the pick: "Why this: ..." shows under the item in the app."""
+    text, why = (it.get("details") or "").strip(), (it.get("why") or "").strip()
+    return f"{text} Why this: {why}".strip() if why else text
 
 
 def sync_content(db, path: Path = CONTENT) -> dict:
