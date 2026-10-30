@@ -25,13 +25,17 @@ Binary addition works like the column addition you learned in school, with only 
 
 Look at the table again. The **sum** column is 1 when the inputs differ: that's **XOR**. The **carry** column is 1 only when both are 1: that's **AND**. So one XOR plus one AND add two bits. This circuit is called a **half adder**.
 
+<!-- check 1 -->
+
 ## Full adder: three inputs
 
 Every column except the rightmost also has to add the carry coming in from the column to its right. That's three bits in (`a`, `b`, `carry_in`) and two out. A **full adder** is two half adders:
 
 1. Half-add `a` and `b`, giving a partial sum `s1` and a carry `c1`.
 2. Half-add `s1` and `carry_in`, giving the final `sum` and a carry `c2`.
-3. `carry_out` is `c1` OR `c2`. (They can never both be 1. Try to see why.)
+3. `carry_out` is `c1` OR `c2`.
+
+A few of the 8 rows:
 
 | a | b | c_in | sum | c_out |
 |---|---|------|-----|-------|
@@ -40,6 +44,8 @@ Every column except the rightmost also has to add the carry coming in from the c
 | 1 | 1 | 1 | 1 | 1 |
 | 0 | 0 | 1 | 1 | 0 |
 
+<!-- check 2 -->
+
 ## Ripple-carry: chain them
 
 To add two 8-bit numbers, line up 8 full adders, one per column. The rightmost column starts with carry 0. Each adder's carry-out feeds the next adder to its left. The carry "ripples" across, which is where the name **ripple-carry adder** comes from.
@@ -47,6 +53,8 @@ To add two 8-bit numbers, line up 8 full adders, one per column. The rightmost c
 Remember, bits are most significant first, so the 1s column is the **last** item in the list. Walk from the end of the list to the front.
 
 The carry out of the leftmost column is the extra bit that doesn't fit. Adding `1111` + `0001` gives `0000`, with carry 1. For unsigned numbers, that leftover carry means the result **overflowed**.
+
+<!-- check 3 -->
 
 ## Why real chips don't stop here
 

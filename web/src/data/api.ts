@@ -48,6 +48,8 @@ export interface DataApi {
   /** null clears it (back to in progress). */
   setModuleDone(moduleId: string, doneOn: string | null): Promise<void>;
   listLearnChecks(): Promise<LearnCheck[]>;
+  /** A lesson's spaced review, scored in the app (module_id is the lesson's "lesson:<id>"). */
+  addLearnCheck(c: Omit<LearnCheck, 'id'>): Promise<void>;
   updateOutreach(id: string, patch: OutreachPatch): Promise<void>;
   requestLaunch(kind: LaunchKind, payload: Record<string, unknown>): Promise<void>;
   listLaunchRequests(): Promise<LaunchRequest[]>;

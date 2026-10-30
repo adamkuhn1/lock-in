@@ -1,13 +1,14 @@
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, useParams } from 'react-router';
-import { useLearnModules, useLearnProgress, useNow, useSaveLearnProgress } from '../data/hooks';
+import { useLaunchRequests, useLearnModules, useLearnProgress, useNow, useRequestLaunch, useSaveLearnProgress } from '../data/hooks';
 import type { LearnProgress } from '../data/types';
 import { TRACKS } from '../lib/learn';
 import {
-  findLesson, lessonItemId, lessonPath, lessonRating, lessonsFor, loadLessonFiles, readDraft, writeDraft,
-  type Draft, type Lesson as LessonT, type LessonFiles, type QuizQuestion,
+  ASK_CODE_MAX, findLesson, lessonItemId, lessonPath, lessonRating, lessonsFor, loadLessonFiles, readDraft, writeDraft,
+  splitReading, type Draft, type Lesson as LessonT, type LessonFiles,
 } from '../lib/lessons';
+import { launchState } from '../lib/ideas';
 import { getRunner, type GradeResult } from '../lib/python';
 import { planDay } from '../lib/time';
 import { RATINGS } from '../lib/today';
@@ -15,6 +16,7 @@ import { CodeEditor } from '../ui/CodeEditor';
 import { prefersReducedMotion } from '../ui/motion';
 import { Markdown, MarkdownInline, highlightPython } from '../ui/Markdown';
 import { Badge, Button, Disclosure, Empty, Skeleton } from '../ui/primitives';
+import { Question } from '../ui/Question';
 
 const DESKTOP = '(min-width: 900px)';
 function useDesktop() {
@@ -29,25 +31,22 @@ function useRunnerState() {
   return useSyncExternalStore(runner.subscribe, runner.state);
 }
 
-function QuizQ({ q, n }: { q: QuizQuestion; n: number }) {
-  const [picked, setPicked] = useState<number | null>(null);
-  const chosen = picked === null ? null : q.options[picked];
+/** The reading, with each quick check right after the section it tests. */
+function Reading({ files, lessonId }: { files: LessonFiles; lessonId: string }) {
+  const quiz = files.meta.quiz ?? [];
   return (
-    <fieldset className="quiz">
-      <legend><span className="label">Question {n}</span> <MarkdownInline text={q.q} /></legend>
-      <div className="quiz-options">
-        {q.options.map((o, i) => (
-          <button key={i} type="button" className={`quiz-option${picked === i ? (o.correct ? ' is-right' : ' is-wrong') : ''}`}
-            aria-pressed={picked === i} onClick={() => setPicked(i)}>
-            {picked === i && (o.correct ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />)}
-            <MarkdownInline text={o.text} />
-          </button>
-        ))}
-      </div>
-      <p className={`small quiz-why${chosen ? (chosen.correct ? ' is-right' : ' is-wrong') : ''}`} role="status">
-        {chosen && <><b>{chosen.correct ? 'Right.' : 'Not quite.'}</b> <MarkdownInline text={chosen.why} />{!chosen.correct && ' Try another.'}</>}
-      </p>
-    </fieldset>
+    <>
+      {splitReading(files.md).map((part, i) => (
+        <div key={`${lessonId}-${i}`} className="reading-part">
+          {part.text.trim() && <Markdown text={part.text} />}
+          {part.check !== null && quiz[part.check - 1] && (
+            <section className="inline-check" aria-label={`Quick check ${part.check}`}>
+              <Question q={quiz[part.check - 1]} label="Quick check" />
+            </section>
+          )}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -90,6 +89,13 @@ function Exercise({ lesson, files, p, next, track }: {
 }) {
   const now = useNow();
   const save = useSaveLearnProgress();
+  const requests = useLaunchRequests();
+  const launch = useRequestLaunch();
+  const ask = launchState(requests.data ?? [], (r) => r.kind === 'teach_item' && r.payload.item_id === lessonItemId(lesson), now);
+  const askClaude = () => {
+    update({ asked: true });
+    launch.mutate({ kind: 'teach_item', payload: { item_id: lessonItemId(lesson), code: code.slice(0, ASK_CODE_MAX), hints_seen: draft.hints } });
+  };
   const runnerState = useRunnerState();
   const desktop = useDesktop();
   const [draft, setDraft] = useState<Draft>(() => readDraft(lesson));
@@ -124,7 +130,7 @@ function Exercise({ lesson, files, p, next, track }: {
       if (r.passed && wrote.current !== 'done') {
         wrote.current = 'done';
         save.mutate({ itemId: lessonItemId(lesson), patch: {
-          status: 'done', started_on: p?.started_on ?? today, done_on: today, rating: lessonRating(draft.hints, draft.sawSolution),
+          status: 'done', started_on: p?.started_on ?? today, done_on: today, rating: lessonRating(draft.hints, draft.sawSolution, draft.asked),
         } });
       }
     } catch (e) {
@@ -136,7 +142,7 @@ function Exercise({ lesson, files, p, next, track }: {
 
   const reset = () => { setCode(files.starter); update({ code: null }); setResult(null); setResetKey((k) => k + 1); };
   const passed = result?.passed ?? false;
-  const rating = p?.rating ?? (passed ? lessonRating(draft.hints, draft.sawSolution) : null);
+  const rating = p?.rating ?? (passed ? lessonRating(draft.hints, draft.sawSolution, draft.asked) : null);
   const ratingLabel = RATINGS.find((r) => r.value === rating)?.label;
 
   return (
@@ -193,8 +199,22 @@ function Exercise({ lesson, files, p, next, track }: {
               {draft.hints === 0 ? 'Show a hint' : 'Next hint'} ({files.meta.hints.length - draft.hints} left)
             </Button>
           )}
+          {desktop && (
+            <Button disabled={launch.isPending || ask.kind === 'queued'} onClick={askClaude}
+              aria-describedby="ask-claude-note">
+              {ask.kind === 'queued' ? 'Queued for Mac' : ask.kind === 'failed' ? 'Ask Claude again' : 'Ask Claude'}
+            </Button>
+          )}
           {!draft.sawSolution && !askSolution && <Button variant="muted" onClick={() => setAskSolution(true)}>Show solution</Button>}
         </div>
+        {desktop && (
+          <p id="ask-claude-note" className="muted small">
+            {ask.kind === 'launched' ? 'Claude is open in Terminal on your Mac, looking at your code.'
+              : ask.kind === 'failed' ? `Couldn't open it on your Mac: ${ask.error}`
+              : 'Stuck? Ask Claude opens a tutor on your Mac that sees your code and guides you without giving the answer.'}
+          </p>
+        )}
+        {launch.isError && <p role="alert" className="error small">Couldn't send it to your Mac. Try again.</p>}
         {askSolution && !draft.sawSolution && (
           <div className="confirm" role="group" aria-label="Show the solution?">
             <p className="small">Looking first saves this lesson as needed help. Try a hint first if you have one left.</p>
@@ -262,13 +282,7 @@ export default function Lesson() {
       ) : (
         <div className="lesson-grid">
           <article className="card lesson-read" data-primary aria-label="Lesson">
-            <Markdown text={files.md} />
-            {files.meta.quiz && files.meta.quiz.length > 0 && (
-              <section className="quiz-block" aria-labelledby="quiz-h">
-                <h2 id="quiz-h">Quick check</h2>
-                {files.meta.quiz.map((q, i) => <QuizQ key={`${lesson.id}-${i}`} q={q} n={i + 1} />)}
-              </section>
-            )}
+            <Reading files={files} lessonId={lesson.id} />
           </article>
           <Exercise key={lesson.id} lesson={lesson} files={files} p={p} next={next} track={track} />
         </div>

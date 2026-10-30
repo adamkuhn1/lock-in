@@ -4,7 +4,7 @@ import type { DataApi } from './api';
 import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
-  Application, CompanyPrepInput, FindEngineersInput, LearnProgressPatch, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
+  Application, CompanyPrepInput, FindEngineersInput, LearnCheck, LearnProgressPatch, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
   PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
@@ -87,6 +87,8 @@ export const useLearnStates = () => { const api = useApi(); return useQuery({ qu
 export const useLearnChecks = () => { const api = useApi(); return useQuery({ queryKey: keys.learnChecks, queryFn: () => api.listLearnChecks() }); };
 export const useSaveLearnProgress = () =>
   useApiMutation((api, v: { itemId: string; patch: LearnProgressPatch }) => api.saveLearnProgress(v.itemId, v.patch), [keys.learnProgress]);
+export const useAddLearnCheck = () =>
+  useApiMutation((api, c: Omit<LearnCheck, 'id'>) => api.addLearnCheck(c), [keys.learnChecks]);
 export const useSetModuleDone = () =>
   useApiMutation((api, v: { moduleId: string; doneOn: string | null }) => api.setModuleDone(v.moduleId, v.doneOn), [keys.learnStates]);
 export const useFindEngineers = () =>

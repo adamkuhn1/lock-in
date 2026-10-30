@@ -459,3 +459,18 @@ textarea { width: 100%; resize: vertical; padding: 10px 12px; border: 1px solid 
 .lesson-row.is-done .lesson-num { border-color: var(--green); color: var(--green); }
 .lesson-row.is-in_progress .lesson-num { border-color: var(--accent); color: var(--accent); }
 .results-anchor { scroll-margin-bottom: 120px; }
+
+/* Inline quick checks and recall answers */
+.reading-part { display: grid; gap: 14px; }
+.inline-check { padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--cyan); border-radius: var(--radius-sm); background: var(--surface-2); }
+.inline-check .quiz-option { background: var(--surface); }
+.recall { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.recall-input { flex: 1 1 180px; min-width: 0; min-height: var(--tap); padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); font-family: var(--mono); }
+.recall-input.is-right { border-color: var(--green); }
+.recall-input.is-wrong { border-color: var(--danger); }
+
+/* Lesson review */
+.review-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.review-bar > span { display: block; height: 100%; background: var(--cyan); transition: width 200ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .review-bar > span { transition: none; } }
+.warmup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--border); border-left: 3px solid var(--cyan); border-radius: var(--radius-sm); }

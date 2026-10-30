@@ -30,16 +30,16 @@ describe('lessons', () => {
     const l = findLesson('cs-1', '01-binary')!;
     expect(lessonItemId(l)).toBe('lesson:cs-1/01-binary');
     expect(lessonPath('cs', l)).toBe('/grind/learn/cs/cs-1/01-binary');
-    expect([lessonRating(0, false), lessonRating(2, false), lessonRating(0, true)]).toEqual(['nailed', 'struggled', 'help']);
+    expect([lessonRating(0, false), lessonRating(2, false), lessonRating(0, false, true), lessonRating(0, true)]).toEqual(['nailed', 'struggled', 'struggled', 'help']);
     expect(findLesson('cs-1', 'nope')).toBeUndefined();
   });
 
   it('keep a draft per lesson, and survive bad storage', () => {
     const l = { id: 'test/01-x' };
-    expect(readDraft(l)).toEqual({ code: null, hints: 0, sawSolution: false });
-    writeDraft(l, { code: 'x = 1', hints: 2, sawSolution: true });
-    expect(readDraft(l)).toEqual({ code: 'x = 1', hints: 2, sawSolution: true });
+    expect(readDraft(l)).toEqual({ code: null, hints: 0, sawSolution: false, asked: false });
+    writeDraft(l, { code: 'x = 1', hints: 2, sawSolution: true, asked: true });
+    expect(readDraft(l)).toEqual({ code: 'x = 1', hints: 2, sawSolution: true, asked: true });
     localStorage.setItem('lockin.lesson.test/01-x', '{not json');
-    expect(readDraft(l)).toEqual({ code: null, hints: 0, sawSolution: false });
+    expect(readDraft(l)).toEqual({ code: null, hints: 0, sawSolution: false, asked: false });
   });
 });

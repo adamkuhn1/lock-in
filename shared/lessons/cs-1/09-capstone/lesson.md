@@ -30,6 +30,8 @@ while y != 0:
 
 Notice that the check comes **before** the body. If `y` starts at 0, the loop never runs, and the result stays 0.
 
+<!-- check 1 -->
+
 ## Translating a loop to assembly
 
 There's no `while` in assembly. A loop is a label, a test that jumps out, and a jump back to the top:
@@ -62,6 +64,8 @@ Here is a trace for x = 3, y = 2. The values are at the moment each check of `Y`
 
 When your program fails, trace it like this on paper. That's what debugging looked like before debuggers existed, and it's still the fastest way to understand a loop.
 
+<!-- check 2 -->
+
 ## How the tests run it
 
 The tests use the given `assemble` and `run` from lessons 7 and 8. For each test case, they:
@@ -71,10 +75,10 @@ The tests use the given `assemble` and `run` from lessons 7 and 8. For each test
 3. run it for up to 1500 steps
 4. check that it halted and that `RESULT` holds x × y
 
-So your program must define the labels `X`, `Y` and `RESULT`. Every product in the tests fits in 8 bits. To see what your program does, you can `print(run(assemble(PROGRAM)))` in your code. The output shows up below the test results.
+So your program must define the labels `X`, `Y` and `RESULT`. Every product in the tests fits in 8 bits. To see what your program does, call `show(PROGRAM, 3, 2)` in your code (it's given). It runs your program with X = 3 and Y = 2, then prints whether it halted, how many steps it took, and every label's final value. The output shows up below the test results.
 
 ## Why real CPUs have a MUL instruction
 
-Your loop takes 9 steps for every unit of `y`, so 2 × 100 takes about 900 steps. Real hardware multiplies with **shift-and-add**: one step per *bit* of `y`, so 8 steps for any 8-bit number, and 64 for a 64-bit one, all done in dedicated circuits.
+A loop like yours takes around ten steps for every unit of `y`, so 2 × 100 takes on the order of a thousand steps. Real hardware multiplies with **shift-and-add**: one step per *bit* of `y`, so 8 steps for any 8-bit number, and 64 for a 64-bit one, all done in dedicated circuits.
 
 That's the pattern of this whole module. Whatever software keeps doing slowly, hardware eventually builds in.

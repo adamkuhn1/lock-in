@@ -83,3 +83,18 @@ def assemble(text):
     if len(words) > MEM_SIZE:
         raise ValueError(f"program is {len(words)} words; memory holds {MEM_SIZE}")
     return words + [0] * (MEM_SIZE - len(words))
+
+
+def show(text, x=None, y=None, max_steps=1500):
+    """Debugging: run a program and print every label's final value. show(PROGRAM, 3, 2) sets X = 3 and Y = 2 first."""
+    labels = first_pass(text)
+    mem = assemble(text)
+    if x is not None:
+        mem[labels["X"]] = x % 256
+    if y is not None:
+        mem[labels["Y"]] = y % 256
+    out = run(mem, max_steps)
+    print(f"halted: {out['halted']} after {out['steps']} steps")
+    for name, addr in labels.items():
+        print(f"  {name} (address {addr}) = {out['memory'][addr]}")
+    return out

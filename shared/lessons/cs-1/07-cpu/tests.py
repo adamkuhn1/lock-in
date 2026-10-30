@@ -80,3 +80,13 @@ def test_instructions_are_data():
     out = run(_mem(prog), max_steps=100)
     check("halted (the JMP at 2 was overwritten with HALT)", out["halted"], True)
     check("steps", out["steps"], 3)
+
+
+def test_pc_wraps():
+    """pc wraps from address 31 back to 0"""
+    # 0: JZ 31 (acc is 0, so jump), 31: ADD 30 (acc = 5, pc wraps to 0), 0: JZ 31 (acc is 5: no jump), 1: HALT
+    mem = _mem([encode("JZ", 31), encode("HALT")], {30: 5, 31: encode("ADD", 30)})
+    out = run(mem, max_steps=20)
+    check("acc after running the instruction at address 31 and wrapping", out["acc"], 5)
+    check("halted", out["halted"], True)
+    check("steps", out["steps"], 4)

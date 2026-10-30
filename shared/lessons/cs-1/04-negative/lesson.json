@@ -1,28 +1,71 @@
 {
   "title": "Negative numbers: two's complement",
-  "minutes": 13,
-  "task": "Write `negate(bits)` (flip every bit, then add 1, using the given gates and adder), `to_signed(bits)` (the two's complement value as a Python int), and `add_signed(a, b)`, which returns `(sum_bits, overflow)`: the sum with the carry thrown away, and `True` if signed overflow happened.",
+  "minutes": 17,
+  "task": "Write `negate(bits)` (flip every bit, then add 1, using the given gates and `add`), `to_signed(bits)` (the two's complement value as a Python int), and `add_signed(a, b)`, which returns `(sum_bits, overflow)`: the sum with the carry thrown away, and `True` if signed overflow happened, else `False`.",
   "hints": [
-    "`negate`: `flipped = [not_(b) for b in bits]`, `one = [0] * (len(bits) - 1) + [1]`, then `add(flipped, one)[0]`.",
-    "`to_signed`: take `from_binary(bits)`, and if `bits[0] == 1`, subtract `2 ** len(bits)`.",
-    "`add_signed`: `s, _ = add(a, b)`. Overflow happens when the inputs share a sign and the result doesn't: `a[0] == b[0] and s[0] != a[0]`. Don't use the carry: it isn't signed overflow."
+    "Re-read \"Negating: flip, then add 1\" and the quick way to read a value at the end of \"Two's complement\". For `add_signed`, re-read the overflow rule: it's about signs, not the carry.",
+    "`negate`: build the flipped list with `not_`, and a same-length list holding 1 in the last place, then `add` them and keep only the bits. `to_signed`: take the unsigned value, and subtract 2ʷ if the top bit is 1. `add_signed`: `add`, then compare the top bits of `a`, `b` and the result.",
+    "`negate`: `add([not_(b) for b in bits], [0] * (len(bits) - 1) + [1])[0]`. `to_signed`: `from_binary(bits) - (2 ** len(bits) if bits[0] == 1 else 0)`. `add_signed`: `s, _ = add(a, b)`, then `overflow = a[0] == b[0] and s[0] != a[0]`."
   ],
   "quiz": [
     {
-      "q": "In 4-bit two's complement, what is `1110`?",
-      "options": [
-        { "text": "−2", "correct": true, "why": "−8 + 4 + 2 = −2. Or: 14 unsigned, minus 16, is −2." },
-        { "text": "14", "correct": false, "why": "That's the unsigned reading. In two's complement, a top bit of 1 means negative." },
-        { "text": "−6", "correct": false, "why": "That's sign-magnitude (sign bit, then 110 = 6). Two's complement gives the top bit the value −8." }
-      ]
+      "q": "In 4-bit two's complement, what is `1010`? Answer as a decimal number.",
+      "answer": [
+        "-6"
+      ],
+      "why": "−8 + 2 = −6. Or the quick way: 10 unsigned, minus 16, is −6."
     },
     {
-      "q": "A 4-bit signed add of `1111` + `1111` produces a carry out of 1. Did it overflow?",
+      "q": "Negate `0101` (that's 5) in 4 bits. Answer like `0101`.",
+      "answer": [
+        "1011",
+        "[1, 0, 1, 1]"
+      ],
+      "why": "Flip to `1010`, add 1 to get `1011`. Check: −8 + 2 + 1 = −5."
+    },
+    {
+      "q": "In 4-bit signed arithmetic, does `0110` + `0011` overflow?",
       "options": [
-        { "text": "No: −1 + −1 = −2 is `1110`, which fits", "correct": true, "why": "For signed numbers, the carry doesn't matter. Overflow means the sign came out wrong, and here both inputs and the result are negative." },
-        { "text": "Yes: there was a carry out", "correct": false, "why": "Carry out signals overflow only for unsigned numbers. For signed numbers, check the signs." },
-        { "text": "Yes: two negatives always overflow", "correct": false, "why": "Only when the true sum is below −8. −1 + −1 = −2 is well within range." }
+        {
+          "text": "No: there's no carry out",
+          "correct": false,
+          "why": "The carry doesn't tell you about signed overflow. Look at the signs instead."
+        },
+        {
+          "text": "No: 6 + 3 = 9 fits in 4 bits",
+          "correct": false,
+          "why": "9 fits as an unsigned number, but signed 4-bit only goes up to 7."
+        },
+        {
+          "text": "Yes: two positives gave `1001`, which reads as −7",
+          "correct": true,
+          "why": "Same-sign inputs, other-sign result: that's signed overflow. The true answer, 9, is above the maximum of 7."
+        }
       ]
+    }
+  ],
+  "review": [
+    {
+      "q": "What does `to_signed([1, 1, 1, 1, 1, 0, 1, 1])` return?",
+      "answer": [
+        "-5"
+      ],
+      "why": "251 unsigned, minus 256, is −5."
+    },
+    {
+      "q": "What's the smallest number 8-bit two's complement can hold?",
+      "answer": [
+        "-128"
+      ],
+      "why": "−2⁷ = −128 (`10000000`). The range is −128 to 127."
+    },
+    {
+      "q": "What does `negate([0, 1, 0, 0])` return? Answer as a list.",
+      "answer": [
+        "[1, 1, 0, 0]",
+        "1100"
+      ],
+      "why": "4 flips to `1011`, plus 1 is `1100`, which is −4."
     }
   ]
 }

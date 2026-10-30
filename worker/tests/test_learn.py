@@ -149,3 +149,33 @@ def test_rating_for():
 def test_why_is_shown_after_the_details():
     assert learn.details({"details": "Lectures 1-4.", "why": "Best rated course."}) == "Lectures 1-4. Why this: Best rated course."
     assert learn.details({"details": "Do it."}) == "Do it."
+
+
+def test_ask_claude_on_a_lesson_sets_up_code_tests_and_grader(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    monkeypatch.setattr(launcher, "LEARN_DIR", tmp_path / "learn")
+    db = db_with(tmp_path)
+    code = "def to_binary(n, width):\n    return []\n\ndef from_binary(bits):\n    return 0\n"
+    cwd, text = launcher.build_teach(db, {"item_id": "lesson:cs-1/01-binary", "code": code, "hints_seen": 1}, "lockin")
+    assert cwd == tmp_path / "learn" / "lesson-cs-1-01-binary"
+    assert (cwd / "your_code.py").read_text() == code
+    assert "Lesson 1: Bits: counting with two digits" in text and "already shown him: 1 of 3" in text
+    assert "Place value, in base 2" in text and "bits.insert(0, n % 2)" in text  # the lesson, and the solution for Claude only
+    out = subprocess.run([sys.executable, "grade.py"], cwd=cwd, capture_output=True, text=True, timeout=30).stdout
+    assert "FAIL  to_binary handles small numbers" in out and out.strip().endswith("tests pass")
+    (cwd / "your_code.py").write_text("while True:\n    pass\n")
+    out = subprocess.run([sys.executable, "grade.py"], cwd=cwd, capture_output=True, text=True, timeout=30).stdout
+    assert "Stopped after 5 seconds" in out
+
+
+@pytest.mark.parametrize("payload", [
+    {"item_id": "lesson:cs-1/99-nope", "code": "x"},
+    {"item_id": "lesson:../../etc/01-x", "code": "x"},
+    {"item_id": "lesson:cs-1/01-binary"},
+    {"item_id": "lesson:cs-1/01-binary", "code": "x" * 20_001},
+])
+def test_ask_claude_rejects_bad_lesson_requests(tmp_path, monkeypatch, payload):
+    monkeypatch.setattr(launcher, "LEARN_DIR", tmp_path / "learn")
+    with pytest.raises(launcher.LaunchError):
+        launcher.build_teach(db_with(tmp_path), payload, "lockin")

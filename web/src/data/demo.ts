@@ -92,6 +92,7 @@ export function createDemoApi(now: Date = new Date()): DataApi {
       if (doneOn) db.learnStates.push({ module_id: moduleId, done_on: doneOn });
     },
     listLearnChecks: () => copy(db.learnChecks),
+    async addLearnCheck(c) { db.learnChecks.push({ ...c, id: `lc-${db.learnChecks.length + 1}` }); },
     listReferrals: () => copy([...db.referrals].sort((a, b) => a.created_at.localeCompare(b.created_at))),
     async updateReferral(id, patch) {
       const r = db.referrals.find((x) => x.id === id);

@@ -1,28 +1,50 @@
 {
   "title": "Memory: registers, RAM and the clock",
-  "minutes": 12,
+  "minutes": 15,
   "task": "Write `class Register` with `set(value, load)`, `tick()` and `out()`: the stored value changes only on `tick()`, and only when load is 1. Then write `class RAM(size)` from a list of Registers, with `set(addr, value, load)`, `tick()` and `read(addr)`. An address outside `0..size-1` raises `IndexError`.",
   "hints": [
-    "Give `Register` three attributes in `__init__`: `self.value = 0` (what's stored), plus `self.next_value = 0` and `self.load = 0` (the inputs). `set` only changes the inputs. `tick` does `if self.load: self.value = self.next_value`.",
-    "For `RAM`: `self.regs = [Register() for _ in range(size)]`. `read(addr)` is `self.regs[addr].out()`. Check the address first, since Python's `regs[-1]` would quietly read the last register.",
-    "`RAM.set(addr, value, load)`: first clear load on every register (only one address can be written per tick), then call `self.regs[addr].set(value, load)`. `RAM.tick()` ticks every register."
+    "Re-read \"Your interface\": `set` only records the inputs, and `tick` is the only place a stored value changes. For RAM, re-read the paragraph about its one set of input wires.",
+    "`Register` remembers three things: its stored value and its two inputs. `tick` copies the input value into the stored value, but only if load is 1. `RAM` keeps a list of Registers: `set` makes sure only the newest address has load on, `tick` ticks them all, and `read` checks the address before reading.",
+    "`Register.__init__`: `self.value = 0`, `self.next_value = 0`, `self.load = 0`. `set` stores the inputs; `tick` does `if self.load: self.value = self.next_value`. `RAM`: `self.regs = [Register() for _ in range(size)]`. `set`: check the address, clear load on every register (`r.set(r.out(), 0)`), then `self.regs[addr].set(value, load)`. `read`: check the address, then `self.regs[addr].out()`."
   ],
   "quiz": [
     {
-      "q": "A register holds 3. You call `set(8, 1)` and then `out()`, without ticking. What comes back?",
-      "options": [
-        { "text": "3", "correct": true, "why": "The stored value only changes on a clock tick. Until then, out() shows the value from the last tick." },
-        { "text": "8", "correct": false, "why": "That would be combinational behavior. A register's whole point is to wait for the tick." },
-        { "text": "11", "correct": false, "why": "A register stores a value, it doesn't add. On the next tick, 8 replaces 3." }
-      ]
+      "q": "A register holds 6. You call `set(9, 1)`, then `out()`, without ticking. What comes back?",
+      "answer": [
+        "6"
+      ],
+      "why": "`out()` gives the value from the last tick. The 9 is only waiting on the input wires until the next `tick()`."
     },
     {
-      "q": "Why does clock speed have an upper limit?",
-      "options": [
-        { "text": "The slowest path through the logic must settle within one tick", "correct": true, "why": "Tick before the wires settle, and the registers capture half-finished values. The longest gate path, like a carry chain, sets the minimum tick length." },
-        { "text": "Registers can only hold so many bits", "correct": false, "why": "Width affects how much a register holds, not how often it can tick." },
-        { "text": "RAM fills up faster at higher speeds", "correct": false, "why": "Ticking faster doesn't use more memory. It just gives the logic less time per step." }
-      ]
+      "q": "`ram = RAM(4)`, then `ram.set(3, 99, 1)`, `ram.set(0, 5, 1)`, `ram.tick()`. What does `ram.read(3)` return?",
+      "answer": [
+        "0"
+      ],
+      "why": "RAM has one set of input wires, so the second `set` replaced the first. Only address 0 was written; address 3 still holds 0."
+    }
+  ],
+  "review": [
+    {
+      "q": "A register holds 3. You call `set(8, 0)`, `tick()`, then `out()`. What comes back?",
+      "answer": [
+        "3"
+      ],
+      "why": "Load was 0, so the tick kept the old value."
+    },
+    {
+      "q": "A register holds 0. You call `set(8, 1)`, `tick()`, `set(4, 0)`, `tick()`, then `out()`. What comes back?",
+      "answer": [
+        "8"
+      ],
+      "why": "The first tick stored 8. The second set has load 0, so the second tick keeps 8."
+    },
+    {
+      "q": "Logic whose output depends only on its inputs right now, with no memory, is called what?",
+      "answer": [
+        "combinational",
+        "combinational logic"
+      ],
+      "why": "Combinational logic (gates, adders, muxes) has no state. Sequential logic (registers, RAM) remembers, and changes on the clock."
     }
   ]
 }

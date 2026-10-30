@@ -22,6 +22,8 @@ The fix is to make the top bit's place worth a **negative** amount. In 4 bits, t
 
 A quick way to read it: take the plain unsigned value, and if the top bit is 1, subtract 2ʷ. `1101` is 13 unsigned, and 13 − 16 = −3.
 
+<!-- check 1 -->
+
 ## Negating: flip, then add 1
 
 To get −x, flip every bit and add 1:
@@ -35,6 +37,8 @@ flip 1100
 Why does this work? x + (flip x) is always `1111`, which is −1. So flip x = −1 − x, and flip x + 1 = −x.
 
 One odd case: −8 = `1000` flips to `0111`, and adding 1 gives `1000` again. −8 has no positive partner in 4 bits, because +8 doesn't fit.
+
+<!-- check 2 -->
 
 ## The same adder works
 
@@ -62,6 +66,12 @@ Adding a positive to a negative can never overflow, because the result always la
 
 This is a real source of bugs. In C, overflowing a signed int is undefined behavior. Java's own `Arrays.binarySearch` shipped for about nine years with `(low + high) / 2`, which overflows on huge arrays and produces a negative index.
 
+<!-- check 3 -->
+
 ## The rules for this exercise
 
-The gates, `half_adder`, `full_adder`, `add(a, b)` and `from_binary(bits)` are given. Build everything from them. Don't convert to a number and back.
+The gates, `half_adder`, `full_adder`, `add(a, b)` and `from_binary(bits)` are given. Each function has its own rule:
+
+- `negate` works on bits: flip with `not_` and add 1 with `add`. Don't convert to a number, negate it and convert back.
+- `to_signed` returns a Python int, so it can use `from_binary` and ordinary arithmetic.
+- `add_signed` must do the adding with `add`, but it can use normal Python (`==`, `if`, `and`) to work out the overflow flag.

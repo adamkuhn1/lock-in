@@ -3,26 +3,65 @@
   "minutes": 12,
   "task": "Using only `nand(a, b)` (given) and your own gates, write `not_(a)`, `and_(a, b)`, `or_(a, b)` and `xor_(a, b)`. Each takes bits (0 or 1) and returns a bit. No Python operators, `if`, or comparisons: just calls.",
   "hints": [
-    "`and_` is the opposite of `nand`, and you just built \"opposite\": `not_(nand(a, b))`.",
-    "For `or_`, use De Morgan: a or b = not (not a and not b). Since `nand(x, y)` is \"not (x and y)\", `or_` is `nand(not_(a), not_(b))`.",
-    "XOR is 1 when exactly one input is 1: (a or b) and not (a and b). In code: `and_(or_(a, b), nand(a, b))`. The 4-NAND version is: `n = nand(a, b)`, then `nand(nand(a, n), nand(b, n))`."
+    "Work from the tables. Compare the AND column with the NAND table: what's the relationship? For OR, re-read the De Morgan sentence. For XOR, re-read \"at least one is on, and not both\".",
+    "`and_` is NOT of a NAND. `or_` is a NAND of the two inverted inputs. `xor_` is an AND of two things you already have: \"at least one\" (OR) and \"not both\" (NAND).",
+    "`and_`: `not_(nand(a, b))`. `or_`: `nand(not_(a), not_(b))`. `xor_`: `and_(or_(a, b), nand(a, b))`. (The 4-NAND version: `n = nand(a, b)`, then `nand(nand(a, n), nand(b, n))`.)"
   ],
   "quiz": [
     {
-      "q": "What does `nand(0, 0)` return?",
-      "options": [
-        { "text": "1", "correct": true, "why": "AND of 0 and 0 is 0, and NAND flips it to 1. NAND is 0 only when both inputs are 1." },
-        { "text": "0", "correct": false, "why": "That's AND. NAND is the opposite of AND." },
-        { "text": "It depends on the circuit", "correct": false, "why": "A gate is a fixed function. The truth table says exactly what it outputs for every input." }
-      ]
+      "q": "What does `nand(1, 0)` return?",
+      "answer": [
+        "1"
+      ],
+      "why": "NAND is 0 only when both inputs are 1. Here one is 0, so it's 1."
     },
     {
-      "q": "Why can NAND alone build every other gate?",
+      "q": "Which gate is `nand(not_(a), not_(b))`?",
       "options": [
-        { "text": "You can make NOT from it, plus AND or OR, and those can express any truth table", "correct": true, "why": "NOT plus AND (or NOT plus OR) is enough for any logic function. NAND gives you NOT via nand(a, a), then AND via not_(nand(a, b))." },
-        { "text": "Because NAND has the most 1s in its truth table", "correct": false, "why": "OR has three 1s too, and OR alone can't make NOT. What matters is being able to invert." },
-        { "text": "It can't: you also need XOR", "correct": false, "why": "XOR is built from NAND, and you'll do it in this exercise." }
+        {
+          "text": "AND",
+          "correct": false,
+          "why": "Try a = 1, b = 0: the inputs become 0 and 1, and NAND of those is 1. AND would give 0."
+        },
+        {
+          "text": "XOR",
+          "correct": false,
+          "why": "Try a = 1, b = 1: the inputs become 0 and 0, and NAND gives 1. XOR would give 0."
+        },
+        {
+          "text": "OR",
+          "correct": true,
+          "why": "It's De Morgan: not (not a and not b) is a or b. It's 0 only when both a and b are 0."
+        },
+        {
+          "text": "NOR",
+          "correct": false,
+          "why": "NOR is 1 only when both inputs are 0. This is 0 exactly then, so it's the opposite of NOR."
+        }
       ]
+    }
+  ],
+  "review": [
+    {
+      "q": "What does `xor_(1, 1)` return?",
+      "answer": [
+        "0"
+      ],
+      "why": "XOR is 1 only when the inputs differ. 1 and 1 are the same, so it's 0."
+    },
+    {
+      "q": "What does `nand(nand(1, 1), nand(1, 1))` return?",
+      "answer": [
+        "1"
+      ],
+      "why": "`nand(1, 1)` is 0, and `nand(0, 0)` is 1."
+    },
+    {
+      "q": "Which gate is `not_(nand(a, b))`? Name it.",
+      "answer": [
+        "AND"
+      ],
+      "why": "NAND is NOT AND, so NOT of NAND is AND again."
     }
   ]
 }

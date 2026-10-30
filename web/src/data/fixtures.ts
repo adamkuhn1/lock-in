@@ -302,6 +302,10 @@ export function createFixtures(now: Date): DemoDb {
         learnModules: modules, learnItems: items,
         learnProgress: [
           ...prog(first('cs-1', 'watch'), { rating: 'nailed', notes: `${addDays(day, -2)}: clock and registers clicked` }),
+          // Lessons: two finished (a review is due), one in progress.
+          ...prog('lesson:cs-1/01-binary', { rating: 'nailed', started_on: addDays(day, -5), done_on: addDays(day, -4) }),
+          ...prog('lesson:cs-1/02-nand', { rating: 'struggled', started_on: addDays(day, -4), done_on: addDays(day, -3) }),
+          ...prog('lesson:cs-1/03-adders', { status: 'in_progress', done_on: null, started_on: addDays(day, -1) }),
           ...prog(first('cs-1', 'do'), { status: 'in_progress', done_on: null, started_on: addDays(day, -1) }),
           ...items.filter((i) => i.module_id === math1).flatMap((i) => prog(i.id, { rating: 'struggled', started_on: addDays(day, -20), done_on: addDays(day, -12) })),
         ],

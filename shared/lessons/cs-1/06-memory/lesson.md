@@ -26,7 +26,7 @@ A **register** is a row of flip-flops plus a `load` input:
 
 Inside, that's the mux from lesson 5: `next = mux(current, input, load)`, fed into a flip-flop. Reading a register's `out()` always gives the value stored at the **last tick**, no matter what you've set its inputs to since. This one rule is the heart of sequential logic.
 
-From here on, a stored word is a plain Python `int`. You've seen how the bits work, so now we can work a level up.
+<!-- check 1 -->
 
 ## RAM
 
@@ -43,6 +43,8 @@ Reading is combinational: `read(2)` gives 7 right away. Writing is sequential: `
 
 ## Your interface
 
+From here on, a stored word is a plain Python `int`. You've seen how the bits work, so now we can work a level up.
+
 ```python
 r = Register()
 r.set(5, 1)    # input 5, load 1: nothing happens yet
@@ -53,4 +55,19 @@ r.out()        # 5
 
 The inputs stay as you last set them, like voltages on a wire. If `load` is still 1, the next tick just stores the same value again.
 
-`RAM(size)` works the same way: `set(addr, value, load)`, then `tick()`, then `read(addr)`. Build RAM out of your `Register` class. A real chip does exactly that.
+`RAM(size)` works the same way: `set(addr, value, load)`, then `tick()`, then `read(addr)`.
+
+RAM has **one** set of input wires: an address, a value and load. So a new `set` replaces the previous one, and only the last address you set gets written on the tick:
+
+```python
+ram = RAM(4)
+ram.set(1, 10, 1)
+ram.set(2, 20, 1)   # replaces the pending write to address 1
+ram.tick()
+ram.read(1)         # 0
+ram.read(2)         # 20
+```
+
+An address outside `0` to `size - 1` raises `IndexError`, for `set` and `read` alike. Build RAM out of your `Register` class. A real chip does exactly that.
+
+<!-- check 2 -->

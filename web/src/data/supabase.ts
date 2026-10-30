@@ -233,6 +233,9 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
     },
     listLearnChecks: () => orEmpty(['learn_checks'], () => allPages<LearnCheck>((a, b) => sb.from('learn_checks')
       .select('id,module_id,kind,score,total,rating,summary,taken_on').order('taken_on').order('id').range(a, b))),
+    async addLearnCheck(c) {
+      await exec(sb.from('learn_checks').insert({ owner: await deps.ownerId(), ...c }));
+    },
     findEngineers: (i) => requestLaunch('find_engineers', {
       company: i.company, role: i.role ?? null, tier: i.tier ?? null,
       ...(i.posting_id ? { posting_id: i.posting_id } : {}), ...(i.job_url ? { job_url: i.job_url } : {}),

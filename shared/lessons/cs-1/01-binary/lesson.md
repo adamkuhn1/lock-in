@@ -18,6 +18,8 @@ Base 2 works the same way, except each place is worth **2×** the one to its rig
 
 1·8 + 1·4 + 0·2 + 1·1 = **13**. So `1101` in binary is 13.
 
+<!-- check 1 -->
+
 ## Going the other way
 
 To turn 13 into bits, keep dividing by 2. The remainder is the next bit, **starting from the right**:
@@ -31,6 +33,8 @@ To turn 13 into bits, keep dividing by 2. The remainder is the next bit, **start
 
 Read the remainders bottom to top: `1101`. In Python, `n % 2` is the remainder and `n // 2` is the division.
 
+<!-- check 2 -->
+
 ## Hardware has a fixed width
 
 A real circuit has a fixed number of wires. An 8-bit register always holds exactly 8 bits, so 13 is stored as `00001101`, padded with zeros on the left. With `w` bits, you can count from 0 up to 2ʷ − 1:
@@ -41,9 +45,11 @@ A real circuit has a fixed number of wires. An 8-bit register always holds exact
 
 A number that doesn't fit simply can't be stored. Later in this module, that limit is what makes overflow happen.
 
+<!-- check 3 -->
+
 ## How bits look in this module
 
-All the way up to the CPU you'll build in lesson 7, a group of bits is a Python list, **most significant bit first**, written the same way you'd write the number:
+Until lesson 6, where we switch to plain Python ints, a group of bits is a Python list, **most significant bit first**, written the same way you'd write the number:
 
 ```python
 [0, 0, 0, 0, 1, 1, 0, 1]   # 13 as 8 bits

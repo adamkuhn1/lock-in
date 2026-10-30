@@ -1,30 +1,76 @@
 {
   "title": "Bits: counting with two digits",
   "minutes": 10,
-  "task": "Write `to_binary(n, width)`, which returns `n` as a list of `width` bits, most significant first, and `from_binary(bits)`, which turns the list back into a number. If `n` doesn't fit in `width` bits, `to_binary` raises `ValueError`. Do the arithmetic yourself: no `bin()`, `format()` or `int(s, 2)`.",
+  "task": "Write `to_binary(n, width)`, which returns `n` as a list of `width` bits, most significant first, and `from_binary(bits)`, which turns the list back into a number. If `n` doesn't fit in `width` bits, `to_binary` raises `ValueError`. Negative numbers don't fit either (lesson 4 handles those). Do the arithmetic yourself: no `bin()`, `format()` or `int(s, 2)`.",
   "hints": [
-    "For `to_binary`: the loop from the lesson gives you bits right to left. Collect `n % 2` each time, then reverse the list at the end (or insert at the front).",
-    "Pad on the left until the list is `width` long. Check whether `n` fits first: it fits when `0 <= n < 2 ** width`.",
-    "For `from_binary`: start at 0 and go left to right. For each bit, double what you have so far and add the bit. `[1, 1, 0, 1]` goes 1 → 3 → 6 → 13."
+    "Re-read \"Going the other way\": each `n % 2` is the next bit, starting from the right. Where does each new bit go in your list, and how many times should the loop run?",
+    "`to_binary`: first check that `n` fits (`0 <= n < 2 ** width`), then loop `width` times: put `n % 2` at the front of the list and halve `n`. `from_binary`: walk the bits left to right, keeping a running total.",
+    "In the loop: `bits.insert(0, n % 2)` then `n //= 2`. For `from_binary`: start at `n = 0`, and for each bit do `n = n * 2 + b`. So `[1, 1, 0, 1]` goes 1 → 3 → 6 → 13."
   ],
   "quiz": [
     {
-      "q": "What is `10110` in binary, as a decimal number?",
-      "options": [
-        { "text": "22", "correct": true, "why": "16 + 4 + 2 = 22. The places are 16, 8, 4, 2, 1." },
-        { "text": "13", "correct": false, "why": "That's `1101`. Here there are five places: 16, 8, 4, 2, 1." },
-        { "text": "26", "correct": false, "why": "26 would be `11010`: 16 + 8 + 2. Check which places have a 1." },
-        { "text": "10110", "correct": false, "why": "That reads it as base 10. In base 2, each place is worth 2× the one to its right." }
-      ]
+      "q": "What is `10011` in binary, as a decimal number?",
+      "answer": [
+        "19"
+      ],
+      "why": "The places are 16, 8, 4, 2, 1, and the 1s sit in the 16, 2 and 1 places: 16 + 2 + 1 = 19."
+    },
+    {
+      "q": "Use the divide-by-2 method: what is 10 in 4 bits? Answer like `0110`.",
+      "answer": [
+        "1010",
+        "[1, 0, 1, 0]"
+      ],
+      "why": "10 ÷ 2 = 5 r 0, 5 ÷ 2 = 2 r 1, 2 ÷ 2 = 1 r 0, 1 ÷ 2 = 0 r 1. Read the remainders bottom to top: `1010` (8 + 2)."
     },
     {
       "q": "What's the largest number a 6-bit register can hold?",
       "options": [
-        { "text": "63", "correct": true, "why": "2⁶ − 1 = 63, which is `111111`." },
-        { "text": "64", "correct": false, "why": "64 is 2⁶, which needs a 7th bit: `1000000`." },
-        { "text": "32", "correct": false, "why": "32 is just the top place on its own. All six bits on adds up to 32 + 16 + 8 + 4 + 2 + 1." },
-        { "text": "6", "correct": false, "why": "6 is the number of bits, not the biggest value they can hold." }
+        {
+          "text": "64",
+          "correct": false,
+          "why": "64 is 2⁶, which needs a 7th bit: `1000000`."
+        },
+        {
+          "text": "32",
+          "correct": false,
+          "why": "32 is just the top place on its own. All six bits on adds 32 + 16 + 8 + 4 + 2 + 1."
+        },
+        {
+          "text": "63",
+          "correct": true,
+          "why": "2⁶ − 1 = 63, which is `111111`."
+        },
+        {
+          "text": "6",
+          "correct": false,
+          "why": "6 is the number of bits, not the biggest value they can hold."
+        }
       ]
+    }
+  ],
+  "review": [
+    {
+      "q": "What does `from_binary([1, 0, 1, 1, 0])` return?",
+      "answer": [
+        "22"
+      ],
+      "why": "16 + 4 + 2 = 22."
+    },
+    {
+      "q": "What's the largest number 10 bits can hold?",
+      "answer": [
+        "1023"
+      ],
+      "why": "2¹⁰ − 1 = 1023: all ten bits on."
+    },
+    {
+      "q": "What does `to_binary(5, 4)` return? Answer as a list.",
+      "answer": [
+        "[0, 1, 0, 1]",
+        "0101"
+      ],
+      "why": "5 = 4 + 1, padded to 4 bits: `[0, 1, 0, 1]`."
     }
   ]
 }

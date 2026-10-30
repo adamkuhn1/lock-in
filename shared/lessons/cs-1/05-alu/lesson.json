@@ -3,26 +3,61 @@
   "minutes": 12,
   "task": "Write `mux(a, b, sel)` from gates only, `mux_bits(a, b, sel)` (one mux per bit), and `alu(x, y, op)`, where `op` is one of `\"add\"`, `\"sub\"`, `\"and\"`, `\"or\"`, `\"not\"`. `alu` returns `(result_bits, zero, negative)`, with each flag 0 or 1.",
   "hints": [
-    "`mux`: `or_(and_(a, not_(sel)), and_(b, sel))`. `mux_bits`: `[mux(x, y, sel) for x, y in zip(a, b)]`.",
-    "In `alu`, compute the result first. `add(x, y)[0]` drops the carry, `\"sub\"` is `add(x, negate(y))[0]`, and the bitwise ops are list comprehensions over `zip(x, y)`.",
-    "Then the flags: `zero = 1 if all(b == 0 for b in result) else 0`, and `negative = result[0]`. Return `result, zero, negative`."
+    "Re-read the formula in \"Choosing is also logic\": it's already a mux, written with gate names. For `alu`, each row of the op table is one call to something you already have, and the flags section says exactly how to compute each flag.",
+    "`mux` is an OR of two ANDs, one of them using `not_(sel)`. `mux_bits` applies `mux` to each pair of bits. In `alu`, compute the result first (`\"sub\"` is `add` with `negate(y)`, and the bitwise ops go pair by pair), then work out `zero` and `negative` from the result.",
+    "`mux`: `or_(and_(a, not_(sel)), and_(b, sel))`. `mux_bits`: `[mux(x, y, sel) for x, y in zip(a, b)]`. In `alu`: `\"add\"` is `add(x, y)[0]`, `\"sub\"` is `add(x, negate(y))[0]`, `\"and\"` is `[and_(p, q) for p, q in zip(x, y)]`. Then `zero = 1 if all(b == 0 for b in result) else 0`, `negative = result[0]`, and `return result, zero, negative`."
   ],
   "quiz": [
     {
-      "q": "A mux has a = 1, b = 0 and sel = 1. What does it output?",
-      "options": [
-        { "text": "0", "correct": true, "why": "sel = 1 picks b, and b is 0." },
-        { "text": "1", "correct": false, "why": "That's a. sel = 0 would pick a, but sel = 1 picks b." },
-        { "text": "Both, on different wires", "correct": false, "why": "A mux has one output wire. It passes exactly one of its inputs through." }
-      ]
+      "q": "What does `mux(0, 1, 1)` return?",
+      "answer": [
+        "1"
+      ],
+      "why": "`sel` is 1, so the mux passes `b`, which is 1."
     },
     {
-      "q": "How does a hardware ALU run the operation the program asked for?",
+      "q": "What flags does `alu([0, 0, 1, 1], [0, 0, 1, 1], \"sub\")` return?",
       "options": [
-        { "text": "It computes every operation at once, then a mux tree passes one result through", "correct": true, "why": "Gates run in parallel, so computing everything costs no extra time. The op code just steers the muxes." },
-        { "text": "It checks the op code with if statements, then runs only that circuit", "correct": false, "why": "Circuits have no if. Selection is itself a circuit: the mux." },
-        { "text": "It sends the op to a separate chip for each operation", "correct": false, "why": "All of the ALU's operations sit side by side in the same block of logic." }
+        {
+          "text": "zero = 0, negative = 1",
+          "correct": false,
+          "why": "3 − 3 is 0, so the result is `0000`. Its top bit is 0, so it isn't negative."
+        },
+        {
+          "text": "zero = 1, negative = 1",
+          "correct": false,
+          "why": "A result can't be zero and negative at once: zero means every bit, including the top one, is 0."
+        },
+        {
+          "text": "zero = 1, negative = 0",
+          "correct": true,
+          "why": "3 − 3 = 0: the result is `0000`, so the zero flag is 1 and the top bit (negative) is 0."
+        }
       ]
+    }
+  ],
+  "review": [
+    {
+      "q": "What does `mux(1, 0, 0)` return?",
+      "answer": [
+        "1"
+      ],
+      "why": "`sel` is 0, so the mux passes `a`, which is 1."
+    },
+    {
+      "q": "An ALU result is `1000`. What's the negative flag?",
+      "answer": [
+        "1"
+      ],
+      "why": "The negative flag is just the top bit. `1000` is −8 in 4 bits."
+    },
+    {
+      "q": "What are the result bits of `alu([0, 1, 0, 1], [0, 0, 1, 1], \"and\")`? Answer as a list.",
+      "answer": [
+        "[0, 0, 0, 1]",
+        "0001"
+      ],
+      "why": "AND pair by pair: only the last position has 1 in both."
     }
   ]
 }

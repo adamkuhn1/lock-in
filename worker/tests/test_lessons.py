@@ -34,19 +34,36 @@ def test_lesson_shape(d):
     assert re.fullmatch(r"\d\d-[a-z0-9-]+", d.name), "lesson folders are NN-slug"
     f = files(d)
     m = f["meta"]
-    assert set(m) <= {"title", "minutes", "task", "hints", "quiz"}, set(m)
+    assert set(m) <= {"title", "minutes", "task", "hints", "quiz", "review"}, set(m)
     assert 0 < len(m["title"]) <= 60
     assert 5 <= m["minutes"] <= 20
     assert m["task"].strip()
     assert 1 <= len(m["hints"]) <= 4
-    for q in m.get("quiz", []):
-        assert q["q"].strip() and 2 <= len(q["options"]) <= 5
-        assert sum(o["correct"] for o in q["options"]) == 1, q["q"]
-        assert all(o["text"].strip() and o["why"].strip() for o in q["options"]), q["q"]
+    assert 1 <= len(m["quiz"]) <= 5, "1-5 quick checks, placed in the reading"
+    assert 2 <= len(m["review"]) <= 5, "2-5 review questions for spaced review"
+    for q in m["quiz"] + m["review"]:
+        check_question(q)
     assert f["md"].strip(), "lesson.md is missing"
+    # Each quick check sits in the reading, right after the section it tests: <!-- check N --> on its own line.
+    marks = [int(n) for n in re.findall(r"^<!-- check (\d+) -->$", f["md"], re.M)]
+    assert marks == list(range(1, len(m["quiz"]) + 1)), f"lesson.md needs <!-- check 1 --> .. <!-- check {len(m['quiz'])} --> in order, has {marks}"
     assert len(f["md"].split()) <= MAX_WORDS, f"lesson.md is {len(f['md'].split())} words; keep it under {MAX_WORDS}"
     for name in ("starter", "solution", "tests"):
         assert f[name].strip(), f"{name}.py is missing"
+
+
+def check_question(q):
+    """A question is multiple choice (options, exactly one correct, a why on each) or recall (accepted answers + why)."""
+    assert q["q"].strip()
+    if "options" in q:
+        assert set(q) == {"q", "options"}, set(q)
+        assert 2 <= len(q["options"]) <= 5
+        assert sum(o["correct"] is True for o in q["options"]) == 1, q["q"]
+        assert all(o["text"].strip() and o["why"].strip() for o in q["options"]), q["q"]
+    else:
+        assert set(q) == {"q", "answer", "why"}, set(q)
+        assert q["answer"] and all(isinstance(a, str) and a.strip() for a in q["answer"]), q["q"]
+        assert q["why"].strip()
 
 
 @pytest.mark.parametrize("d", DIRS, ids=lambda d: f"{d.parent.name}/{d.name}")

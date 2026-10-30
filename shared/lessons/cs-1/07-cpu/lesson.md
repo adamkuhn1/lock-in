@@ -25,7 +25,7 @@ Each instruction is one 8-bit word. The top 3 bits are the **opcode** (what to d
 | 6 | `JZ a` | if acc == 0: pc = a |
 | 7 | `JN a` | if acc ≥ 128 (negative, in two's complement): pc = a |
 
-`ADD` and `SUB` wrap at 256, just like your 8-bit ALU. `JZ` and `JN` read the zero and negative flags from lesson 5.
+`ADD` and `SUB` wrap at 256, just like your 8-bit ALU. `JZ` and `JN` check the same conditions as the zero and negative flags from lesson 5.
 
 ## Decoding
 
@@ -39,6 +39,8 @@ addr   = word & 0b11111 # the low 5 bits  (same as word % 32)
 `LOAD 30` is opcode 1 and address 30: `001 11110` in binary, which is **62**.
 
 We use Python ints from here on, not bit lists. You've built every part from gates, and now the interesting part is how they work together. This is how computer engineering works: prove a layer works, then build on top of it.
+
+<!-- check 1 -->
 
 ## The fetch-decode-execute cycle
 
@@ -65,6 +67,8 @@ This program adds the numbers at addresses 30 and 31, and stores the sum at 29:
 | 31 | 22 | data |
 
 It runs 4 steps, and leaves `acc` = 42, `mem[29]` = 42 and `pc` = 4.
+
+<!-- check 2 -->
 
 ## Your `run(memory, max_steps)`
 

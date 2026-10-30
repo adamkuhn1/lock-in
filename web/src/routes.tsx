@@ -20,6 +20,7 @@ import { Skeleton } from './ui/primitives';
 
 // The lesson player carries the code editor and markdown renderer; load it only when a lesson opens.
 const Lesson = lazy(() => import('./screens/Lesson'));
+const LessonReview = lazy(() => import('./screens/LessonReview'));
 
 /** v1 paths (bookmarks, ntfy links) → v2 homes. */
 export const LEGACY: [string, string][] = [
@@ -37,6 +38,7 @@ export function AppRoutes() {
           <Route path="leetcode" element={<LeetCode />} />
           <Route path="prep" element={<Prep />} />
           <Route path="learn/:track" element={<Learn />} />
+          <Route path="review" element={<Suspense fallback={<Skeleton label="Loading your review" />}><LessonReview /></Suspense>} />
           <Route path="learn/:track/:module/:lesson" element={<Suspense fallback={<Skeleton label="Loading the lesson" />}><Lesson /></Suspense>} />
         </Route>
         <Route path="hunt" element={<Hunt />}>

@@ -32,6 +32,8 @@ ONE:    DATA 1
 - `DATA n` puts the number `n` straight into memory. Negative numbers are stored in two's complement: `DATA -1` becomes 255, which is `n % 256`.
 - An operand can be a number or a label. `HALT` needs no operand, which means address 0.
 
+<!-- check 1 -->
+
 ## Why two passes
 
 Look at `JZ END` on line 2. When the assembler reaches it, it hasn't seen `END` yet. That's a **forward reference**, and you can't encode the word without END's address.
@@ -52,6 +54,8 @@ For the program above, the first pass gives:
 
 The second pass gives `[38, 197, 135, 70, 161, 0, 5, 1]`: `LOAD COUNT` is 1·32 + 6 = 38, `JZ END` is 6·32 + 5 = 197, and so on. Real assemblers and linkers do the same thing at a larger scale. A linker's main job is resolving names to addresses, across many files.
 
+<!-- check 2 -->
+
 ## Errors are part of the job
 
 An assembler that quietly produces garbage is worse than none. Raise `ValueError` with a clear message when:
@@ -60,6 +64,8 @@ An assembler that quietly produces garbage is worse than none. Raise `ValueError
 - a label is used but never defined, or is defined twice
 - an address operand is outside 0–31
 - the program needs more than 32 words
+
+`first_pass` raises for a label defined twice, since it's the one building the dict. `assemble` raises for everything else, and because it calls `first_pass`, a duplicate label makes it raise too.
 
 ## What's given
 
@@ -70,5 +76,7 @@ parse("LOOP:   JZ END   ; check")  # ('LOOP', 'JZ', 'END')
 parse("END:")                      # ('END', None, None)
 parse("   ; just a comment")       # (None, None, None)
 ```
+
+To tell a number from a label, try `int(operand)` and catch the `ValueError` it raises for a non-number. (`"-1".isdigit()` is `False`, so `isdigit` would treat `DATA -1` as a label.)
 
 `OPCODES` and `MEM_SIZE` are given too. You write the two passes. `assemble` returns a full memory image: exactly 32 words, padded with zeros, ready for lesson 7's `run`.

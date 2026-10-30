@@ -513,8 +513,68 @@ def _learn_dir(name: str) -> Path:
     return d
 
 
+LESSONS_DIR = Path(__file__).resolve().parents[2] / "shared" / "lessons"
+LESSON_CODE_MAX = 20_000
+
+GRADE_PY = r"""
+# Grades your_code.py with the lesson's tests, exactly like the Lock In app does. Stops a run after 5 seconds.
+import os, pathlib, signal, sys
+here = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(here))
+import harness
+read = lambda name: (here / name).read_text() if (here / name).exists() else ""
+def stop(*_):  # the grader captures print() while your code runs, so write to the real stdout
+    sys.__stdout__.write("Stopped after 5 seconds: is there a loop that never ends?\n")
+    sys.__stdout__.flush()
+    os._exit(1)
+signal.signal(signal.SIGALRM, stop)
+signal.alarm(5)
+r = harness.grade(read("your_code.py"), read("tests.py"), read("prelude.py"))
+signal.alarm(0)
+if r["error"]:
+    print("ERROR:", r["error"])
+for t in r["tests"]:
+    print(("PASS  " if t["ok"] else "FAIL  ") + t["name"] + ("" if t["ok"] else "\n      " + t["message"]))
+if r["stdout"]:
+    print("--- printed ---\n" + r["stdout"])
+print("ALL TESTS PASS" if r["passed"] else f"{sum(t['ok'] for t in r['tests'])} of {len(r['tests'])} tests pass")
+"""
+
+
+def build_teach_lesson(db, payload: dict) -> tuple[Path, str]:
+    """Ask Claude from a lesson: a folder with Adam's code, the lesson's tests and the grader, and a Socratic prompt."""
+    lesson_id = str(payload["item_id"]).removeprefix("lesson:")
+    if not re.fullmatch(r"[a-z0-9-]+/\d\d-[a-z0-9-]+", lesson_id) or not (LESSONS_DIR / lesson_id / "lesson.json").is_file():
+        raise LaunchError(f"lesson {lesson_id!r} not found (pull the latest lock-in?)")
+    src = LESSONS_DIR / lesson_id
+    read = lambda name: (src / name).read_text(encoding="utf-8") if (src / name).exists() else ""
+    meta = json.loads(read("lesson.json"))
+    code = payload.get("code")
+    if not isinstance(code, str) or len(code) > LESSON_CODE_MAX:
+        raise LaunchError("the request has no code (or more than 20,000 characters of it)")
+    m = _module(db, lesson_id.split("/")[0])
+    cwd = _learn_dir(f"lesson-{lesson_id.replace('/', '-')}")
+    for name, text in (("your_code.py", code), ("tests.py", read("tests.py")), ("prelude.py", read("prelude.py")),
+                       ("harness.py", (LESSONS_DIR / "harness.py").read_text(encoding="utf-8")), ("grade.py", GRADE_PY)):
+        (cwd / name).write_text(text, encoding="utf-8")
+    hints_seen = payload.get("hints_seen") if isinstance(payload.get("hints_seen"), int) else 0
+    settings = (db.select("settings") or [{}])[0]
+    text = prompts.render(prompts.load("teach_lesson"), {
+        "track": TRACK_TITLE.get(m["track"], m["track"]), "module_ord": str(m.get("ord")), "module_title": m["title"],
+        "lesson_ord": str(int(lesson_id.split("/")[1][:2])), "lesson_title": meta["title"], "task": meta["task"],
+        "hints_seen": str(max(0, min(hints_seen, len(meta["hints"])))), "hints_total": str(len(meta["hints"])),
+        "lesson_text": read("lesson.md").strip(), "work_dir": str(cwd),
+        "prelude": read("prelude.py").strip() or "# (none)", "solution": read("solution.py").strip(),
+        **profile.prompt_values(settings.get("profile")),
+    })
+    return cwd, text
+
+
 def build_teach(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
-    """Teach me on one item: Socratic, Adam attempts first. Build items open in the project's folder when it's on this Mac."""
+    """Teach me on one item: Socratic, Adam attempts first. Build items open in the project's folder when it's on this Mac.
+    A lesson ("lesson:<module>/<slug>", from Ask Claude) gets its own tutor: see build_teach_lesson."""
+    if str(payload.get("item_id") or "").startswith("lesson:"):
+        return build_teach_lesson(db, payload)
     rows = db.select("learn_items", {"id": payload.get("item_id")}) if payload.get("item_id") else []
     if not rows:
         raise LaunchError(f"learning item {payload.get('item_id')!r} not found")

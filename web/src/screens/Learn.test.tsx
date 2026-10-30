@@ -17,11 +17,14 @@ describe('Learn', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'CS' })).toBeInTheDocument();
     const map = within(await screen.findByRole('region', { name: 'Roadmap' }));
     const buttons = map.getAllByRole('button');
-    expect(buttons[0]).toHaveAccessibleName(/^1\. How computers work, In progress, 0 of \d+ done$/);
+    expect(buttons[0]).toHaveAccessibleName(/^1\. How computers work, In progress, 2 of \d+ done$/);
     expect(buttons.every((b) => !b.hasAttribute('disabled'))).toBe(true);
     const detail = within(screen.getByRole('region', { name: /^1\. How computers work/ }));
-    const lessons = within(detail.getByRole('region', { name: /^Lessons · 0 of \d+ done$/ }));
-    expect(lessons.getByRole('link', { name: 'Start: lesson 1, Bits: counting with two digits' })).toHaveAttribute('href', '/grind/learn/cs/cs-1/01-binary');
+    const lessons = within(detail.getByRole('region', { name: /^Lessons · 2 of \d+ done$/ }));
+    expect(lessons.getByRole('link', { name: /^Redo: lesson 1, / })).toHaveAttribute('href', '/grind/learn/cs/cs-1/01-binary');
+    const next = lessons.getByRole('link', { name: /^Continue: lesson 3, / });
+    expect(next).toHaveAttribute('href', '/grind/learn/cs/cs-1/03-adders');
+    expect(next).toHaveClass('btn-primary');
     expect(detail.getByText('Go deeper: videos and projects (optional)')).toBeInTheDocument();
     for (const g of ['Watch', 'Do', 'Build', 'Check']) expect(detail.getByRole('region', { name: g })).toBeInTheDocument();
   });
@@ -90,5 +93,13 @@ describe('TodayLearning', () => {
     renderWithData(<TodayLearning lcDone={6} lcTotal={6} />, { api });
     await userEvent.click(await screen.findByRole('button', { name: 'Teach me' }));
     expect(launch).toHaveBeenCalledWith('teach_item', { item_id: watch.id });
+  });
+});
+
+describe('TodayLearning warm-up', () => {
+  it('offers a review of finished lessons that are due', async () => {
+    renderWithData(<TodayLearning lcDone={6} lcTotal={6} />, { api: createDemoApi() });
+    expect(await screen.findByText(/review 2 finished lessons, about \d+ min/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start review' })).toHaveAttribute('href', '/grind/review');
   });
 });

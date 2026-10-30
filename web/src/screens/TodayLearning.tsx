@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useLaunchRequests, useNow, useRequestLaunch, useSettings } from '../data/hooks';
 import { launchState } from '../lib/ideas';
 import { lessonPath } from '../lib/lessons';
+import { QUESTIONS_PER_LESSON, REVIEW_LESSONS_MAX, SECONDS_PER_QUESTION, lessonReviewsDue } from '../lib/lessonReview';
 import { TRACKS, TYPE_LABEL, fmtMinutes, reviewsDue, split, whatsNext } from '../lib/learn';
 import { planDay } from '../lib/time';
 import { safeHref } from '../lib/url';
@@ -23,6 +24,8 @@ export function TodayLearning({ lcDone, lcTotal }: { lcDone: number; lcTotal: nu
   const due = state === 'ready' ? reviewsDue(data, today).length : 0;
   const lcLeft = lcTotal > 0 && lcDone < lcTotal;
   const reqs = requests.data ?? [];
+  const warm = state === 'ready' ? Math.min(lessonReviewsDue(data.progress, data.checks, today).length, REVIEW_LESSONS_MAX) : 0;
+  const warmMin = Math.max(1, Math.round((warm * QUESTIONS_PER_LESSON * SECONDS_PER_QUESTION) / 60));
 
   let step = null;
   if (next.kind === 'review') {
@@ -47,7 +50,7 @@ export function TodayLearning({ lcDone, lcTotal }: { lcDone: number; lcTotal: nu
           <span className="muted">({trackLabel(v.module.track)} {v.module.ord}. {v.module.title}, {fmtMinutes(next.lesson.minutes)}, on your Mac)</span>
         </p>
         <div className="row-actions">
-          <Link className={`btn ${lcLeft ? '' : 'btn-primary'}`.trim()} to={lessonPath(v.module.track, next.lesson)}>
+          <Link className={`btn ${lcLeft || warm ? '' : 'btn-primary'}`.trim()} to={lessonPath(v.module.track, next.lesson)}>
             {next.status === 'in_progress' ? 'Continue lesson' : 'Start lesson'}
           </Link>
           <Link className="btn btn-quiet" to={`/grind/learn/${v.module.track}?module=${v.module.id}`}>{trackLabel(v.module.track)} track</Link>
@@ -103,6 +106,12 @@ export function TodayLearning({ lcDone, lcTotal }: { lcDone: number; lcTotal: nu
           {due > 1 && <p className="small">{due} reviews due</p>}
         </div>
       </div>
+      {warm > 0 && (
+        <div className="warmup">
+          <p className="small"><b>Warm-up:</b> review {warm} finished {warm === 1 ? 'lesson' : 'lessons'}, about {warmMin} min. Do it first: it's what makes them stick.</p>
+          <Link className={`btn ${lcLeft ? '' : 'btn-primary'}`.trim()} to="/grind/review">Start review</Link>
+        </div>
+      )}
       {step}
       {launch.isError && <p role="alert" className="error small">Couldn't queue it. Try again.</p>}
     </section>

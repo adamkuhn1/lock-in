@@ -1,50 +1,75 @@
 {
   "title": "An assembler, in two passes",
-  "minutes": 14,
-  "task": "Write `first_pass(text)`, which returns a dict of `{label: address}`, and `assemble(text)`, which returns a 32-word memory image: each instruction is `opcode << 5 | address`, and `DATA n` stores `n % 256`. Operands are numbers or labels. Raise `ValueError` for unknown instructions, undefined or duplicate labels, addresses outside 0–31, and programs over 32 words.",
+  "minutes": 18,
+  "task": "Write `first_pass(text)`, which returns a dict of `{label: address}` and raises `ValueError` for a label defined twice, and `assemble(text)`, which returns a 32-word memory image: each instruction is `opcode << 5 | address`, and `DATA n` stores `n % 256`. Operands are numbers or labels. `assemble` raises `ValueError` for unknown instructions, undefined labels, addresses outside 0–31, and programs over 32 words.",
   "hints": [
-    "`first_pass`: `addr = 0`, then `for line in text.splitlines(): label, name, _ = parse(line)`. If there's a label (and it's not already in the dict), set `labels[label] = addr`. If there's a name, `addr += 1`.",
-    "Write a helper `value(operand, labels)`: return 0 for `None`, `int(operand)` if it's a number, `labels[operand]` if it's a known label, and raise `ValueError` otherwise. Try `int()` first, and catch the `ValueError` it raises for a non-number.",
+    "Re-read \"Why two passes\": the first pass only counts and records labels; the second turns each line into a word. Then go down the list in \"Errors are part of the job\": each one needs a check in one of the two functions.",
+    "`first_pass`: keep an address counter from 0. For each parsed line, record its label at the current address (raise `ValueError` if the label is already in the dict), and add 1 when the line has a name. `assemble`: write a helper that turns an operand into a number (`None` is 0, a number via `int()`, else a known label, else raise), then make one word per line that has a name.",
     "In `assemble`, loop over the lines again, skipping any with no name. For `DATA`, append `value(...) % 256`. Otherwise, check that the name is in `OPCODES` and that `0 <= v < 32`, then append `OPCODES[name] << 5 | v`. Finally, raise if `len(words) > MEM_SIZE`, and return `words + [0] * (MEM_SIZE - len(words))`."
   ],
   "quiz": [
     {
-      "q": "Why can't a one-pass assembler encode `JZ END` when END is defined further down?",
-      "options": [
-        {
-          "text": "END's address isn't known yet when the assembler reaches that line",
-          "correct": true,
-          "why": "That's a forward reference. The first pass counts addresses so every label is known before anything is encoded."
-        },
-        {
-          "text": "JZ can only jump backwards",
-          "correct": false,
-          "why": "A jump can go to any address 0–31. The problem is the assembler's knowledge, not the CPU."
-        },
-        {
-          "text": "Labels have to be defined before the code that uses them",
-          "correct": false,
-          "why": "In this assembler they don't. Two passes are exactly what makes defining them later work."
-        }
-      ]
-    },
-    {
       "q": "A program is: a line with only `START:`, then `LOAD X`, `JZ END`, `HALT`, `END: HALT` and `X: DATA 0`. What address does END get?",
       "options": [
         {
-          "text": "3",
-          "correct": true,
-          "why": "START has no word of its own, so it names address 0. LOAD is 0, JZ is 1, HALT is 2, and END labels the HALT at 3."
-        },
-        {
           "text": "4",
           "correct": false,
-          "why": "That counts the `START:` line as a word. A label alone on its line doesn't take up memory."
+          "why": "Count only the lines that make a word. `START:` on its own doesn't make one, so `LOAD X` is address 0."
+        },
+        {
+          "text": "3",
+          "correct": true,
+          "why": "`LOAD X` is 0, `JZ END` is 1, `HALT` is 2, so `END: HALT` is 3. The label-only `START:` line takes no word."
         },
         {
           "text": "5",
           "correct": false,
-          "why": "Only instructions and DATA take up words. There are three before END."
+          "why": "That counts every line, including `START:` and the line with `X`. Labels name addresses; they don't take up words."
+        }
+      ]
+    },
+    {
+      "q": "What does `first_pass` return for this program: `A: DATA 3`, then a line with only `B:`, then `HALT`? Answer as a dict, like `{'X': 2}`.",
+      "answer": [
+        "{'A': 0, 'B': 1}",
+        "{A: 0, B: 1}",
+        "A: 0, B: 1"
+      ],
+      "why": "`A: DATA 3` is word 0. `B:` alone names the next word, which is the `HALT` at address 1."
+    }
+  ],
+  "review": [
+    {
+      "q": "What number does `JMP 7` assemble to?",
+      "answer": [
+        "167"
+      ],
+      "why": "JMP is opcode 5: 5 · 32 + 7 = 167."
+    },
+    {
+      "q": "What does `DATA -2` store?",
+      "answer": [
+        "254"
+      ],
+      "why": "−2 % 256 = 254, which is −2 in 8-bit two's complement."
+    },
+    {
+      "q": "A label alone on its line, like `LOOP:`, names which address?",
+      "options": [
+        {
+          "text": "The address of the next word",
+          "correct": true,
+          "why": "A label-only line makes no word, so the name goes to whatever word comes next."
+        },
+        {
+          "text": "Its own line's address, which then holds 0",
+          "correct": false,
+          "why": "A label-only line doesn't produce a word at all."
+        },
+        {
+          "text": "Address 0",
+          "correct": false,
+          "why": "Only a label before the first word gets 0. In general it's the next word's address."
         }
       ]
     }

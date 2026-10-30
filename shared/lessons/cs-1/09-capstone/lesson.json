@@ -1,28 +1,62 @@
 {
   "title": "Capstone: multiply on your own CPU",
-  "minutes": 15,
+  "minutes": 20,
   "task": "Set `PROGRAM` to an assembly program that multiplies the numbers at `X` and `Y` and leaves the product at `RESULT`, using only the 8 instructions (there's no multiply). It must set `RESULT` to 0 itself, handle `Y = 0`, and `HALT` when it's done.",
   "hints": [
-    "You need four data words after the HALT: `X: DATA 6`, `Y: DATA 7`, `RESULT: DATA 0`, plus the constants `ZERO: DATA 0` and `ONE: DATA 1`. Start with `LOAD ZERO` / `STORE RESULT`.",
-    "The loop starts at `LOOP: LOAD Y` / `JZ DONE`. The body has two parts: add X to RESULT (`LOAD RESULT`, `ADD X`, `STORE RESULT`), then count Y down (`LOAD Y`, `SUB ONE`, `STORE Y`). End it with `JMP LOOP`.",
+    "Re-read \"Translating a loop to assembly\" next to the Python loop above it: each Python line becomes one to three instructions. Every operand is an address, so the constants 0 and 1 need their own `DATA` words.",
+    "The shape: set RESULT to 0 by loading from a `ZERO: DATA 0` word. Then `LOOP:` loads Y and does `JZ DONE`. The body adds X into RESULT (load, add, store), then counts Y down by subtracting a `ONE: DATA 1` word, and ends with `JMP LOOP`. `DONE: HALT` comes next, then five data words: X, Y, RESULT, ZERO and ONE.",
     "The whole program: `LOAD ZERO`, `STORE RESULT`, `LOOP: LOAD Y`, `JZ DONE`, `LOAD RESULT`, `ADD X`, `STORE RESULT`, `LOAD Y`, `SUB ONE`, `STORE Y`, `JMP LOOP`, `DONE: HALT`, then the data words."
   ],
   "quiz": [
     {
-      "q": "Why do you need a `ONE: DATA 1` word to count down?",
+      "q": "With this loop, how many times does `result = result + x` run when x = 4 and y = 0?",
+      "answer": [
+        "0"
+      ],
+      "why": "The check comes first: y is already 0, so the body never runs and the result stays 0."
+    },
+    {
+      "q": "Trace x = 4, y = 3. At the 4th check of Y, what is RESULT?",
+      "answer": [
+        "12"
+      ],
+      "why": "Each pass adds 4: RESULT is 0, 4, 8, 12 at the 1st to 4th checks. At the 4th, Y is 0 and the loop ends."
+    }
+  ],
+  "review": [
+    {
+      "q": "How many instructions does `RESULT = RESULT + X` take in this machine's assembly?",
+      "answer": [
+        "3"
+      ],
+      "why": "`LOAD RESULT`, `ADD X`, `STORE RESULT`: the accumulator is the only place arithmetic happens."
+    },
+    {
+      "q": "Why does the multiply program need a `ZERO: DATA 0` word?",
       "options": [
-        { "text": "Every operand is an address, so SUB needs a memory word that holds 1", "correct": true, "why": "`SUB 1` would subtract whatever is stored at address 1, which is one of your instructions. Constants have to live in memory." },
-        { "text": "Because the CPU can't subtract small numbers", "correct": false, "why": "It can subtract any word. The issue is how it gets the number: from an address." },
-        { "text": "To keep the program 32 words long", "correct": false, "why": "The program can be any length up to 32. The constant is about how operands work." }
+        {
+          "text": "So the program is exactly 32 words long",
+          "correct": false,
+          "why": "The assembler pads with zeros on its own. The program can be any length up to 32."
+        },
+        {
+          "text": "Every operand is an address, so to put 0 in the accumulator you load it from a word that holds 0",
+          "correct": true,
+          "why": "There's no \"load the number 0\" instruction. And RESULT can start as junk, so the program has to clear it."
+        },
+        {
+          "text": "`HALT` reads it to know when to stop",
+          "correct": false,
+          "why": "`HALT` takes no operand. It stops the CPU as soon as it runs."
+        }
       ]
     },
     {
-      "q": "Your loop checks `JZ DONE` at the top, before adding. What breaks if you check at the bottom instead?",
-      "options": [
-        { "text": "With Y = 0, the body runs once, and Y wraps to 255, so you get 255 more adds", "correct": true, "why": "0 − 1 wraps to 255 in 8 bits, so the loop keeps going for a long time and gives the wrong answer. Checking first handles zero." },
-        { "text": "Nothing: the result is the same", "correct": false, "why": "It's the same for every Y except 0. Try tracing it with Y = 0." },
-        { "text": "The program won't assemble", "correct": false, "why": "It assembles fine. It's a logic bug, which is worse: nothing warns you." }
-      ]
+      "q": "With the lesson's multiply program, how many steps does 5 × 0 take, counting the HALT?",
+      "answer": [
+        "5"
+      ],
+      "why": "`LOAD ZERO`, `STORE RESULT`, `LOAD Y`, `JZ DONE`, `HALT`: Y is 0, so the loop body never runs."
     }
   ]
 }

@@ -15,6 +15,8 @@ NAND outputs 0 only when both inputs are 1. Otherwise it outputs 1:
 
 Why NAND? In CMOS, the transistor technology in almost every chip, a NAND gate takes just 4 transistors, and it's faster than AND. (An AND gate is literally a NAND followed by a NOT.) So real chip libraries lean on NAND, and the nand2tetris course builds a whole working computer starting from this one gate.
 
+<!-- check 1 -->
+
 ## Building NOT
 
 Feed the same bit into both inputs. `nand(0, 0)` is 1 and `nand(1, 1)` is 0, so:
@@ -37,7 +39,11 @@ That's the whole trick of this lesson: wire NANDs together, and use the gates yo
 
 - **AND** is 1 when both inputs are 1. Look at the NAND table: it's exactly the opposite.
 - **OR** is 1 when at least one input is 1. The key is **De Morgan's law**: "a or b" is the same as "not (not a and not b)". Read the right side as "it's not the case that both are off". Now notice that `nand(x, y)` already *is* "not (x and y)".
-- **XOR** ("exclusive or") is 1 when the inputs **differ**. It's the gate that matters most for arithmetic: in the next lesson, it's what adds two bits.
+- **XOR** ("exclusive or") is 1 when the inputs **differ**. Put another way: at least one is on, **and** not both. It's the gate that matters most for arithmetic: in the next lesson, it's what adds two bits.
+
+Why is NAND enough for *everything*? Any truth table at all can be written with AND, OR and NOT: OR together one AND term for each row that outputs 1. So once NAND gives you those three, it gives you every possible gate.
+
+<!-- check 2 -->
 
 ## Gate count is real cost
 
