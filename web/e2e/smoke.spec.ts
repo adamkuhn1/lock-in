@@ -7,6 +7,7 @@ const SCREENS = [
   { name: 'grind-prep', path: '/grind/prep', heading: 'Prep' },
   { name: 'grind-cs', path: '/grind/learn/cs', heading: 'CS' },
   { name: 'grind-math', path: '/grind/learn/math', heading: 'Math' },
+  { name: 'grind-lesson', path: '/grind/learn/cs/cs-1/01-binary', heading: 'Bits: counting with two digits' },
   { name: 'hunt-jobs', path: '/hunt/jobs', heading: 'Jobs' },
   { name: 'hunt-apps', path: '/hunt/apps', heading: 'Applications' },
   { name: 'hunt-engineers', path: '/hunt/engineers', heading: 'Engineers' },

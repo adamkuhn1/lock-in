@@ -1,0 +1,28 @@
+{
+  "title": "Multiplexers and the ALU",
+  "minutes": 12,
+  "task": "Write `mux(a, b, sel)` from gates only, `mux_bits(a, b, sel)` (one mux per bit), and `alu(x, y, op)`, where `op` is one of `\"add\"`, `\"sub\"`, `\"and\"`, `\"or\"`, `\"not\"`. `alu` returns `(result_bits, zero, negative)`, with each flag 0 or 1.",
+  "hints": [
+    "`mux`: `or_(and_(a, not_(sel)), and_(b, sel))`. `mux_bits`: `[mux(x, y, sel) for x, y in zip(a, b)]`.",
+    "In `alu`, compute the result first. `add(x, y)[0]` drops the carry, `\"sub\"` is `add(x, negate(y))[0]`, and the bitwise ops are list comprehensions over `zip(x, y)`.",
+    "Then the flags: `zero = 1 if all(b == 0 for b in result) else 0`, and `negative = result[0]`. Return `result, zero, negative`."
+  ],
+  "quiz": [
+    {
+      "q": "A mux has a = 1, b = 0 and sel = 1. What does it output?",
+      "options": [
+        { "text": "0", "correct": true, "why": "sel = 1 picks b, and b is 0." },
+        { "text": "1", "correct": false, "why": "That's a. sel = 0 would pick a, but sel = 1 picks b." },
+        { "text": "Both, on different wires", "correct": false, "why": "A mux has one output wire. It passes exactly one of its inputs through." }
+      ]
+    },
+    {
+      "q": "How does a hardware ALU run the operation the program asked for?",
+      "options": [
+        { "text": "It computes every operation at once, then a mux tree passes one result through", "correct": true, "why": "Gates run in parallel, so computing everything costs no extra time. The op code just steers the muxes." },
+        { "text": "It checks the op code with if statements, then runs only that circuit", "correct": false, "why": "Circuits have no if. Selection is itself a circuit: the mux." },
+        { "text": "It sends the op to a separate chip for each operation", "correct": false, "why": "All of the ALU's operations sit side by side in the same block of logic." }
+      ]
+    }
+  ]
+}

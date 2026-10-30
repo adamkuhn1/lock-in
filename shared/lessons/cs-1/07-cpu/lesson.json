@@ -1,0 +1,28 @@
+{
+  "title": "The CPU: fetch, decode, execute",
+  "minutes": 15,
+  "task": "Write `run(memory, max_steps=1000)` for the 8-instruction machine in the table. Copy the memory, then loop: fetch `mem[pc]`, advance `pc` (wrapping at 32), decode the opcode (top 3 bits) and address (low 5 bits), and execute. Stop on `HALT` or after `max_steps`. Return `{\"acc\", \"pc\", \"memory\", \"halted\", \"steps\"}`.",
+  "hints": [
+    "Set up `mem = list(memory)`, `acc = pc = steps = 0` and `halted = False`. Loop `while steps < max_steps:`. Inside, fetch with `word = mem[pc]`, then `pc = (pc + 1) % 32` and `steps += 1`.",
+    "Decode with `op, addr = word >> 5, word & 31`. Then use an if/elif chain: `if op == 0: halted = True; break`, `elif op == 1: acc = mem[addr]`, `elif op == 3: acc = (acc + mem[addr]) % 256`, and so on.",
+    "The jumps: `elif op == 5: pc = addr`, `elif op == 6 and acc == 0: pc = addr`, and `elif op == 7 and acc >= 128: pc = addr`. At the end, `return {\"acc\": acc, \"pc\": pc, \"memory\": mem, \"halted\": halted, \"steps\": steps}`."
+  ],
+  "quiz": [
+    {
+      "q": "What instruction is the word 200 (`110 01000`)?",
+      "options": [
+        { "text": "`JZ 8`", "correct": true, "why": "The top 3 bits are 110 = 6, which is JZ. The low 5 bits are 01000 = 8. Check: 6 × 32 + 8 = 200." },
+        { "text": "`JMP 8`", "correct": false, "why": "JMP is opcode 5 (101). The top three bits here are 110, which is 6." },
+        { "text": "`ADD 200`", "correct": false, "why": "The address field is only 5 bits, so it maxes out at 31. Split the word: 3 bits of opcode, 5 bits of address." }
+      ]
+    },
+    {
+      "q": "Why does the CPU advance `pc` before executing the instruction?",
+      "options": [
+        { "text": "So a jump can just overwrite pc, and every other instruction moves on to the next one for free", "correct": true, "why": "After the fetch, pc already points at the next instruction. A jump replaces that, and everything else leaves it alone." },
+        { "text": "Because memory reads are slow", "correct": false, "why": "The order is about control flow, not speed." },
+        { "text": "It doesn't matter: either order gives the same result", "correct": false, "why": "If you advance after executing, a jump's new pc gets bumped by one and lands on the wrong instruction." }
+      ]
+    }
+  ]
+}

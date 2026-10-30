@@ -1,0 +1,28 @@
+{
+  "title": "Logic gates from a single NAND",
+  "minutes": 12,
+  "task": "Using only `nand(a, b)` (given) and your own gates, write `not_(a)`, `and_(a, b)`, `or_(a, b)` and `xor_(a, b)`. Each takes bits (0 or 1) and returns a bit. No Python operators, `if`, or comparisons: just calls.",
+  "hints": [
+    "`and_` is the opposite of `nand`, and you just built \"opposite\": `not_(nand(a, b))`.",
+    "For `or_`, use De Morgan: a or b = not (not a and not b). Since `nand(x, y)` is \"not (x and y)\", `or_` is `nand(not_(a), not_(b))`.",
+    "XOR is 1 when exactly one input is 1: (a or b) and not (a and b). In code: `and_(or_(a, b), nand(a, b))`. The 4-NAND version is: `n = nand(a, b)`, then `nand(nand(a, n), nand(b, n))`."
+  ],
+  "quiz": [
+    {
+      "q": "What does `nand(0, 0)` return?",
+      "options": [
+        { "text": "1", "correct": true, "why": "AND of 0 and 0 is 0, and NAND flips it to 1. NAND is 0 only when both inputs are 1." },
+        { "text": "0", "correct": false, "why": "That's AND. NAND is the opposite of AND." },
+        { "text": "It depends on the circuit", "correct": false, "why": "A gate is a fixed function. The truth table says exactly what it outputs for every input." }
+      ]
+    },
+    {
+      "q": "Why can NAND alone build every other gate?",
+      "options": [
+        { "text": "You can make NOT from it, plus AND or OR, and those can express any truth table", "correct": true, "why": "NOT plus AND (or NOT plus OR) is enough for any logic function. NAND gives you NOT via nand(a, a), then AND via not_(nand(a, b))." },
+        { "text": "Because NAND has the most 1s in its truth table", "correct": false, "why": "OR has three 1s too, and OR alone can't make NOT. What matters is being able to invert." },
+        { "text": "It can't: you also need XOR", "correct": false, "why": "XOR is built from NAND, and you'll do it in this exercise." }
+      ]
+    }
+  ]
+}

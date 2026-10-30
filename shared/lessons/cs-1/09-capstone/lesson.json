@@ -1,0 +1,28 @@
+{
+  "title": "Capstone: multiply on your own CPU",
+  "minutes": 15,
+  "task": "Set `PROGRAM` to an assembly program that multiplies the numbers at `X` and `Y` and leaves the product at `RESULT`, using only the 8 instructions (there's no multiply). It must set `RESULT` to 0 itself, handle `Y = 0`, and `HALT` when it's done.",
+  "hints": [
+    "You need four data words after the HALT: `X: DATA 6`, `Y: DATA 7`, `RESULT: DATA 0`, plus the constants `ZERO: DATA 0` and `ONE: DATA 1`. Start with `LOAD ZERO` / `STORE RESULT`.",
+    "The loop starts at `LOOP: LOAD Y` / `JZ DONE`. The body has two parts: add X to RESULT (`LOAD RESULT`, `ADD X`, `STORE RESULT`), then count Y down (`LOAD Y`, `SUB ONE`, `STORE Y`). End it with `JMP LOOP`.",
+    "The whole program: `LOAD ZERO`, `STORE RESULT`, `LOOP: LOAD Y`, `JZ DONE`, `LOAD RESULT`, `ADD X`, `STORE RESULT`, `LOAD Y`, `SUB ONE`, `STORE Y`, `JMP LOOP`, `DONE: HALT`, then the data words."
+  ],
+  "quiz": [
+    {
+      "q": "Why do you need a `ONE: DATA 1` word to count down?",
+      "options": [
+        { "text": "Every operand is an address, so SUB needs a memory word that holds 1", "correct": true, "why": "`SUB 1` would subtract whatever is stored at address 1, which is one of your instructions. Constants have to live in memory." },
+        { "text": "Because the CPU can't subtract small numbers", "correct": false, "why": "It can subtract any word. The issue is how it gets the number: from an address." },
+        { "text": "To keep the program 32 words long", "correct": false, "why": "The program can be any length up to 32. The constant is about how operands work." }
+      ]
+    },
+    {
+      "q": "Your loop checks `JZ DONE` at the top, before adding. What breaks if you check at the bottom instead?",
+      "options": [
+        { "text": "With Y = 0, the body runs once, and Y wraps to 255, so you get 255 more adds", "correct": true, "why": "0 − 1 wraps to 255 in 8 bits, so the loop keeps going for a long time and gives the wrong answer. Checking first handles zero." },
+        { "text": "Nothing: the result is the same", "correct": false, "why": "It's the same for every Y except 0. Try tracing it with Y = 0." },
+        { "text": "The program won't assemble", "correct": false, "why": "It assembles fine. It's a logic bug, which is worse: nothing warns you." }
+      ]
+    }
+  ]
+}

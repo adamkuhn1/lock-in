@@ -1,0 +1,28 @@
+{
+  "title": "Memory: registers, RAM and the clock",
+  "minutes": 12,
+  "task": "Write `class Register` with `set(value, load)`, `tick()` and `out()`: the stored value changes only on `tick()`, and only when load is 1. Then write `class RAM(size)` from a list of Registers, with `set(addr, value, load)`, `tick()` and `read(addr)`. An address outside `0..size-1` raises `IndexError`.",
+  "hints": [
+    "Give `Register` three attributes in `__init__`: `self.value = 0` (what's stored), plus `self.next_value = 0` and `self.load = 0` (the inputs). `set` only changes the inputs. `tick` does `if self.load: self.value = self.next_value`.",
+    "For `RAM`: `self.regs = [Register() for _ in range(size)]`. `read(addr)` is `self.regs[addr].out()`. Check the address first, since Python's `regs[-1]` would quietly read the last register.",
+    "`RAM.set(addr, value, load)`: first clear load on every register (only one address can be written per tick), then call `self.regs[addr].set(value, load)`. `RAM.tick()` ticks every register."
+  ],
+  "quiz": [
+    {
+      "q": "A register holds 3. You call `set(8, 1)` and then `out()`, without ticking. What comes back?",
+      "options": [
+        { "text": "3", "correct": true, "why": "The stored value only changes on a clock tick. Until then, out() shows the value from the last tick." },
+        { "text": "8", "correct": false, "why": "That would be combinational behavior. A register's whole point is to wait for the tick." },
+        { "text": "11", "correct": false, "why": "A register stores a value, it doesn't add. On the next tick, 8 replaces 3." }
+      ]
+    },
+    {
+      "q": "Why does clock speed have an upper limit?",
+      "options": [
+        { "text": "The slowest path through the logic must settle within one tick", "correct": true, "why": "Tick before the wires settle, and the registers capture half-finished values. The longest gate path, like a carry chain, sets the minimum tick length." },
+        { "text": "Registers can only hold so many bits", "correct": false, "why": "Width affects how much a register holds, not how often it can tick." },
+        { "text": "RAM fills up faster at higher speeds", "correct": false, "why": "Ticking faster doesn't use more memory. It just gives the logic less time per step." }
+      ]
+    }
+  ]
+}

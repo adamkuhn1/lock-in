@@ -8,7 +8,7 @@
           "id": "cs-1",
           "ord": 1,
           "title": "How computers work",
-          "summary": "Explain how transistors become gates, memory and a CPU that runs your code, then build a whole computer in a browser simulator.",
+          "summary": "How transistors become gates, arithmetic, memory and a CPU that runs your code. You build each piece in Python, from a single NAND gate up to a working computer and its assembler.",
           "items": [
             {
               "id": "cs-1-w1",

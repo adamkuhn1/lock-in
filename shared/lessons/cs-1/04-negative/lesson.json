@@ -1,0 +1,28 @@
+{
+  "title": "Negative numbers: two's complement",
+  "minutes": 13,
+  "task": "Write `negate(bits)` (flip every bit, then add 1, using the given gates and adder), `to_signed(bits)` (the two's complement value as a Python int), and `add_signed(a, b)`, which returns `(sum_bits, overflow)`: the sum with the carry thrown away, and `True` if signed overflow happened.",
+  "hints": [
+    "`negate`: `flipped = [not_(b) for b in bits]`, `one = [0] * (len(bits) - 1) + [1]`, then `add(flipped, one)[0]`.",
+    "`to_signed`: take `from_binary(bits)`, and if `bits[0] == 1`, subtract `2 ** len(bits)`.",
+    "`add_signed`: `s, _ = add(a, b)`. Overflow happens when the inputs share a sign and the result doesn't: `a[0] == b[0] and s[0] != a[0]`. Don't use the carry: it isn't signed overflow."
+  ],
+  "quiz": [
+    {
+      "q": "In 4-bit two's complement, what is `1110`?",
+      "options": [
+        { "text": "−2", "correct": true, "why": "−8 + 4 + 2 = −2. Or: 14 unsigned, minus 16, is −2." },
+        { "text": "14", "correct": false, "why": "That's the unsigned reading. In two's complement, a top bit of 1 means negative." },
+        { "text": "−6", "correct": false, "why": "That's sign-magnitude (sign bit, then 110 = 6). Two's complement gives the top bit the value −8." }
+      ]
+    },
+    {
+      "q": "A 4-bit signed add of `1111` + `1111` produces a carry out of 1. Did it overflow?",
+      "options": [
+        { "text": "No: −1 + −1 = −2 is `1110`, which fits", "correct": true, "why": "For signed numbers, the carry doesn't matter. Overflow means the sign came out wrong, and here both inputs and the result are negative." },
+        { "text": "Yes: there was a carry out", "correct": false, "why": "Carry out signals overflow only for unsigned numbers. For signed numbers, check the signs." },
+        { "text": "Yes: two negatives always overflow", "correct": false, "why": "Only when the true sum is below −8. −1 + −1 = −2 is well within range." }
+      ]
+    }
+  ]
+}

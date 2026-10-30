@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import {
   useLaunchRequests, useLearnChecks, useLearnItems, useLearnModules, useLearnProgress, useLearnStates, useNow, useRequestLaunch,
   useSaveLearnProgress, useSetModuleDone,
 } from '../data/hooks';
 import type { LearnItem, LearnProgress, LearnStatus, LearnTrack, Rating } from '../data/types';
 import { launchState, type LaunchState } from '../lib/ideas';
+import { lessonPath } from '../lib/lessons';
 import { STATUS_LABEL, TRACKS, TYPE_LABEL, TYPE_ORDER, moduleViews, progressMap, type LearnData, type ModuleView } from '../lib/learn';
 import { planDay, shortDate } from '../lib/time';
 import { RATINGS } from '../lib/today';
@@ -89,6 +90,31 @@ function ItemRow({ it, p, today, teach, busy, onPatch, onTeach }: {
   );
 }
 
+const LESSON_ACTION = { not_started: 'Start', in_progress: 'Continue', done: 'Redo' } as const;
+
+/** The module's main path: short lessons with a graded exercise each. The next one up is the primary button. */
+function LessonList({ v }: { v: ModuleView }) {
+  const next = v.lessons.find((l) => l.status !== 'done');
+  return (
+    <section className="learn-group" aria-labelledby={`lessons-${v.module.id}`}>
+      <h3 className="label" id={`lessons-${v.module.id}`}>Lessons · {v.done} of {v.total} done</h3>
+      <ol className="lesson-list">
+        {v.lessons.map(({ lesson, status }) => (
+          <li key={lesson.id} className={`lesson-row is-${status}`}>
+            <span className="lesson-num num" aria-hidden="true">{status === 'done' ? '✓' : lesson.ord}</span>
+            <div className="lesson-row-text">
+              <p className="job-title">{lesson.title}</p>
+              <p className="muted small">{lesson.minutes} min · {STATUS_LABEL[status]}</p>
+            </div>
+            <Link className={`btn${next?.lesson.id === lesson.id ? ' btn-primary' : ''}`} to={lessonPath(v.module.track, lesson)}
+              aria-label={`${LESSON_ACTION[status]}: lesson ${lesson.ord}, ${lesson.title}`}>{LESSON_ACTION[status]}</Link>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function ModuleDetail({ v, data, today }: { v: ModuleView; data: LearnData; today: string }) {
   const now = useNow();
   const requests = useLaunchRequests();
@@ -102,6 +128,24 @@ function ModuleDetail({ v, data, today }: { v: ModuleView; data: LearnData; toda
   const check = launchState(reqs, (r) => r.kind === 'check_module' && r.payload.module_id === v.module.id, now);
   const review = launchState(reqs, (r) => r.kind === 'review_module' && r.payload.module_id === v.module.id, now);
   const headId = `mod-${v.module.id}`;
+  const itemGroups = TYPE_ORDER.map((t) => {
+    const list = v.items.filter((i) => i.type === t);
+    if (!list.length) return null;
+    return (
+      <section key={t} className="learn-group" aria-label={TYPE_LABEL[t]}>
+        <h3 className="label">{TYPE_LABEL[t]}</h3>
+        <ul>
+          {list.map((it) => (
+            <ItemRow key={`${it.id}-${prog.get(it.id)?.notes ?? ''}`} it={it} p={prog.get(it.id)} today={today} busy={busy}
+              teach={launchState(reqs, (r) => r.kind === 'teach_item' && r.payload.item_id === it.id, now)}
+              onPatch={(patch) => save.mutate({ itemId: it.id, patch })}
+              onTeach={() => launch.mutate({ kind: 'teach_item', payload: { item_id: it.id } })} />
+          ))}
+        </ul>
+      </section>
+    );
+  });
+
   const failed = [check, review].find((s) => s.kind === 'failed');
   return (
     <Card aria-labelledby={headId}>
@@ -119,7 +163,7 @@ function ModuleDetail({ v, data, today }: { v: ModuleView; data: LearnData; toda
             onClick={() => launch.mutate({ kind: 'review_module', payload: { module_id: v.module.id } })} />
         )}
         <LaunchButton label="Check me" name={v.module.title} state={check} busy={busy}
-          variant={v.status !== 'review' && v.done >= v.total - 1 && !v.doneOn ? 'primary' : 'ghost'}
+          variant={v.status !== 'review' && v.done >= v.total - (v.lessons.length ? 0 : 1) && !v.doneOn ? 'primary' : 'ghost'}
           onClick={() => launch.mutate({ kind: 'check_module', payload: { module_id: v.module.id } })} />
         {v.doneOn ? (
           <Button variant="quiet" aria-label={`Not done: ${v.module.title}`} disabled={busy}
@@ -131,23 +175,10 @@ function ModuleDetail({ v, data, today }: { v: ModuleView; data: LearnData; toda
       </div>
       {failed?.kind === 'failed' && <ErrorDetail error={failed.error} />}
       {(save.isError || launch.isError || setDone.isError) && <p role="alert" className="error small">Couldn't save. Try again.</p>}
-      {TYPE_ORDER.map((t) => {
-        const list = v.items.filter((i) => i.type === t);
-        if (!list.length) return null;
-        return (
-          <section key={t} className="learn-group" aria-label={TYPE_LABEL[t]}>
-            <h3 className="label">{TYPE_LABEL[t]}</h3>
-            <ul>
-              {list.map((it) => (
-                <ItemRow key={`${it.id}-${prog.get(it.id)?.notes ?? ''}`} it={it} p={prog.get(it.id)} today={today} busy={busy}
-                  teach={launchState(reqs, (r) => r.kind === 'teach_item' && r.payload.item_id === it.id, now)}
-                  onPatch={(patch) => save.mutate({ itemId: it.id, patch })}
-                  onTeach={() => launch.mutate({ kind: 'teach_item', payload: { item_id: it.id } })} />
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {v.lessons.length > 0 && <LessonList v={v} />}
+      {v.lessons.length > 0 ? (
+        <Disclosure summary="Go deeper: videos and projects (optional)">{itemGroups}</Disclosure>
+      ) : itemGroups}
       {checks.length > 0 && (
         <Disclosure summary={`Checks and reviews (${checks.length})`}>
           <ul className="list">
@@ -171,7 +202,8 @@ export default function Learn() {
   const { state, data, retry } = useLearnData();
   const info = TRACKS.find((t) => t.id === track) ?? TRACKS[0];
   const views = moduleViews(data, info.id as LearnTrack, today);
-  const [open, setOpen] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const [open, setOpen] = useState<string | null>(params.get('module'));
   const selected = views.find((v) => v.module.id === open)
     ?? views.find((v) => v.status === 'review') ?? views.find((v) => v.status === 'in_progress') ?? views.find((v) => v.status === 'not_started') ?? views[0];
   const doneCount = views.filter((v) => v.doneOn).length;

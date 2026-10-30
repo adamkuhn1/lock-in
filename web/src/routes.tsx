@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import Applications from './screens/Applications';
 import Calendar from './screens/Calendar';
@@ -15,6 +16,10 @@ import SettingsScreen from './screens/Settings';
 import Share from './screens/Share';
 import Today from './screens/Today';
 import { AppShell } from './ui/AppShell';
+import { Skeleton } from './ui/primitives';
+
+// The lesson player carries the code editor and markdown renderer; load it only when a lesson opens.
+const Lesson = lazy(() => import('./screens/Lesson'));
 
 /** v1 paths (bookmarks, ntfy links) → v2 homes. */
 export const LEGACY: [string, string][] = [
@@ -32,6 +37,7 @@ export function AppRoutes() {
           <Route path="leetcode" element={<LeetCode />} />
           <Route path="prep" element={<Prep />} />
           <Route path="learn/:track" element={<Learn />} />
+          <Route path="learn/:track/:module/:lesson" element={<Suspense fallback={<Skeleton label="Loading the lesson" />}><Lesson /></Suspense>} />
         </Route>
         <Route path="hunt" element={<Hunt />}>
           <Route index element={<Navigate to="jobs" replace />} />

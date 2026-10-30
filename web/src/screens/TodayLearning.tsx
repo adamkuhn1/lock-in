@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useLaunchRequests, useNow, useRequestLaunch, useSettings } from '../data/hooks';
 import { launchState } from '../lib/ideas';
+import { lessonPath } from '../lib/lessons';
 import { TRACKS, TYPE_LABEL, fmtMinutes, reviewsDue, split, whatsNext } from '../lib/learn';
 import { planDay } from '../lib/time';
 import { safeHref } from '../lib/url';
@@ -34,6 +35,22 @@ export function TodayLearning({ lcDone, lcTotal }: { lcDone: number; lcTotal: nu
             onClick={() => launch.mutate({ kind: 'review_module', payload: { module_id: next.view.module.id } })}>
             {st.kind === 'queued' ? 'Queued for Mac' : st.kind === 'launched' ? 'Opened on Mac' : 'Start review'}
           </Button>
+        </div>
+      </>
+    );
+  } else if (next.kind === 'lesson') {
+    const v = next.view;
+    step = (
+      <>
+        <p className="small">
+          <b>Lesson {next.lesson.ord}:</b> {next.lesson.title}{' '}
+          <span className="muted">({trackLabel(v.module.track)} {v.module.ord}. {v.module.title}, {fmtMinutes(next.lesson.minutes)}, on your Mac)</span>
+        </p>
+        <div className="row-actions">
+          <Link className={`btn ${lcLeft ? '' : 'btn-primary'}`.trim()} to={lessonPath(v.module.track, next.lesson)}>
+            {next.status === 'in_progress' ? 'Continue lesson' : 'Start lesson'}
+          </Link>
+          <Link className="btn btn-quiet" to={`/grind/learn/${v.module.track}?module=${v.module.id}`}>{trackLabel(v.module.track)} track</Link>
         </div>
       </>
     );

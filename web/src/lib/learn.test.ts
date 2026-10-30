@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LearnCheck, LearnItem, LearnModule, LearnProgress } from '../data/types';
 import { fmtMinutes, moduleViews, nextReview, reviewsDue, split, whatsNext, type LearnData } from './learn';
+import type { Lesson } from './lessons';
 
 const M = (id: string, track: LearnModule['track'], ord: number): LearnModule => ({ id, track, ord, title: id, summary: '' });
 const I = (id: string, module_id: string, type: LearnItem['type'], hours = 1, ord = 1): LearnItem =>
@@ -14,7 +15,7 @@ const base = (): LearnData => ({
   modules: [M('cs-1', 'cs', 1), M('cs-2', 'cs', 2), M('math-1', 'math', 1), M('founder-1', 'founder', 1)],
   items: ['cs-1', 'cs-2', 'math-1', 'founder-1'].flatMap((m) => [
     I(`${m}-c`, m, 'check', 0.5, 4), I(`${m}-b`, m, 'build', 10, 3), I(`${m}-w`, m, 'watch', 2, 1), I(`${m}-d`, m, 'do', 1, 2)]),
-  progress: [], states: [], checks: [],
+  progress: [], states: [], checks: [], lessons: [],
 });
 
 describe('module views', () => {
@@ -81,5 +82,37 @@ describe("what's next", () => {
     const d = base();
     d.states = d.modules.map((m) => ({ module_id: m.id, done_on: '2026-10-09' }));
     expect(whatsNext(d, '2026-10-10', 54)).toEqual({ kind: 'none' });
+  });
+});
+
+describe('modules with lessons', () => {
+  const L = (moduleId: string, ord: number, minutes = 12): Lesson =>
+    ({ id: `${moduleId}/0${ord}-l`, moduleId, slug: `0${ord}-l`, ord, title: `L${ord}`, minutes });
+  const withLessons = (): LearnData => ({ ...base(), lessons: [L('cs-1', 1, 10), L('cs-1', 2, 14), L('cs-1', 3, 12)] });
+
+  it('count lessons for progress and time, and leave the items optional', () => {
+    const d = withLessons();
+    d.progress = [P('lesson:cs-1/01-l', 'done'), P('cs-1-w', 'done'), P('cs-1-d', 'done')];
+    const v = moduleViews(d, 'cs', '2026-10-21')[0];
+    expect(v).toMatchObject({ done: 1, total: 3, hours: 36 / 60, status: 'in_progress' });
+    expect(v.lessons.map((l) => l.status)).toEqual(['done', 'not_started', 'not_started']);
+  });
+  it('a lesson in progress comes before an item in progress', () => {
+    const d = withLessons();
+    d.progress = [P('math-1-w', 'in_progress', '2026-10-09'), P('lesson:cs-1/02-l', 'in_progress', '2026-10-01')];
+    expect(whatsNext(d, '2026-10-10', 54)).toMatchObject({ kind: 'lesson', lesson: { ord: 2 }, status: 'in_progress' });
+  });
+  it('a started lesson module goes on with its next lesson, not its optional items', () => {
+    const d = withLessons();
+    d.progress = [P('lesson:cs-1/01-l', 'done'), P('cs-1-w', 'in_progress')];
+    expect(whatsNext(d, '2026-10-10', 54)).toMatchObject({ kind: 'lesson', lesson: { ord: 2 }, status: 'not_started' });
+  });
+  it('the check comes once every lesson is done, and a fresh lesson module starts at lesson 1', () => {
+    const d = withLessons();
+    d.progress = [1, 2, 3].map((n) => P(`lesson:cs-1/0${n}-l`, 'done'));
+    expect(whatsNext(d, '2026-10-10', 54)).toMatchObject({ kind: 'check', view: { module: { id: 'cs-1' } } });
+    const fresh = withLessons();
+    fresh.modules = [M('cs-1', 'cs', 1)];
+    expect(whatsNext(fresh, '2026-10-10', 54)).toMatchObject({ kind: 'lesson', lesson: { ord: 1 } });
   });
 });

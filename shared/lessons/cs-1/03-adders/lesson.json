@@ -1,0 +1,28 @@
+{
+  "title": "Adders: arithmetic out of gates",
+  "minutes": 13,
+  "task": "Write `half_adder(a, b)` and `full_adder(a, b, carry_in)`, each returning `(sum, carry)`, using the given gates. Then write `add(a, b)`, which adds two equal-length bit lists (most significant bit first) with a chain of full adders and returns `(sum_bits, carry_out)`.",
+  "hints": [
+    "`half_adder` is one line: `return xor_(a, b), and_(a, b)`.",
+    "`full_adder`: `s1, c1 = half_adder(a, b)`, then `s, c2 = half_adder(s1, carry_in)`, then return `s, or_(c1, c2)`.",
+    "For `add`: start with `carry = 0` and `out = [0] * len(a)`. Loop `for i in reversed(range(len(a)))`, set `out[i], carry = full_adder(a[i], b[i], carry)`, and return `out, carry` at the end."
+  ],
+  "quiz": [
+    {
+      "q": "In a half adder, which gate produces the sum bit?",
+      "options": [
+        { "text": "XOR", "correct": true, "why": "The sum is 1 exactly when the inputs differ, and that's XOR's truth table." },
+        { "text": "AND", "correct": false, "why": "AND gives the carry. It's 1 only for 1 + 1." },
+        { "text": "OR", "correct": false, "why": "OR would make 1 + 1 = 1. The sum bit of 1 + 1 is 0, with a carry of 1." }
+      ]
+    },
+    {
+      "q": "What does a 4-bit adder output for `1111` + `0001`?",
+      "options": [
+        { "text": "`0000` with carry_out 1", "correct": true, "why": "15 + 1 = 16 = `10000`, which needs 5 bits. The 4 bits wrap to `0000`, and the 1 that doesn't fit comes out as the carry." },
+        { "text": "`1111` with carry_out 1", "correct": false, "why": "Every column produces 1 + carry = `10`, so every sum bit is 0." },
+        { "text": "`10000`", "correct": false, "why": "The adder has exactly 4 sum outputs. The fifth bit can only leave as carry_out." }
+      ]
+    }
+  ]
+}

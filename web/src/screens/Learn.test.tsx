@@ -17,9 +17,12 @@ describe('Learn', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'CS' })).toBeInTheDocument();
     const map = within(await screen.findByRole('region', { name: 'Roadmap' }));
     const buttons = map.getAllByRole('button');
-    expect(buttons[0]).toHaveAccessibleName(/^1\. How computers work, In progress, 1 of \d+ done$/);
+    expect(buttons[0]).toHaveAccessibleName(/^1\. How computers work, In progress, 0 of \d+ done$/);
     expect(buttons.every((b) => !b.hasAttribute('disabled'))).toBe(true);
     const detail = within(screen.getByRole('region', { name: /^1\. How computers work/ }));
+    const lessons = within(detail.getByRole('region', { name: /^Lessons · 0 of \d+ done$/ }));
+    expect(lessons.getByRole('link', { name: 'Start: lesson 1, Bits: counting with two digits' })).toHaveAttribute('href', '/grind/learn/cs/cs-1/01-binary');
+    expect(detail.getByText('Go deeper: videos and projects (optional)')).toBeInTheDocument();
     for (const g of ['Watch', 'Do', 'Build', 'Check']) expect(detail.getByRole('region', { name: g })).toBeInTheDocument();
   });
   it('changing status and rating saves progress', async () => {
@@ -65,13 +68,27 @@ describe('TodayLearning', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Start review' }));
     expect(launch).toHaveBeenCalledWith('review_module', { module_id: 'math-1' });
   });
-  it('without a review, suggests the item in progress with Teach me', async () => {
+  it('without a review, suggests the next lesson of the module in progress', async () => {
     const api = createDemoApi();
     vi.spyOn(api, 'listLearnModuleStates').mockResolvedValue([]);
+    const doItem = (await api.listLearnItems()).find((i) => i.module_id === 'cs-1' && i.type === 'do')!;
+    vi.spyOn(api, 'listLearnProgress').mockResolvedValue([
+      { item_id: doItem.id, status: 'in_progress', rating: null, notes: '', started_on: '2026-10-01', done_on: null }]);
+    renderWithData(<TodayLearning lcDone={6} lcTotal={6} />, { api });
+    expect(await screen.findByRole('link', { name: 'Start lesson' })).toHaveAttribute('href', '/grind/learn/cs/cs-1/01-binary');
+    expect(screen.getByText(/^Lesson 1:/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'CS track' })).toHaveAttribute('href', '/grind/learn/cs?module=cs-1');
+  });
+  it('an item in progress in a module without lessons gets Teach me', async () => {
+    const api = createDemoApi();
+    vi.spyOn(api, 'listLearnModuleStates').mockResolvedValue([]);
+    const items = await api.listLearnItems();
+    const watch = items.find((i) => i.module_id === 'math-2' && i.type === 'watch')!;
+    vi.spyOn(api, 'listLearnProgress').mockResolvedValue([
+      { item_id: watch.id, status: 'in_progress', rating: null, notes: '', started_on: '2026-10-01', done_on: null }]);
     const launch = vi.spyOn(api, 'requestLaunch');
     renderWithData(<TodayLearning lcDone={6} lcTotal={6} />, { api });
     await userEvent.click(await screen.findByRole('button', { name: 'Teach me' }));
-    expect(launch).toHaveBeenCalledWith('teach_item', { item_id: expect.stringMatching(/^cs-1-d/) });
-    expect(screen.getByRole('link', { name: 'CS track' })).toHaveAttribute('href', '/grind/learn/cs');
+    expect(launch).toHaveBeenCalledWith('teach_item', { item_id: watch.id });
   });
 });
