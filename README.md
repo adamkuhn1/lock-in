@@ -1,60 +1,89 @@
 # Lock In
 
-A personal training app for internship and new-grad recruiting season. It tracks every kind of work that moves a job search forward (LeetCode, applications, recruiter outreach, project commits and interview prep), shows it as a daily streak, and hands the slow parts to Claude Code sessions on my Mac.
+**A daily training system for software-engineering recruiting season.**
 
-I built it for myself and use it every day. It's not a hosted product: you'd need your own Supabase project, Google Sheet and Mac to run it.
+Lock In puts every part of an internship or new-grad search in one app: LeetCode practice, job postings, applications, recruiter and engineer outreach, and interview prep. It counts all of that work toward one daily streak. The slow parts, like tailoring a resume or finding an engineer to contact, are handed to interactive Claude Code sessions that run on a local Mac.
 
 <p>
-  <img src="docs/screens/today.png" alt="Today: Day 21, a 17-day streak, the activity heatmap, weekly rings and the season funnel" width="49%">
-  <img src="docs/screens/jobs.png" alt="Jobs: new postings sorted by company tier, with Cold email, Tailor resume and I applied on each" width="49%">
+  <img src="docs/screens/today.png" alt="Today view: Day 21, a 17-day streak, the activity heatmap, weekly rings and the season funnel" width="49%">
+  <img src="docs/screens/jobs.png" alt="Jobs view: new postings sorted by company tier, with Cold email, Tailor resume and I applied actions" width="49%">
 </p>
-<sub>Screens from demo mode (made-up data).</sub>
+<sub>Screenshots from demo mode, using made-up data.</sub>
 
-## What it does
+> [!NOTE]
+> Lock In is a personal tool, not a hosted product. Running it yourself needs your own Supabase project, Google Sheet and Mac. [Demo mode](#quick-start) runs with no accounts.
 
-- **Today**: Day N of the season, an any-work streak, a GitHub-style activity heatmap, weekly rings (LeetCode, applications, emails) and an application funnel compared against a benchmark season.
-- **Grind**: a daily LeetCode set chosen by spaced repetition across a problem roadmap, plus interview prep (a story bank, a fundamentals checklist, company prep and mock interviews).
-- **Hunt**: new early-career postings from about 300 companies' career sites, tagged Reach (top startups, FAANG, Apple), Midwest/Chicago or Volume (big new-grad programs) and sorted by tier. The scanner reads each new posting in full and files away PhD-only roles, roles asking for 2+ years of experience and the wrong graduation window (they stay visible under Filtered), skips trading firms, and merges the same job found on two sources. It runs every 10 minutes. Applications sync from my tracking Sheet, and outreach cards follow each recruiter email from draft to follow-up.
-- **Engineers**: for a Reach job, **Find engineers** has Claude find one or two engineers there by web search (ex-Apple first, then Central Michigan alumni, then the same team) and draft a LinkedIn connection note under 280 characters. I send it myself, then track each person from drafted to sent, accepted, replied and referred, with a follow-up reminder 3 days after they accept. Today shows notes sent this week against a target of 10, reply rates by tier for notes and recruiter emails, and Reach applications with no engineer contacted yet.
-- **Learning tracks** (Grind → CS, Math, Founder): modules in a recommended order, none of them locked. Each module has Watch (a free video course), Do (practice), Build (a project, tied to Promotr, Showboat, 27B or Lock In where it fits) and Check items. Each item has a status, a LeetCode-style rating and notes. **Teach me** opens a Socratic Claude session: I attempt first, then it explains. **Check me** runs a five-question quiz plus one explain-it-back question and saves the score. Finished modules come back as 3-question reviews at 3, 7, 21, 60 and 120 days. Today splits my study time between interview prep and learning (70/30 by default) and suggests one learning step a day.
-- **Projects**: commit strips for my side projects and an idea list. **Work on this** opens a briefed Claude Code session in that project's folder.
-- **Tailor resume**: Claude first checks the fit (degree level, graduation date, role type) and stops early if the posting isn't for me, offering to drop it from the app. Otherwise the Mac copies my base LaTeX resume, has Claude tailor it to the posting, compiles it with tectonic, checks it's exactly one page, saves it next to my other resumes, then drafts one recruiter email for me to review and send.
-- **Tailor & fill out app**: the same, plus Claude in Chrome fills in the application with the new resume. It waits for me to sign in on Workday-style sites, declines every demographic question, leaves anything it can't answer blank, and stops before Submit so I can review it and send it myself.
-- **Me**: my profile and links (which the Claude prompts read), a season record, and every tailored resume with its path. **Download data** saves everything as one JSON file; **Make PDF report** has the Mac write every table to JSON and Claude turn it, plus the resume, into a visual season report PDF (inline SVG charts, printed with headless Chrome).
-- **Calendar**, a shareable progress card, and phone nudges through ntfy.
+## Features
 
-Claude never sends, submits an application or pushes anything on its own. Every session is interactive, and I approve each command.
+### Practice
+- **Daily LeetCode set** chosen by spaced repetition across a problem roadmap.
+- **Interview prep**: a story bank, a fundamentals checklist, company research and mock interviews.
+- **Learning tracks** in CS, math and startups. Each module pairs a free course with practice, a project and a short quiz. Finished modules come back for review at 3, 7, 21, 60 and 120 days.
 
-## How it fits together
+### Job search
+- **Posting scanner** that checks about 300 company career sites every 10 minutes. It sorts postings into tiers (Reach, Midwest, Volume), merges duplicates, and filters out roles that ask for a PhD, 2+ years of experience or a different graduation date.
+- **Resume tailoring**: Claude first checks whether the role fits, then edits a LaTeX base resume for the posting, compiles it, makes sure it is exactly one page and drafts a recruiter email.
+- **Application autofill**: Claude in Chrome fills out the application using the tailored resume. It skips demographic questions and stops before **Submit** so you can review it.
+- **Engineer outreach**: for top-tier roles, Claude finds engineers at the company and drafts a LinkedIn note. Each contact is tracked from draft through referral, with follow-up reminders.
+
+### Progress
+- **Today dashboard**: day count, streak, an activity heatmap, weekly goals and an application funnel compared against a benchmark season.
+- **Season report**: export all data as JSON, or generate a PDF report with charts.
+- **Phone nudges** through ntfy, a calendar and a shareable progress card.
+
+**Nothing is sent without approval.** Claude never sends a message, submits an application or pushes code on its own. Each session is interactive, and every command needs approval.
+
+## Architecture
 
 ```mermaid
 flowchart LR
   web["Web app<br/>React + Vite on Vercel"] <--> db[("Supabase<br/>Postgres + RLS")]
-  cron["Sync worker<br/>Python, GitHub Actions every 30 min"] --> db
+  cron["Sync worker<br/>Python on GitHub Actions"] --> db
   cron --> sheet["Google Sheet<br/>applications"]
-  cron --> sources["LeetCode, GitHub,<br/>career boards"]
+  cron --> sources["LeetCode, GitHub,<br/>career sites"]
   cron --> ntfy["ntfy<br/>phone nudges"]
   web -- "launch request" --> db
-  db -- "polled every 10 s" --> mac["Mac launcher<br/>Python, launchd"]
+  db -- "polled every 10 s" --> mac["Mac launcher<br/>Python + launchd"]
   mac --> claude["Claude Code<br/>in Terminal"]
 ```
 
-- **`web/`**: React 19, TypeScript, TanStack Query and Vite. It's installable as a PWA, with no UI kit or chart library. `web/api/` holds two Vercel functions (LeetCode sync, Sheet writes).
-- **`worker/`**: Python 3.12.
-  - `lockin_worker` handles the scheduled sync, streaks, the daily set, nudges and the Mac launcher.
-  - `job_radar` fetches postings from 214 companies: job boards (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Eightfold, Oracle) and the career sites of Google, Apple, Amazon, Meta and IBM, plus community GitHub lists.
-- **`prompts/`**: the briefs each Claude Code session starts from.
-- **`supabase/migrations/`**: the schema, with row-level security on every table.
+The web app never runs code on the Mac directly. A button inserts a row into `launch_requests`. The Mac launcher polls for new rows, builds the prompt, opens Claude Code in Terminal and writes the result back to the row. That is how each card can show **Queued**, **Opened** or the error.
 
-Buttons in the app never run code on the Mac directly. They insert a row into `launch_requests`, and the launcher polls for it, builds the prompt, opens Claude Code in Terminal and records the result on the row. So the card can show "Queued for Mac", "Opened on Mac" or the error.
+| Path | Contents |
+| --- | --- |
+| `web/` | React 19, TypeScript, TanStack Query and Vite. Installable as a PWA and built without a UI kit or chart library. `web/api/` holds Vercel functions for LeetCode sync and Sheet writes. |
+| `worker/lockin_worker` | Python 3.12. Scheduled sync, streaks, the daily set, nudges and the Mac launcher. |
+| `worker/job_radar` | The posting scanner. It reads Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Eightfold and Oracle boards, the career sites of Google, Apple, Amazon, Meta and IBM, and community GitHub lists. Companies are listed in `worker/config/companies.yaml`. |
+| `prompts/` | The starting brief for each kind of Claude Code session. |
+| `supabase/migrations/` | Database schema, with row-level security on every table. |
 
-## Running it
+## Quick start
 
-- Demo mode, with fixture data and no accounts: `cd web && npm install && npm run dev:demo`
-- Tests: `cd web && npm test` (Vitest) and `npm run e2e` (Playwright); `cd worker && pip install -e '.[dev]' && pytest`
-- Full setup (Supabase, the Sheet, GitHub secrets, the Mac launcher, Vercel): [docs/setup.md](docs/setup.md)
+Run the app with demo data and no accounts:
 
-Design notes and build plans are in [docs/](docs/).
+```sh
+cd web
+npm install
+npm run dev:demo
+```
+
+For a full setup (Supabase, the Google Sheet, GitHub secrets, the Mac launcher and Vercel), see [docs/setup.md](docs/setup.md).
+
+## Testing
+
+```sh
+# Web: unit tests (Vitest) and end-to-end tests (Playwright)
+cd web && npm test && npm run e2e
+
+# Worker
+cd worker && pip install -e '.[dev]' && pytest
+```
+
+## Documentation
+
+- [Setup guide](docs/setup.md)
+- [Build decisions](docs/build-decisions.md)
+- More design notes and plans are in [`docs/`](docs/).
 
 ## License
 
