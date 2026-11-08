@@ -214,7 +214,7 @@ input:not([type="checkbox"]), select { min-height: var(--tap); width: 100%; padd
 .list { display: grid; }
 .list-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-top: 1px solid var(--border); }
 .list-row:first-child { border-top: 0; }
-.list-row a { min-height: var(--tap); display: inline-flex; align-items: center; }
+.list-row a { min-height: var(--tap); min-width: var(--tap); display: inline-flex; align-items: center; }
 
 /* Projects */
 .strip { display: grid; grid-template-columns: repeat(30, 1fr); gap: 2px; }
