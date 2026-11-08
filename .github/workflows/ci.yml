@@ -2,7 +2,7 @@ name: ci
 on: [push, pull_request]
 jobs:
   worker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright has no Chromium build for Ubuntu 26 yet (ubuntu-latest moved 2026-10-19)
     defaults: { run: { working-directory: worker } }
     steps:
       - uses: actions/checkout@v4
@@ -11,7 +11,7 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: pytest -q
   web:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright has no Chromium build for Ubuntu 26 yet (ubuntu-latest moved 2026-10-19)
     defaults: { run: { working-directory: web } }
     steps:
       - uses: actions/checkout@v4
