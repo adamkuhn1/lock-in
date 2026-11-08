@@ -56,25 +56,25 @@ def _solve(db, slug, ts, rating=None):
 
 def test_apply_pending_rated_today():
     db, bank = MemoryDB(), load_bank()
-    _solve(db, "two-sum", "2026-10-14T14:00:00+00:00", "nailed")
+    _solve(db, "two-sum", "2026-10-14T14:00:00+00:00", "solo")
     n = leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 12, tzinfo=TZ))
     assert n == 1
     st = db.select("lc_problem_state")[0]
-    assert (st["slug"], st["state"], st["interval_days"], st["due_on"]) == ("two-sum", "reviewing", 3, "2026-10-17")
+    assert (st["slug"], st["state"], st["interval_days"], st["due_on"]) == ("two-sum", "retained", 60, "2026-12-13")  # an Easy solved solo first try
     s = db.select("lc_solves")[0]
-    assert s["effective_rating"] == "nailed" and s["interval_before"] == 0 and s["applied_at"]
+    assert s["effective_rating"] == "solo" and s["interval_before"] == 0 and s["applied_at"]
 
 def test_apply_pending_unrated_waits_until_next_day():
     db, bank = MemoryDB(), load_bank()
     _solve(db, "two-sum", "2026-10-14T14:00:00+00:00")
     assert leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 12, tzinfo=TZ)) == 0
     assert leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ)) == 1
-    assert db.select("lc_solves")[0]["effective_rating"] == "struggled"
+    assert db.select("lc_solves")[0]["effective_rating"] == "explained"
 
 def test_apply_pending_same_day_twice():
     db, bank = MemoryDB(), load_bank()
-    _solve(db, "two-sum", "2026-10-14T14:00:00+00:00", "help")
-    _solve(db, "two-sum", "2026-10-14T15:00:00+00:00", "nailed")
+    _solve(db, "two-sum", "2026-10-14T14:00:00+00:00", "codealong")
+    _solve(db, "two-sum", "2026-10-14T15:00:00+00:00", "solo")
     leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 23, tzinfo=TZ))
     st = db.select("lc_problem_state")[0]
     assert (st["state"], st["lapses"]) == ("learning", 1)
@@ -84,12 +84,12 @@ def test_apply_pending_same_day_twice():
 def test_apply_pending_same_day_unrated_first_then_rated():
     db, bank = MemoryDB(), load_bank()
     _solve(db, "two-sum", "2026-10-14T14:00:00+00:00")
-    _solve(db, "two-sum", "2026-10-14T15:00:00+00:00", "nailed")
+    _solve(db, "two-sum", "2026-10-14T15:00:00+00:00", "solo")
     n = leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 23, tzinfo=TZ))
     assert n == 1
-    assert db.select("lc_problem_state")[0]["state"] == "reviewing"
+    assert db.select("lc_problem_state")[0]["state"] == "retained"
     rows = sorted(db.select("lc_solves"), key=lambda r: r["accepted_at"])
-    assert rows[0]["effective_rating"] == "nailed" and rows[0]["applied_at"]
+    assert rows[0]["effective_rating"] == "solo" and rows[0]["applied_at"]
     assert rows[1]["applied_at"] and rows[1].get("effective_rating") is None
 
 def test_apply_pending_non_bank():
@@ -103,7 +103,7 @@ def test_apply_pending_takes_slot_from_daily_set():
     db, bank = MemoryDB(), load_bank()
     db.insert("lc_daily_sets", [{"day": "2026-10-14", "focus": "Stack", "mixed_day": False,
                                  "items": [{"slug": "daily-temperatures", "slot": "mystery", "order": 0, "done": False}]}])
-    _solve(db, "daily-temperatures", "2026-10-14T14:00:00+00:00", "nailed")
+    _solve(db, "daily-temperatures", "2026-10-14T14:00:00+00:00", "solo")
     leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 12, tzinfo=TZ))
     assert db.select("lc_solves")[0]["slot"] == "mystery"
 
@@ -118,7 +118,7 @@ def test_recompute_levels_writes_all_topics():
 def test_apply_pending_slot_uses_plan_day_after_midnight():
     db, bank = MemoryDB(), load_bank()
     db.insert("lc_daily_sets", [{"day": "2026-10-14", "items": [{"slug": "two-sum", "slot": "review"}]}])
-    _solve(db, "two-sum", "2026-10-15T06:00:00+00:00", "nailed")  # 02:00 ET Oct 15 -> plan day Oct 14
+    _solve(db, "two-sum", "2026-10-15T06:00:00+00:00", "solo")  # 02:00 ET Oct 15 -> plan day Oct 14
     assert leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ)) == 1
     assert db.select("lc_solves")[0]["slot"] == "review"
 
@@ -140,7 +140,7 @@ class RecordingDB(MemoryDB):
 def test_apply_pending_updates_by_id_when_present():
     db, bank = RecordingDB(), load_bank()
     db.tables["lc_solves"] = [{"id": 41, "slug": "two-sum", "title": "t", "accepted_at": "2026-10-13T14:00:00+00:00",
-                               "rating": "nailed"},
+                               "rating": "solo"},
                               {"id": 42, "slug": "two-sum", "title": "t", "accepted_at": "2026-10-13T15:00:00+00:00",
                                "rating": None},
                               {"id": 43, "slug": "not-in-bank-xyz", "title": "t", "accepted_at": "2026-10-13T15:00:00+00:00"}]
@@ -148,7 +148,7 @@ def test_apply_pending_updates_by_id_when_present():
     eqs = [eq for t, eq, _ in db.updates if t == "lc_solves"]
     assert sorted(e["id"] for e in eqs) == [41, 42, 43] and all(set(e) == {"id"} for e in eqs)
     first = next(v for t, eq, v in db.updates if eq == {"id": 41})
-    assert first["effective_rating"] == "nailed"
+    assert first["effective_rating"] == "solo"
 
 def test_store_solves_upserts_ignoring_duplicates():
     db = RecordingDB()
@@ -161,21 +161,21 @@ def test_store_solves_upserts_ignoring_duplicates():
 def test_apply_pending_groups_by_plan_day_across_midnight():
     # I2: 23:00 ET Oct 14 and 01:30 ET Oct 15 are the same plan day -> one attempt.
     db, bank = MemoryDB(), load_bank()
-    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "nailed")  # 23:00 EDT Oct 14
-    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "nailed")  # 01:30 EDT Oct 15
+    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "solo")  # 23:00 EDT Oct 14
+    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "solo")  # 01:30 EDT Oct 15
     n = leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ))
     assert n == 1
     rated = [s for s in db.select("lc_solves") if s.get("effective_rating")]
     assert len(rated) == 1 and rated[0]["accepted_at"].startswith("2026-10-15T03")
     assert all(s["applied_at"] for s in db.select("lc_solves"))
-    assert db.select("lc_problem_state")[0]["interval_days"] == 3  # applied once, not twice
+    assert db.select("lc_problem_state")[0]["interval_days"] == 60  # applied once, not twice (twice would be 120)
 
 
 def test_apply_pending_done_key_is_plan_day():
     # An attempt applied for plan day Oct 14 blocks a 01:30 solve the next calendar day.
     db, bank = MemoryDB(), load_bank()
-    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "nailed")
+    _solve(db, "two-sum", "2026-10-15T03:00:00+00:00", "solo")
     leetcode.apply_pending(db, bank, date(2026, 10, 14), datetime(2026, 10, 14, 23, 30, tzinfo=TZ))
-    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "nailed")
+    _solve(db, "two-sum", "2026-10-15T05:30:00+00:00", "solo")
     assert leetcode.apply_pending(db, bank, date(2026, 10, 15), datetime(2026, 10, 15, 12, tzinfo=TZ)) == 0
     assert len([s for s in db.select("lc_solves") if s.get("effective_rating")]) == 1

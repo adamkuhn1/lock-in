@@ -6,10 +6,10 @@ import { createDemoApi } from './demo';
 const NOW = new Date('2026-10-14T16:00:00Z'); // 12:00 EDT
 
 describe('demo api', () => {
-  it("has today's 6-item Sliding Window set", async () => {
+  it("has today's 6-item Stack set", async () => {
     const api = createDemoApi(NOW);
     const set = await api.getDailySet(planDay(NOW));
-    expect(set?.focus).toBe('Sliding Window');
+    expect(set?.focus).toBe('Stack');
     expect(set?.items).toHaveLength(6);
     expect(await api.getDailySet('2020-01-01')).toBeNull();
   });
@@ -29,14 +29,14 @@ describe('demo api', () => {
   it('rateSolve sets rating and rated_at', async () => {
     const api = createDemoApi(NOW);
     const unrated = (await api.listSolves()).find((s) => s.rating === null && s.applied_at === null)!;
-    await api.rateSolve(unrated.id, 'struggled', NOW);
+    await api.rateSolve(unrated.id, 'explained', NOW);
     const after = (await api.listSolves()).find((s) => s.id === unrated.id)!;
-    expect([after.rating, after.rated_at]).toEqual(['struggled', NOW.toISOString()]);
+    expect([after.rating, after.rated_at]).toEqual(['explained', NOW.toISOString()]);
   });
   it('rateSolve rejects an already-applied solve', async () => {
     const api = createDemoApi(NOW);
     const late = (await api.listSolves()).find((s) => s.rating === null && s.applied_at !== null)!;
-    await expect(api.rateSolve(late.id, 'nailed', NOW)).rejects.toBeInstanceOf(AlreadyCountedError);
+    await expect(api.rateSolve(late.id, 'solo', NOW)).rejects.toBeInstanceOf(AlreadyCountedError);
   });
   it('queueOutreach creates a queued outreach and a launch request', async () => {
     const api = createDemoApi(NOW);

@@ -1,9 +1,10 @@
+import bank from '../../../worker/lockin_worker/data/problems.json';
 import learning from '../../../shared/learning.json';
 import prepItems from '../../../shared/prep_items.json';
 import { addDays, localDay, planDay } from '../lib/time';
 import type {
   Application, CalEvent, LearnCheck, LearnItem, LearnModule, LearnModuleState, LearnProgress, LearnTrack, LearnType, Commit, CompanyPrep, Contact, DailySet, Difficulty, Idea, LaunchRequest, Level, Outreach, Posting,
-  PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Rating, Referral, ReferralPick, Settings, Solve, Stage, Story, SyncStatus, Tier,
+  LcRating, PrepItem, PrepProgress, PrepSession, Problem, ProblemState, Project, Referral, ReferralPick, Settings, Slot, Solve, Stage, Story, SyncStatus, Tier,
   Topic, TopicState,
 } from './types';
 
@@ -47,35 +48,42 @@ const TOPICS: [string, number, string[]][] = [
   ['Advanced Graphs', 6, ['Heap / Priority Queue', 'Graphs']], ['2-D Dynamic Programming', 6, ['Graphs', '1-D Dynamic Programming']],
   ['Bit Manipulation', 6, ['1-D Dynamic Programming']], ['Math & Geometry', 7, ['2-D Dynamic Programming', 'Bit Manipulation']],
 ];
+/** Demo levels, matching what the worker would compute from HISTORY below. */
 const LEVELS: Record<string, Level> = {
-  'Arrays & Hashing': 'solid', 'Two Pointers': 'practicing', Stack: 'practicing', 'Binary Search': 'available',
-  'Sliding Window': 'learning', 'Linked List': 'available',
+  'Arrays & Hashing': 'mastered', 'Two Pointers': 'solid', Stack: 'practicing', 'Binary Search': 'learning',
+  'Sliding Window': 'available', 'Linked List': 'available',
 };
-const PROBLEMS: [string, string, Difficulty, string, number][] = [
-  ['two-sum', 'Two Sum', 'Easy', 'Arrays & Hashing', 1],
-  ['valid-anagram', 'Valid Anagram', 'Easy', 'Arrays & Hashing', 242],
-  ['group-anagrams', 'Group Anagrams', 'Medium', 'Arrays & Hashing', 49],
-  ['top-k-frequent-elements', 'Top K Frequent Elements', 'Medium', 'Arrays & Hashing', 347],
-  ['product-of-array-except-self', 'Product of Array Except Self', 'Medium', 'Arrays & Hashing', 238],
-  ['valid-palindrome', 'Valid Palindrome', 'Easy', 'Two Pointers', 125],
-  ['3sum', '3Sum', 'Medium', 'Two Pointers', 15],
-  ['container-with-most-water', 'Container With Most Water', 'Medium', 'Two Pointers', 11],
-  ['valid-parentheses', 'Valid Parentheses', 'Easy', 'Stack', 20],
-  ['daily-temperatures', 'Daily Temperatures', 'Medium', 'Stack', 739],
-  ['best-time-to-buy-and-sell-stock', 'Best Time to Buy and Sell Stock', 'Easy', 'Sliding Window', 121],
-  ['contains-duplicate-ii', 'Contains Duplicate II', 'Easy', 'Sliding Window', 219],
-  ['longest-substring-without-repeating-characters', 'Longest Substring Without Repeating Characters', 'Medium', 'Sliding Window', 3],
-  ['longest-repeating-character-replacement', 'Longest Repeating Character Replacement', 'Medium', 'Sliding Window', 424],
-  ['permutation-in-string', 'Permutation in String', 'Medium', 'Sliding Window', 567],
-  ['minimum-window-substring', 'Minimum Window Substring', 'Hard', 'Sliding Window', 76],
-];
-const HISTORY: [number, string, Rating][] = [
-  [1, 'valid-anagram', 'nailed'], [1, 'group-anagrams', 'struggled'], [2, '3sum', 'struggled'], [2, 'valid-palindrome', 'nailed'],
-  [3, 'container-with-most-water', 'help'], [4, 'valid-parentheses', 'nailed'], [5, 'top-k-frequent-elements', 'nailed'],
-  [5, 'product-of-array-except-self', 'struggled'], [6, 'two-sum', 'nailed'], [8, 'group-anagrams', 'nailed'],
-  [9, 'valid-anagram', 'nailed'], [10, '3sum', 'help'], [11, 'two-sum', 'struggled'], [13, 'valid-palindrome', 'nailed'],
-  [16, 'contains-duplicate-ii', 'nailed'], [20, 'top-k-frequent-elements', 'struggled'], [24, 'valid-parentheses', 'struggled'],
-  [30, 'product-of-array-except-self', 'help'], [45, 'container-with-most-water', 'struggled'],
+type RawProblem = { slug: string; id: number; title: string; difficulty: Difficulty; neetcodeTopic: string; lists: string[];
+  paidOnly: boolean; acRate: number; grindMinutes?: number | null; neetcodeLink?: string | null };
+/** The real problem bank the worker seeds, so demo pools ("9 of 19 Easies") are the real ones. */
+const BANK: Problem[] = (bank as RawProblem[]).map((r) => ({
+  slug: r.slug, lc_id: r.id, title: r.title, difficulty: r.difficulty, topic: r.neetcodeTopic, lists: r.lists,
+  paid_only: r.paidOnly, ac_rate: r.acRate, target_minutes: r.grindMinutes ?? null, neetcode_link: r.neetcodeLink ?? null,
+}));
+const TITLE = new Map(BANK.map((p) => [p.slug, p.title]));
+const AH_EASY = ['two-sum', 'valid-anagram', 'contains-duplicate', 'majority-element', 'longest-common-prefix', 'ransom-note',
+  'is-subsequence', 'remove-element', 'longest-palindrome', 'find-pivot-index', 'design-hashmap', 'design-hashset', 'can-place-flowers',
+  'concatenation-of-array', 'find-the-difference-of-two-arrays', 'unique-number-of-occurrences', 'kids-with-the-greatest-number-of-candies',
+  'find-the-highest-altitude', 'reverse-vowels-of-a-string'];
+const EXPLAINED = new Set(['valid-anagram', 'longest-palindrome']);
+/** [days ago, slug, rating, slot]. A mastered Arrays & Hashing, a Solid Two Pointers, Stack (the focus) at Practicing. */
+const HISTORY: [number, string, LcRating, Slot][] = [
+  ...AH_EASY.map((slug, i): [number, string, LcRating, Slot] => [62 - i, slug, slug === 'design-hashset' ? 'codealong' : EXPLAINED.has(slug) ? 'explained' : 'solo', 'new']),
+  [41, 'design-hashset', 'solo', 'review'],
+  [46, 'product-of-array-except-self', 'codealong', 'new'], [45, 'group-anagrams', 'explained', 'new'],
+  [42, 'longest-consecutive-sequence', 'solo', 'new'], [40, 'valid-sudoku', 'codealong', 'new'], [39, 'group-anagrams', 'solo', 'review'],
+  [38, 'top-k-frequent-elements', 'solo', 'new'], [36, 'subarray-sum-equals-k', 'solo', 'new'], [35, 'sort-colors', 'explained', 'new'],
+  [33, 'insert-delete-getrandom-o1', 'solo', 'new'], [32, 'first-missing-positive', 'codealong', 'new'],
+  [31, 'best-time-to-buy-and-sell-stock-ii', 'solo', 'new'], [30, 'naming-a-company', 'explained', 'new'],
+  [29, 'valid-palindrome', 'solo', 'new'], [28, 'move-zeroes', 'solo', 'new'], [27, 'merge-sorted-array', 'explained', 'new'],
+  [26, 'container-with-most-water', 'codealong', 'new'], [26, 'merge-strings-alternately', 'solo', 'new'],
+  [25, 'remove-duplicates-from-sorted-array', 'solo', 'new'], [24, 'squares-of-a-sorted-array', 'solo', 'new'],
+  [23, '3sum', 'explained', 'new'], [21, 'rotate-array', 'solo', 'new'], [20, '3sum', 'solo', 'review'],
+  [19, 'two-sum-ii-input-array-is-sorted', 'solo', 'new'], [18, 'container-with-most-water', 'solo', 'review'],
+  [17, 'boats-to-save-people', 'solo', 'new'], [15, '4sum', 'codealong', 'new'], [14, 'trapping-rain-water', 'codealong', 'new'],
+  [9, 'valid-parentheses', 'solo', 'new'], [8, 'daily-temperatures', 'solo', 'new'], [7, 'implement-queue-using-stacks', 'solo', 'new'],
+  [6, 'min-stack', 'codealong', 'new'], [5, 'baseball-game', 'explained', 'new'], [4, 'binary-search', 'solo', 'new'],
+  [3, 'evaluate-reverse-polish-notation', 'solo', 'new'], [2, 'search-in-rotated-sorted-array', 'codealong', 'new'],
 ];
 const APPS: [string, string, Stage, string, number][] = [
   ['Stripe', 'Software Engineer Intern, Winter 2027', 'oa', 'OA invited', 9],
@@ -154,46 +162,45 @@ export function createFixtures(now: Date): DemoDb {
     status: 'drafted', sent_on: null, accepted_on: null, followed_up_on: null, replied_on: null, referred_on: null, created_at: now.toISOString(), ...over,
   });
   let solveId = 1;
-  const solve = (slug: string, accepted_at: string, rating: Rating | null): Solve => ({
-    id: solveId++, slug, title: PROBLEMS.find((p) => p[0] === slug)![1], accepted_at, rating,
-    rated_at: rating ? accepted_at : null, applied_at: accepted_at, slot: null, note: null,
+  const solve = (slug: string, accepted_at: string, rating: LcRating | null, slot: Slot | null = null): Solve => ({
+    id: solveId++, slug, title: TITLE.get(slug)!, accepted_at, rating, effective_rating: rating,
+    rated_at: rating ? accepted_at : null, applied_at: accepted_at, slot, note: null,
   });
 
   return {
     settings: {
       nudge_times: ['10:00', '18:00', '22:00'], daily_lc_count: 6, weekly_app_target: 25, ntfy_topic: null,
       resume_root: '~/Desktop/Adam_Kuhn_Resumes', sheet_id: 'demo-sheet-id', lc_username: 'adamkuhn',
-      lc_started_on: addDays(day, -11), lc_focus_topic: 'Sliding Window', lc_focus_since: addDays(day, -3), app_url: null,
+      lc_started_on: addDays(day, -11), lc_focus_topic: 'Stack', lc_focus_since: addDays(day, -9), app_url: null,
       day_one: addDays(day, -20), weekly_email_target: 10, weekly_engineer_target: 10, job_alerts: false,
     },
     dailySet: {
-      day, focus: 'Sliding Window', mixed_day: false,
+      day, focus: 'Stack', mixed_day: false,
       items: [
-        { slug: 'two-sum', slot: 'review', order: 0, done: true },
-        { slug: 'best-time-to-buy-and-sell-stock', slot: 'new', order: 1, done: false },
-        { slug: 'contains-duplicate-ii', slot: 'new', order: 2, done: false },
-        { slug: 'longest-substring-without-repeating-characters', slot: 'new', order: 3, done: false },
-        { slug: 'daily-temperatures', slot: 'mystery', order: 4, done: false },
-        { slug: 'permutation-in-string', slot: 'new', order: 5, done: false },
+        { slug: 'min-stack', slot: 'review', order: 0, done: false },
+        { slug: 'make-the-string-great', slot: 'new', order: 1, done: true },
+        { slug: 'decode-string', slot: 'new', order: 2, done: true },
+        { slug: 'find-all-anagrams-in-a-string', slot: 'mystery', order: 3, done: false },
+        { slug: 'asteroid-collision', slot: 'new', order: 4, done: false },
+        { slug: 'car-fleet', slot: 'new', order: 5, done: false },
       ],
     },
-    problems: PROBLEMS.map(([slug, title, difficulty, topic, lc_id]) => ({
-      slug, title, difficulty, topic, lc_id, lists: ['nc150'], paid_only: false, ac_rate: 50, target_minutes: null, neetcode_link: null,
-    })),
+    problems: BANK,
     topics: TOPICS.map(([name, tier, prereqs], i) => ({ name, tier, prereqs, ord: i + 1, lc_tags: [] })),
     topicStates: TOPICS.map(([name]) => ({ topic: name, level: LEVELS[name] ?? 'locked' })),
     problemStates: [
-      { slug: 'valid-anagram', state: 'reviewing', interval_days: 3, due_on: day, lapses: 0 },
-      { slug: 'group-anagrams', state: 'learning', interval_days: 1, due_on: addDays(day, -1), lapses: 1 },
-      { slug: '3sum', state: 'reviewing', interval_days: 3, due_on: addDays(day, 3), lapses: 1 },
-      { slug: 'container-with-most-water', state: 'learning', interval_days: 1, due_on: addDays(day, 5), lapses: 2 },
-      { slug: 'two-sum', state: 'reviewing', interval_days: 7, due_on: addDays(day, 7), lapses: 0 },
+      { slug: 'min-stack', state: 'learning', interval_days: 3, due_on: day, lapses: 1 },
+      { slug: '4sum', state: 'learning', interval_days: 3, due_on: addDays(day, -1), lapses: 1 },
+      { slug: 'group-anagrams', state: 'reviewing', interval_days: 21, due_on: day, lapses: 0 },
+      { slug: 'search-in-rotated-sorted-array', state: 'learning', interval_days: 3, due_on: addDays(day, 1), lapses: 1 },
+      { slug: '3sum', state: 'reviewing', interval_days: 7, due_on: addDays(day, 2), lapses: 0 },
+      { slug: 'rotate-array', state: 'reviewing', interval_days: 21, due_on: addDays(day, 5), lapses: 0 },
     ],
     solves: [
-      { ...solve('best-time-to-buy-and-sell-stock', minsAgo(1), null), applied_at: null },
-      { ...solve('two-sum', minsAgo(2), 'nailed'), applied_at: null },
-      ...HISTORY.map(([d, slug, rating]) => solve(slug, at(d), rating)),
-      solve('contains-duplicate-ii', at(7), null), // applied but never rated: too late to rate
+      { ...solve('decode-string', minsAgo(1), null), applied_at: null, effective_rating: null },
+      { ...solve('make-the-string-great', minsAgo(20), 'solo'), applied_at: null, effective_rating: null },
+      ...HISTORY.map(([d, slug, rating, slot]) => solve(slug, at(d), rating, slot)),
+      { ...solve('implement-stack-using-queues', at(1), null), effective_rating: 'explained' }, // applied but never rated: too late to rate
     ],
     projects: [
       { id: '27b', name: '27B', repo: 'adamkuhn1/27b', local_path: '~/Developer/27b', active: true },

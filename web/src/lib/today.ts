@@ -1,4 +1,4 @@
-import type { DailySet, Difficulty, Problem, Rating, Slot, Solve } from '../data/types';
+import type { DailySet, Difficulty, LcRating, Problem, Rating, Slot, Solve } from '../data/types';
 import { planDay } from './time';
 
 export interface TodayItem {
@@ -19,6 +19,14 @@ export const RATINGS: { value: Rating; emoji: string; label: string }[] = [
   { value: 'struggled', emoji: '🟡', label: 'Struggled' },
   { value: 'help', emoji: '🔴', label: 'Needed help' },
 ];
+
+/** How a LeetCode problem went, in the order Adam works one: try it, watch NeetCode explain it, code along. */
+export const LC_RATINGS: { value: LcRating; label: string }[] = [
+  { value: 'solo', label: 'Solo' }, // solved it myself
+  { value: 'explained', label: 'Explained' }, // watched the explanation, then wrote it
+  { value: 'codealong', label: 'Code-along' }, // coded along with the solution
+];
+export const LC_RATING_LABEL = Object.fromEntries(LC_RATINGS.map((r) => [r.value, r.label])) as Record<LcRating, string>;
 
 export const problemUrl = (slug: string) => `https://leetcode.com/problems/${encodeURIComponent(slug)}/`;
 

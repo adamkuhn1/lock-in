@@ -1,7 +1,7 @@
 import type {
   Application, CalEvent, Commit, CompanyPrep, CompanyPrepInput, Contact, DailySet, Idea, IdeaPatch, LaunchKind, LaunchRequest,
   FindEngineersInput, LearnCheck, LearnItem, LearnModule, LearnModuleState, LearnProgress, LearnProgressPatch, MarkAppliedInput, Referral, ReferralPatch, Tier, UndoAppliedInput, NewCalEvent, NewIdea, NewPrepSession, NewProject, Outreach, OutreachPatch, Posting, PostingStatus, PrepItem, PrepProgress,
-  PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Rating, Settings, SettingsPatch, Solve, Story,
+  LcRating, PrepSession, PrepStatus, Problem, ProblemState, Project, ProjectPatch, Settings, SettingsPatch, Solve, Story,
   StoryInput, StoryPatch, SyncResult, SyncStatus, Topic, TopicState,
 } from './types';
 
@@ -14,7 +14,7 @@ export interface DataApi {
   listTopicStates(): Promise<TopicState[]>;
   listProblemStates(): Promise<ProblemState[]>;
   listSolves(): Promise<Solve[]>;
-  rateSolve(id: number, rating: Rating, at: Date): Promise<void>;
+  rateSolve(id: number, rating: LcRating, at: Date): Promise<void>;
   listProjects(): Promise<Project[]>;
   addProject(p: NewProject): Promise<void>;
   setProjectActive(id: string, active: boolean): Promise<void>;

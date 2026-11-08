@@ -193,3 +193,13 @@ The first scan after the migration re-tiers and re-checks the whole open inbox, 
 1. Run `supabase/migrations/0012_learning.sql` in the SQL editor. Paste the file itself: `pbcopy < supabase/migrations/0012_learning.sql`, then ⌘A, ⌘V and Run in the editor. Text copied from a chat can come out with lines missing.
 2. Push to main. The next full sync (:07 or :37) loads `shared/learning.json` into `learn_modules` and `learn_items`. After that, editing the JSON and pushing is all it takes to change a track.
 3. Restart the launcher so it knows Teach me, Check me and reviews.
+
+## 13. LeetCode roadmap and ratings (2026-11-08)
+
+Deploy in this order. The new worker and web app write `solo`, `explained` and `codealong`, which the old constraint rejects.
+
+1. Run `supabase/migrations/0013_lc_ratings.sql` in the SQL editor (`pbcopy < supabase/migrations/0013_lc_ratings.sql`, then ⌘A, ⌘V, Run). It maps old ratings (nailed and struggled → solo, help → code-along), resets miss counts, and clears the focus so the next set starts at the first topic on the roadmap that isn't Mastered.
+2. Push to main. Vercel deploys the web app; the next sync recomputes every topic level under the new rules.
+3. Check: `select rating, count(*) from lc_solves group by 1;` shows only the new ratings or null.
+
+Re-running the migration clears the focus again; pick it back on the map with **Make focus** if you'd moved it.

@@ -1,31 +1,30 @@
-import { Lock } from 'lucide-react';
 import { useState } from 'react';
 import {
-  useNow, useProblemMap, useProblemStates, useSettings, useSolves, useTopicStates, useTopics, useUpdateSettings,
+  useNow, useProblemMap, useProblemStates, useSettings, useSolves, useTopics, useUpdateSettings,
 } from '../data/hooks';
 import type { Level, Solve } from '../data/types';
 import { heatmap, intensity } from '../lib/heatmap';
-import { LEVEL_LABEL, reviewQueue, roadmapRows, topicCounts, upcomingReviews } from '../lib/levels';
+import { reviewQueue, upcomingReviews } from '../lib/levels';
+import { buildMap } from '../lib/mastery';
 import { localDay, planDay, relativeTime } from '../lib/time';
-import { RATINGS, problemUrl } from '../lib/today';
+import { LC_RATING_LABEL, problemUrl } from '../lib/today';
 import { Button, Card, CardHead, DifficultyTag, Disclosure, Empty, ExternalLink, LoadError, Skeleton, Stepper } from '../ui/primitives';
+import { RatingMark } from '../ui/RatingMark';
 import { DailySetCard } from './DailySet';
+import { RoadMap, TopicPanel } from './RoadMap';
 
-const ALL_LEVELS: Level[] = ['locked', 'available', 'learning', 'practicing', 'solid', 'mastered'];
-const RATING_LABEL = Object.fromEntries(RATINGS.map((r) => [r.value, `${r.emoji} ${r.label}`])) as Record<string, string>;
-const AUTO_LABEL = `${RATINGS.find((r) => r.value === 'struggled')!.emoji} (auto)`; // the worker counts an unrated past solve as struggled
-const NO_FOCUS: Level[] = ['solid', 'mastered'];
+const NO_FOCUS: Level[] = ['mastered'];
 
-function solveLabel(s: Pick<Solve, 'rating' | 'applied_at'>): string {
-  if (s.rating) return RATING_LABEL[s.rating];
-  return s.applied_at ? AUTO_LABEL : 'Unrated';
+function solveLabel(s: Pick<Solve, 'rating' | 'applied_at' | 'effective_rating'>): string {
+  if (s.rating) return LC_RATING_LABEL[s.rating];
+  if (s.applied_at) return `${LC_RATING_LABEL[s.effective_rating ?? 'explained']} (not rated)`; // the worker counts an unrated past solve as explained
+  return 'Not rated yet';
 }
 
 export default function LeetCode() {
   const now = useNow();
   const day = planDay(now);
   const topics = useTopics();
-  const states = useTopicStates();
   const settings = useSettings();
   const pstates = useProblemStates();
   const problems = useProblemMap();
@@ -44,8 +43,9 @@ export default function LeetCode() {
     update.mutate({ lc_focus_topic: changed.prevTopic, lc_focus_since: changed.prevSince }, { onSuccess: () => setChanged(null) });
   };
 
-  const rows = roadmapRows(topics.data ?? [], states.data ?? [], settings.data?.lc_focus_topic ?? null);
-  const selected = rows.flatMap((r) => r.topics).find((t) => t.name === open) ?? null;
+  const focus = settings.data?.lc_focus_topic ?? null;
+  const map = buildMap(topics.data ?? [], solves.data ?? [], problems, focus);
+  const selected = map.find((t) => t.name === (open ?? focus)) ?? map.find((t) => t.level !== 'mastered') ?? null;
   const queue = reviewQueue(pstates.data ?? [], problems, day);
   const soon = upcomingReviews(pstates.data ?? [], day, 7);
   const weeks = heatmap(solves.data ?? [], localDay(now));
@@ -63,65 +63,35 @@ export default function LeetCode() {
 
       <DailySetCard />
 
-      <Card aria-labelledby="map-h">
-        <CardHead id="map-h" title="Roadmap" />
-        {topics.isPending || states.isPending ? (
+      <Card aria-labelledby="map-h" className="map-card">
+        <CardHead id="map-h" title="Roadmap">
+          {map.length > 0 && <span className="count">{map.filter((t) => t.level === 'mastered').length}/{map.length} mastered</span>}
+        </CardHead>
+        {topics.isPending || solves.isPending ? (
           <Skeleton label="Loading roadmap" />
-        ) : topics.isError || states.isError ? (
-          <LoadError what="the roadmap" onRetry={() => { void topics.refetch(); void states.refetch(); }} />
+        ) : topics.isError || solves.isError ? (
+          <LoadError what="the roadmap" onRetry={() => { void topics.refetch(); void solves.refetch(); }} />
         ) : (
-          <ol className="roadmap">
-            {rows.map((r) => (
-              <li key={r.tier}>
-                <ul className="tier">
-                  {r.topics.map((t) => (
-                    <li key={t.name}>
-                      {/* The level (and focus) caption renders from data-sub via CSS so the visible label stays the topic name;
-                          the accessible name carries both. */}
-                      <button type="button" className={`topic lvl-${t.level}${t.isFocus ? ' is-focus' : ''}`}
-                        aria-expanded={open === t.name} aria-controls={open === t.name ? 'topic-detail' : undefined}
-                        aria-label={`${t.name}${t.isFocus ? ' Focus' : ''}, ${LEVEL_LABEL[t.level]}`}
-                        data-sub={t.level === 'locked' ? undefined : `${LEVEL_LABEL[t.level]}${t.isFocus ? ' · Focus' : ''}`}
-                        onClick={() => setOpen(open === t.name ? null : t.name)}>
-                        {t.level === 'locked' && <Lock size={14} aria-hidden />}
-                        {t.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
+          <RoadMap topics={map} selected={selected?.name ?? null} onSelect={setOpen} />
         )}
-        <div id="topic-detail" className="stack" aria-live="polite">
-          {selected && (<>
-            <p><b>{selected.name}</b> · {LEVEL_LABEL[selected.level]}</p>
-            {(() => {
-              const c = topicCounts(solves.data ?? [], problems, selected.name);
-              return <p className="muted small">Solved: {c.Easy} easy · {c.Medium} medium · {c.Hard} hard</p>;
-            })()}
-            {selected.level === 'locked' && selected.prereqs.length > 0 && (
-              <p className="muted small">Unlocks when {selected.prereqs.join(' and ')} reach Practicing.</p>
-            )}
-            {selected.isFocus ? (
-              <p className="muted small">This is your focus.</p>
-            ) : NO_FOCUS.includes(selected.level) ? null : (
-              <div className="row-actions">
-                <Button disabled={update.isPending} onClick={() => makeFocus(selected.name)}>Make focus</Button>
-                <span className="muted small">Starts with tomorrow's set.</span>
-              </div>
-            )}
-          </>)}
-          {changed && !update.isError && (
-            <p className="small">Focus: {changed.topic}. <Button disabled={update.isPending} onClick={undoFocus}>Undo</Button></p>
+        <div aria-live="polite">
+          {selected && (
+            <TopicPanel topic={selected}>
+              {selected.isFocus ? (
+                <p className="muted small">This is your focus. It stays until it's Mastered.</p>
+              ) : NO_FOCUS.includes(selected.level) ? null : (
+                <div className="row-actions">
+                  <Button disabled={update.isPending} onClick={() => makeFocus(selected.name)}>Make focus</Button>
+                  <span className="muted small">Starts with tomorrow's set.</span>
+                </div>
+              )}
+              {changed && !update.isError && (
+                <p className="small">Focus: {changed.topic}. <Button disabled={update.isPending} onClick={undoFocus}>Undo</Button></p>
+              )}
+              {update.isError && <p className="small" role="alert">Couldn't change focus. Try again.</p>}
+            </TopicPanel>
           )}
-          {update.isError && <p className="small" role="alert">Couldn't change focus. Try again.</p>}
         </div>
-        <Disclosure summary="Colors">
-          <ul className="legend">
-            {ALL_LEVELS.map((l) => <li key={l}><span className={`topic lvl-${l}`}>{LEVEL_LABEL[l]}</span></li>)}
-          </ul>
-        </Disclosure>
       </Card>
 
       <Card aria-labelledby="rev-h">
@@ -143,7 +113,9 @@ export default function LeetCode() {
             {(solves.data ?? []).slice(0, 10).map((s) => (
               <li key={s.id} className="list-row">
                 <span>{s.title}</span>
-                <span className="muted small">{solveLabel(s)} · {relativeTime(s.accepted_at, now)}</span>
+                <span className="muted small solve-meta">
+                  <RatingMark rating={s.rating ?? s.effective_rating ?? null} />{solveLabel(s)} · {relativeTime(s.accepted_at, now)}
+                </span>
               </li>
             ))}
           </ul>

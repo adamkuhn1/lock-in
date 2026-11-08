@@ -58,9 +58,15 @@ def test_mixed_day_every_7th():
     assert plan.mixed_day and len(plan.items) == 6
     assert {i.slot for i in plan.items} <= {"mystery", "review"}
 
-def test_focus_rotates_after_10_days():
-    levels = {"A": "practicing", "B": "available", "C": "available"}
-    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=10)), TOPICS)
+def test_focus_has_no_timer():
+    # a topic stays the focus until it's Mastered: weeks on one topic is fine
+    levels = {"A": "solid", "B": "available", "C": "available"}
+    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=40)), TOPICS, bank())
+    assert (f, since) == ("A", T - timedelta(days=40))
+
+def test_mastered_focus_moves_to_next_topic():
+    levels = {"A": "mastered", "B": "available", "C": "available"}
+    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=4)), TOPICS, bank())
     assert (f, since) == ("B", T)
 
 def test_focus_kept_within_10_days():
@@ -108,23 +114,39 @@ def test_thin_pool_hard_allowed_after_30():
     assert any(b[x.slug].difficulty == "Hard" for x in plan.items)
 
 def test_focus_rotates_to_next_not_first():
-    levels = {"A": "practicing", "B": "available", "C": "available"}
+    levels = {"A": "practicing", "B": "mastered", "C": "available"}
     f, since = choose_focus(inp(levels=levels, focus="B", focus_since=T - timedelta(days=10)), TOPICS)
     assert (f, since) == ("C", T)
 
 def _all_but(topic, diff, keep):
     return frozenset(k for k, v in bank().items() if v.topic == topic and v.difficulty == diff and k not in keep)
 
-def test_exhausted_focus_rotates_even_when_fresh():
+def test_exhausted_focus_rotates():
+    # nothing new left (every free Easy and Medium attempted): move on even though it isn't Mastered
     levels = {"A": "practicing", "B": "available", "C": "available"}
-    one_left = _all_but("A", "Medium", {"A-M7"})
-    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=2), attempted=one_left),
+    none_left = _all_but("A", "Medium", set()) | _all_but("A", "Easy", set())
+    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=2), attempted=none_left),
                             TOPICS, bank())
     assert (f, since) == ("B", T)
-    two_left = _all_but("A", "Medium", {"A-M6", "A-M7"})
-    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=2), attempted=two_left),
+    one_left = _all_but("A", "Medium", {"A-M7"}) | _all_but("A", "Easy", set())
+    f, since = choose_focus(inp(levels=levels, focus="A", focus_since=T - timedelta(days=2), attempted=one_left),
                             TOPICS, bank())
     assert (f, since) == ("A", T - timedelta(days=2))
+
+def test_failed_retries_capped_so_new_problems_get_through():
+    states = {f"A-M{i}": ProblemState(f"A-M{i}", "learning", 3, T - timedelta(days=1), 1) for i in range(5)}
+    plan = build_daily_set(inp(n=8, states=states, attempted=frozenset(states)), bank(), TOPICS)
+    slots = [i.slot for i in plan.items]
+    assert slots.count("review") == 2 and slots.count("new") == 6
+
+def test_parked_problem_comes_back_when_due():
+    states = {"A-M0": ProblemState("A-M0", "parked", 3, T - timedelta(days=1), 2)}
+    plan = build_daily_set(inp(states=states, attempted=frozenset(states)), bank(), TOPICS)
+    assert (plan.items[0].slug, plan.items[0].slot) == ("A-M0", "review")
+
+def test_solid_focus_gets_a_hard_before_30_mediums():
+    plan = build_daily_set(inp(levels={"A": "solid", "B": "available", "C": "available"}), bank(), TOPICS)
+    assert [bank()[i.slug].difficulty for i in plan.items].count("Hard") == 1
 
 def test_exhausted_focus_with_nowhere_to_go_is_kept():
     levels = {"A": "practicing", "B": "solid", "C": "solid"}

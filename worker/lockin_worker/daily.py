@@ -8,9 +8,8 @@ from .engine import ProblemState
 from .levels import rank
 
 DIFFS = ("Easy", "Medium", "Hard")
-FOCUS_DAYS = 10
-HARD_AFTER_MEDIUMS = 30
-MIN_FOCUS_MEDIUMS = 2  # a focus with fewer unseen free Mediums than this is exhausted and rotates
+HARD_AFTER_MEDIUMS = 30  # Hards elsewhere wait for this many solo Mediums; a Solid focus gets them right away
+MAX_RETRIES = 2  # failed problems (explained/code-along) a day can hold, so new material always gets through
 LADDERS = {
     "learning": ("Easy", "Easy", "Medium", "Medium"),
     "practicing": ("Easy", "Medium", "Medium", "Medium"),
@@ -60,53 +59,66 @@ def _unseen(inp: DailyInput, bank: dict[str, Problem], topic: str, diff: str, ta
     return sorted(pool, key=_key)
 
 
-def _hard_ok(inp: DailyInput) -> bool:
-    return inp.lifetime_mediums >= HARD_AFTER_MEDIUMS
+def _hard_ok(inp: DailyInput, topic: str | None = None) -> bool:
+    return inp.lifetime_mediums >= HARD_AFTER_MEDIUMS or (topic is not None and rank(_lvl(inp, topic)) >= rank("solid"))
 
 
 def _eligible(inp: DailyInput, topics: list[Topic]) -> list[str]:
     # topics is in roadmap order
     return [t.name for t in topics
-            if rank(_lvl(inp, t.name)) < rank("solid")
+            if rank(_lvl(inp, t.name)) < rank("mastered")
             and all(rank(_lvl(inp, p)) >= rank("practicing") for p in t.prereqs)]
 
 
 def _exhausted(inp: DailyInput, bank: dict[str, Problem] | None, topic: str) -> bool:
-    return bank is not None and len(_unseen(inp, bank, topic, "Medium", set())) < MIN_FOCUS_MEDIUMS
+    """Nothing new left to learn from: no unseen free Easy or Medium in the topic."""
+    return bank is not None and not any(_unseen(inp, bank, topic, d, set()) for d in ("Easy", "Medium"))
 
 
 def choose_focus(inp: DailyInput, topics: list[Topic], bank: dict[str, Problem] | None = None) -> tuple[str, date]:
-    eligible = _eligible(inp, topics)
+    """The focus stays put until the topic is Mastered (or has nothing new left), then moves to the next topic on the
+    roadmap. No timer: hopping topics before one is learned is what kept the same few problems coming back."""
     cur = inp.focus
-    if cur and rank(_lvl(inp, cur)) < rank("solid"):
-        fresh = (inp.focus_since is not None and (inp.today - inp.focus_since).days < FOCUS_DAYS
-                 and not _exhausted(inp, bank, cur))
-        if cur in eligible:
-            i = eligible.index(cur)
-            others = eligible[i + 1:] + eligible[:i]  # next after cur in roadmap order, wrapping
-        else:
-            others = eligible
-        if fresh or not others:
-            return cur, inp.focus_since or inp.today
+    if cur and rank(_lvl(inp, cur)) < rank("mastered") and not _exhausted(inp, bank, cur):
+        return cur, inp.focus_since or inp.today
+    eligible = _eligible(inp, topics)
+    names = [t.name for t in topics]
+    if cur in names:  # next after cur in roadmap order, wrapping
+        i = names.index(cur)
+        after = names[i + 1:] + names[:i]
+        others = [t for t in after if t in eligible]
+    else:
+        others = eligible
+    others = [t for t in others if not _exhausted(inp, bank, t)] or others
+    if others:
         return others[0], inp.today
-    if eligible:
-        return eligible[0], inp.today
     return (cur or topics[0].name), (inp.focus_since or inp.today)
 
 
-def _ladder(level: str, k: int, lifetime_mediums: int) -> list[str]:
+def _ladder(level: str, k: int, hard_ok: bool) -> list[str]:
     key = "solid" if rank(level) >= rank("solid") else "practicing" if level == "practicing" else "learning"
     out = (list(LADDERS[key]) + ["Medium"] * k)[:k]
-    if lifetime_mediums < HARD_AFTER_MEDIUMS:
+    if not hard_ok:
         out = ["Medium" if d == "Hard" else d for d in out]
     return sorted(out, key=DIFFS.index)
 
 
 def _due(inp: DailyInput, bank, focus: str) -> list[ProblemState]:
-    due = [s for s in inp.states.values() if s.state in ("learning", "reviewing")
+    due = [s for s in inp.states.values() if s.state in ("learning", "reviewing", "parked")
            and s.due_on is not None and s.due_on <= inp.today and s.slug in bank]
     return sorted(due, key=lambda s: (bank[s.slug].topic != focus,
                                       -((inp.today - s.due_on).days / max(s.interval_days, 1)), s.slug))
+
+
+def _cap_retries(due: list[ProblemState]) -> list[ProblemState]:
+    out, retries = [], 0
+    for s in due:
+        if s.state in ("learning", "parked"):
+            if retries == MAX_RETRIES:
+                continue
+            retries += 1
+        out.append(s)
+    return out
 
 
 def _spot(inp: DailyInput, bank) -> list[Item]:
@@ -162,7 +174,7 @@ def build_daily_set(inp: DailyInput, bank: dict[str, Problem], topics: list[Topi
     if inp.day_index % 7 == 6 and len(practicing) >= 2:
         due = _due(inp, bank, focus)
         r = min(len(due), round(0.6 * inp.n))
-        reviews = [Item(s.slug, "review") for s in due[:r]]
+        reviews = [Item(s.slug, "review") for s in _cap_retries(due)[:r]]
         taken |= {i.slug for i in reviews}
         rest = _mystery(inp, bank, topics, None, inp.n - r, taken)
         rest += _topup(inp, bank, topics, focus, inp.n - r - len(rest), taken)
@@ -172,7 +184,7 @@ def build_daily_set(inp: DailyInput, bank: dict[str, Problem], topics: list[Topi
     taken |= {i.slug for i in spot}
     due = [s for s in _due(inp, bank, focus) if s.slug not in taken]
     r_budget = max(0, int(0.4 * inp.n) - len(spot))
-    reviews = [Item(s.slug, "review") for s in due[:r_budget]]
+    reviews = [Item(s.slug, "review") for s in _cap_retries(due)[:r_budget]]
     taken |= {i.slug for i in reviews}
 
     mystery = _mystery(inp, bank, topics, focus, 1, taken) if len(practicing) >= 2 else []
@@ -181,10 +193,10 @@ def build_daily_set(inp: DailyInput, bank: dict[str, Problem], topics: list[Topi
     # practicing+ focus: a non-Easy slot it can't fill goes to other topics' Mediums before its own Easies
     easy_last = rank(_lvl(inp, focus)) >= rank("practicing")
     news: list[Item] = []
-    for diff in _ladder(_lvl(inp, focus), k, inp.lifetime_mediums):
+    for diff in _ladder(_lvl(inp, focus), k, _hard_ok(inp, focus)):
         alts = (diff, "Medium", "Hard") if easy_last and diff != "Easy" else (diff, "Medium", "Hard", "Easy")
         for alt in alts:
-            if alt == "Hard" and not _hard_ok(inp):
+            if alt == "Hard" and not _hard_ok(inp, focus):
                 continue
             cands = _unseen(inp, bank, focus, alt, taken)
             if cands:

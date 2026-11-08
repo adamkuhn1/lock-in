@@ -1,0 +1,1498 @@
+{
+ "note": "Hand-written cases both worker/tests/test_levels.py and web/src/lib/mastery.test.ts must pass.",
+ "cases": [
+  {
+   "name": "untouched with prereqs not yet Practicing is locked",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [
+    "learning"
+   ],
+   "attempts": [],
+   "expect": {
+    "level": "locked",
+    "easyCleared": 0,
+    "firstTries": [],
+    "mediumSolo": 0,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "untouched with no prereqs is available",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [],
+   "expect": {
+    "level": "available",
+    "easyCleared": 0,
+    "firstTries": [],
+    "mediumSolo": 0,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "any attempt makes it learning, even if locked",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [
+    "available"
+   ],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "learning",
+    "easyCleared": 1,
+    "firstTries": [],
+    "mediumSolo": 0,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "code-along Easies don't clear",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "codealong",
+     "on": "2026-10-20",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "learning",
+    "easyCleared": 2,
+    "firstTries": [
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 2,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "practicing: 3 Easies (explained counts) and 2 solo Mediums",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "explained",
+     "on": "2026-10-20",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "practicing",
+    "easyCleared": 3,
+    "firstTries": [
+     "codealong",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 2,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "a repeat solved solo doesn't change its first try",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "explained",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-20",
+     "slot": "review"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-21",
+     "slot": "review"
+    }
+   ],
+   "expect": {
+    "level": "practicing",
+    "easyCleared": 10,
+    "firstTries": [
+     "explained",
+     "solo",
+     "codealong",
+     "codealong",
+     "solo"
+    ],
+    "mediumSolo": 4,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "solid: half the Easies and 3 of the last 5 new Mediums solo",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "explained",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "m5",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-06",
+     "slot": "new"
+    },
+    {
+     "slug": "m6",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-07",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "solid",
+    "easyCleared": 10,
+    "firstTries": [
+     "codealong",
+     "codealong",
+     "solo",
+     "explained",
+     "solo",
+     "solo",
+     "codealong"
+    ],
+    "mediumSolo": 3,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "not solid with only 9 of 19 Easies",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "practicing",
+    "easyCleared": 9,
+    "firstTries": [
+     "solo",
+     "solo",
+     "solo",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 5,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "not solid until 5 new Mediums are in",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "e10",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-11",
+     "slot": "new"
+    },
+    {
+     "slug": "e11",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-12",
+     "slot": "new"
+    },
+    {
+     "slug": "e12",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-13",
+     "slot": "new"
+    },
+    {
+     "slug": "e13",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-14",
+     "slot": "new"
+    },
+    {
+     "slug": "e14",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-15",
+     "slot": "new"
+    },
+    {
+     "slug": "e15",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-16",
+     "slot": "new"
+    },
+    {
+     "slug": "e16",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-17",
+     "slot": "new"
+    },
+    {
+     "slug": "e17",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-18",
+     "slot": "new"
+    },
+    {
+     "slug": "e18",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-19",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-04",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "practicing",
+    "easyCleared": 19,
+    "firstTries": [
+     "solo",
+     "solo",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 4,
+    "hardsTried": 0
+   }
+  },
+  {
+   "name": "mastered: every Easy, 4 of 5 new Mediums solo, 2 Hards with help",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "e10",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-11",
+     "slot": "new"
+    },
+    {
+     "slug": "e11",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-12",
+     "slot": "new"
+    },
+    {
+     "slug": "e12",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-13",
+     "slot": "new"
+    },
+    {
+     "slug": "e13",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-14",
+     "slot": "new"
+    },
+    {
+     "slug": "e14",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-15",
+     "slot": "new"
+    },
+    {
+     "slug": "e15",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-16",
+     "slot": "new"
+    },
+    {
+     "slug": "e16",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-17",
+     "slot": "new"
+    },
+    {
+     "slug": "e17",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-18",
+     "slot": "new"
+    },
+    {
+     "slug": "e18",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-19",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "explained",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "m5",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-06",
+     "slot": "new"
+    },
+    {
+     "slug": "h0",
+     "difficulty": "Hard",
+     "rating": "codealong",
+     "on": "2026-11-25",
+     "slot": "new"
+    },
+    {
+     "slug": "h1",
+     "difficulty": "Hard",
+     "rating": "explained",
+     "on": "2026-11-26",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "mastered",
+    "easyCleared": 19,
+    "firstTries": [
+     "codealong",
+     "solo",
+     "solo",
+     "explained",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 4,
+    "hardsTried": 2
+   }
+  },
+  {
+   "name": "solid, not mastered, without Hards",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "e10",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-11",
+     "slot": "new"
+    },
+    {
+     "slug": "e11",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-12",
+     "slot": "new"
+    },
+    {
+     "slug": "e12",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-13",
+     "slot": "new"
+    },
+    {
+     "slug": "e13",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-14",
+     "slot": "new"
+    },
+    {
+     "slug": "e14",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-15",
+     "slot": "new"
+    },
+    {
+     "slug": "e15",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-16",
+     "slot": "new"
+    },
+    {
+     "slug": "e16",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-17",
+     "slot": "new"
+    },
+    {
+     "slug": "e17",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-18",
+     "slot": "new"
+    },
+    {
+     "slug": "e18",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-19",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "h0",
+     "difficulty": "Hard",
+     "rating": "codealong",
+     "on": "2026-11-25",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "solid",
+    "easyCleared": 19,
+    "firstTries": [
+     "solo",
+     "solo",
+     "solo",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 5,
+    "hardsTried": 1
+   }
+  },
+  {
+   "name": "slipping on new Mediums drops a mastered topic back",
+   "pools": {
+    "easy": 19,
+    "medium": 19,
+    "hard": 4
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "e0",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-01",
+     "slot": "new"
+    },
+    {
+     "slug": "e1",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-02",
+     "slot": "new"
+    },
+    {
+     "slug": "e2",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-03",
+     "slot": "new"
+    },
+    {
+     "slug": "e3",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-04",
+     "slot": "new"
+    },
+    {
+     "slug": "e4",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-05",
+     "slot": "new"
+    },
+    {
+     "slug": "e5",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-06",
+     "slot": "new"
+    },
+    {
+     "slug": "e6",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-07",
+     "slot": "new"
+    },
+    {
+     "slug": "e7",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-08",
+     "slot": "new"
+    },
+    {
+     "slug": "e8",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-09",
+     "slot": "new"
+    },
+    {
+     "slug": "e9",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-10",
+     "slot": "new"
+    },
+    {
+     "slug": "e10",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-11",
+     "slot": "new"
+    },
+    {
+     "slug": "e11",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-12",
+     "slot": "new"
+    },
+    {
+     "slug": "e12",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-13",
+     "slot": "new"
+    },
+    {
+     "slug": "e13",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-14",
+     "slot": "new"
+    },
+    {
+     "slug": "e14",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-15",
+     "slot": "new"
+    },
+    {
+     "slug": "e15",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-16",
+     "slot": "new"
+    },
+    {
+     "slug": "e16",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-17",
+     "slot": "new"
+    },
+    {
+     "slug": "e17",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-18",
+     "slot": "new"
+    },
+    {
+     "slug": "e18",
+     "difficulty": "Easy",
+     "rating": "solo",
+     "on": "2026-10-19",
+     "slot": "new"
+    },
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "m5",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-06",
+     "slot": "new"
+    },
+    {
+     "slug": "m6",
+     "difficulty": "Medium",
+     "rating": "explained",
+     "on": "2026-11-07",
+     "slot": "new"
+    },
+    {
+     "slug": "m7",
+     "difficulty": "Medium",
+     "rating": "codealong",
+     "on": "2026-11-08",
+     "slot": "new"
+    },
+    {
+     "slug": "h0",
+     "difficulty": "Hard",
+     "rating": "solo",
+     "on": "2026-11-25",
+     "slot": "new"
+    },
+    {
+     "slug": "h1",
+     "difficulty": "Hard",
+     "rating": "solo",
+     "on": "2026-11-26",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "practicing",
+    "easyCleared": 19,
+    "firstTries": [
+     "solo",
+     "solo",
+     "solo",
+     "solo",
+     "solo",
+     "codealong",
+     "explained",
+     "codealong"
+    ],
+    "mediumSolo": 5,
+    "hardsTried": 2
+   }
+  },
+  {
+   "name": "no Easies in the topic (Advanced Graphs)",
+   "pools": {
+    "easy": 0,
+    "medium": 10,
+    "hard": 6
+   },
+   "prereqs": [],
+   "attempts": [
+    {
+     "slug": "m0",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-01",
+     "slot": "new"
+    },
+    {
+     "slug": "m1",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-02",
+     "slot": "new"
+    },
+    {
+     "slug": "m2",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-03",
+     "slot": "new"
+    },
+    {
+     "slug": "m3",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-04",
+     "slot": "new"
+    },
+    {
+     "slug": "m4",
+     "difficulty": "Medium",
+     "rating": "solo",
+     "on": "2026-11-05",
+     "slot": "new"
+    },
+    {
+     "slug": "h0",
+     "difficulty": "Hard",
+     "rating": "codealong",
+     "on": "2026-11-25",
+     "slot": "new"
+    },
+    {
+     "slug": "h1",
+     "difficulty": "Hard",
+     "rating": "codealong",
+     "on": "2026-11-26",
+     "slot": "new"
+    }
+   ],
+   "expect": {
+    "level": "mastered",
+    "easyCleared": 0,
+    "firstTries": [
+     "solo",
+     "solo",
+     "solo",
+     "solo",
+     "solo"
+    ],
+    "mediumSolo": 5,
+    "hardsTried": 2
+   }
+  }
+ ]
+}

@@ -4,7 +4,7 @@ test('rate a fresh solve with one tap', async ({ page }) => {
   await page.goto('/grind/leetcode');
   const group = page.getByRole('group', { name: /How did .* go\?/ });
   await expect(group).toHaveCount(1);
-  await group.getByRole('button', { name: 'Nailed it' }).click();
+  await group.getByRole('button', { name: /^Solo/ }).click();
   await expect(group).toHaveCount(0);
 });
 

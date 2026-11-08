@@ -30,17 +30,17 @@ const empty = () => new Response(null, { status: 204 });
 describe('supabase api', () => {
   it('rateSolve PATCHes one unapplied lc_solves row with rating and rated_at', async () => {
     const { api, calls } = harness(() => json([{ id: 5 }]));
-    await api.rateSolve(5, 'nailed', new Date('2026-10-14T16:00:00Z'));
+    await api.rateSolve(5, 'solo', new Date('2026-10-14T16:00:00Z'));
     expect(calls[0].method).toBe('PATCH');
     expect(calls[0].url.pathname).toBe('/rest/v1/lc_solves');
     expect(calls[0].url.searchParams.get('id')).toBe('eq.5');
     expect(calls[0].url.searchParams.get('applied_at')).toBe('is.null');
     expect(calls[0].url.searchParams.get('select')).toBe('id');
-    expect(calls[0].body).toEqual({ rating: 'nailed', rated_at: '2026-10-14T16:00:00.000Z' });
+    expect(calls[0].body).toEqual({ rating: 'solo', rated_at: '2026-10-14T16:00:00.000Z' });
   });
   it('rateSolve throws AlreadyCountedError when the worker already applied the solve (I4)', async () => {
     const { api } = harness(() => json([]));
-    await expect(api.rateSolve(5, 'nailed', new Date('2026-10-14T16:00:00Z'))).rejects.toBeInstanceOf(AlreadyCountedError);
+    await expect(api.rateSolve(5, 'solo', new Date('2026-10-14T16:00:00Z'))).rejects.toBeInstanceOf(AlreadyCountedError);
   });
   it('updateSettings filters by owner', async () => {
     const { api, calls } = harness(empty);

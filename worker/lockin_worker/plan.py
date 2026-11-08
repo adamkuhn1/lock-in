@@ -22,7 +22,7 @@ def ensure_plan(db, now: datetime, bank, topics) -> bool:
     solves = db.select("lc_solves")
     attempted = frozenset(x["slug"] for x in solves)
     unaided_mediums = {x["slug"] for x in solves if x["slug"] in bank and bank[x["slug"]].difficulty == "Medium"
-                       and x.get("effective_rating") in ("nailed", "struggled")}
+                       and x.get("effective_rating") == "solo"}
     inp = DailyInput(
         today=pday, day_index=(pday - started).days, n=int(s.get("daily_lc_count") or 6),
         focus=s.get("lc_focus_topic"),

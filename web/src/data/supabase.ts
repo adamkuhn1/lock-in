@@ -162,7 +162,7 @@ export function createSupabaseApi(sb: SupabaseClient, deps: SupabaseApiDeps = se
     listTopicStates: () => rows<TopicState[]>(sb.from('lc_topic_state').select('topic,level')),
     listProblemStates: () => rows<ProblemState[]>(sb.from('lc_problem_state').select('slug,state,interval_days,due_on,lapses')),
     listSolves: () =>
-      allPages<Solve>((a, b) => sb.from('lc_solves').select('id,slug,title,accepted_at,rating,rated_at,applied_at,slot,note')
+      allPages<Solve>((a, b) => sb.from('lc_solves').select('id,slug,title,accepted_at,rating,rated_at,applied_at,effective_rating,slot,note')
         .order('accepted_at', { ascending: false }).order('id', { ascending: false }).range(a, b)),
     async rateSolve(id, rating, at) {
       // Guard: only an unapplied solve can be rated. Zero rows back means the worker got there first.

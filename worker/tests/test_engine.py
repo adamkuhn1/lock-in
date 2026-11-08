@@ -1,42 +1,55 @@
 from datetime import date, timedelta
+
 import pytest
-from lockin_worker.engine import ProblemState, apply_rating
+
+from lockin_worker.engine import PARK_DAYS, ProblemState, apply_rating
 
 D = date(2026, 10, 14)
 
-def test_nailed_ladder():
+
+def test_solo_medium_ladder():
     p = ProblemState("a")
     seen = []
     for _ in range(6):
-        p = apply_rating(p, "nailed", D)
+        p = apply_rating(p, "solo", D)
         seen.append(p.interval_days)
     assert seen == [3, 7, 21, 60, 120, 120]
     assert p.state == "retained" and p.due_on == D + timedelta(days=120)
 
-def test_nailed_below_60_is_reviewing():
-    p = apply_rating(ProblemState("a", interval_days=7), "nailed", D)
+
+def test_solo_below_60_is_reviewing():
+    p = apply_rating(ProblemState("a", "reviewing", 7), "solo", D)
     assert (p.state, p.interval_days) == ("reviewing", 21)
 
-def test_help_resets_and_counts_lapse():
-    p = apply_rating(ProblemState("a", state="reviewing", interval_days=21), "help", D)
-    assert (p.state, p.interval_days, p.lapses, p.due_on) == ("learning", 1, 1, D + timedelta(days=1))
 
-def test_struggled_grows_slowly_but_always_grows():
-    assert apply_rating(ProblemState("a"), "struggled", D).interval_days == 1
-    assert apply_rating(ProblemState("a", interval_days=1), "struggled", D).interval_days == 2
-    assert apply_rating(ProblemState("a", interval_days=7), "struggled", D).interval_days == 8
-    assert apply_rating(ProblemState("a", interval_days=21), "struggled", D).interval_days == 25
-    assert apply_rating(ProblemState("a", interval_days=21), "struggled", D).state == "reviewing"
+def test_easy_solved_solo_first_try_is_retained_not_reviewed():
+    p = apply_rating(ProblemState("e"), "solo", D, "Easy")
+    assert (p.state, p.interval_days, p.due_on) == ("retained", 60, D + timedelta(days=60))
 
-def test_parked_after_three_lapses():
-    p = ProblemState("a", lapses=2)
-    p = apply_rating(p, "help", D)
-    assert (p.state, p.due_on) == ("parked", D + timedelta(days=14))
 
-def test_nailed_unparks():
-    p = apply_rating(ProblemState("a", state="parked", lapses=3, interval_days=1), "nailed", D)
-    assert p.state == "reviewing" and p.interval_days == 3
+def test_easy_solved_solo_after_a_miss_climbs_the_ladder():
+    p = apply_rating(ProblemState("e", "learning", 3, lapses=1), "solo", D, "Easy")
+    assert (p.state, p.interval_days, p.lapses) == ("reviewing", 7, 0)
 
-def test_bad_rating():
+
+@pytest.mark.parametrize("rating", ["explained", "codealong"])
+def test_miss_comes_back_in_3_days(rating):
+    p = apply_rating(ProblemState("a", "reviewing", 21), rating, D)
+    assert (p.state, p.interval_days, p.due_on, p.lapses) == ("learning", 3, D + timedelta(days=3), 1)
+
+
+def test_second_miss_in_a_row_parks_for_3_weeks():
+    p = apply_rating(ProblemState("a"), "codealong", D)
+    p = apply_rating(p, "explained", D + timedelta(days=3))
+    assert p.state == "parked" and p.due_on == D + timedelta(days=3 + PARK_DAYS)
+
+
+def test_solo_unparks_and_resets_misses():
+    p = apply_rating(ProblemState("a", "parked", 3, D, lapses=2), "solo", D)
+    assert (p.state, p.interval_days, p.lapses) == ("reviewing", 7, 0)
+    assert apply_rating(p, "codealong", D).state == "learning"  # one miss after a solo doesn't park
+
+
+def test_unknown_rating_rejected():
     with pytest.raises(ValueError):
-        apply_rating(ProblemState("a"), "meh", D)
+        apply_rating(ProblemState("a"), "nailed", D)

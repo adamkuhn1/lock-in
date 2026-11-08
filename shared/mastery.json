@@ -1,0 +1,12 @@
+{
+  "note": "Topic mastery rules. Read by worker/lockin_worker/levels.py and web/src/lib/mastery.ts; shared/mastery_cases.json checks both agree.",
+  "ratings": {
+    "solo": "Solved it myself",
+    "explained": "Watched the explanation, then wrote it myself",
+    "codealong": "Coded along with the solution"
+  },
+  "easyCounts": ["solo", "explained"],
+  "practicing": { "easy": 3, "mediumSolo": 2 },
+  "solid": { "easyShare": 0.5, "window": 5, "firstTrySolo": 3 },
+  "mastered": { "easyShare": 1.0, "window": 5, "firstTrySolo": 4, "hards": 2 }
+}

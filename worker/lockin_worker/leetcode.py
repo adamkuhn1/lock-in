@@ -5,7 +5,7 @@ from datetime import date, datetime
 from . import clock
 from .bank import Problem, Topic
 from .engine import ProblemState, apply_rating
-from .levels import Attempt, topic_level
+from .levels import Attempt, Pools, topic_level
 
 GQL = "https://leetcode.com/graphql"
 HEADERS = {"Content-Type": "application/json", "Referer": "https://leetcode.com"}
@@ -93,12 +93,13 @@ def _group_rating(rows: list[dict], day: date, today: date) -> str | None:
     """Rating for one (slug, day) attempt, or None to defer it.
 
     Earliest solve's rating wins; otherwise the first non-null rating in time order;
-    otherwise an unrated past day counts as struggled; unrated today waits.
+    otherwise an unrated past day counts as explained (retry in 3 days, doesn't count toward the Medium bar);
+    unrated today waits.
     """
     for r in rows:  # time order: the earliest solve's rating wins if set
         if r.get("rating"):
             return r["rating"]
-    return "struggled" if day < today else None
+    return "explained" if day < today else None
 
 
 def apply_pending(db, bank: dict[str, Problem], today: date, now: datetime) -> int:
@@ -127,7 +128,7 @@ def apply_pending(db, bank: dict[str, Problem], today: date, now: datetime) -> i
         if rating is None:
             continue  # give Adam the rest of the day to rate it
         before = states.get(slug, ProblemState(slug))
-        after = apply_rating(before, rating, day)
+        after = apply_rating(before, rating, day, bank[slug].difficulty)
         states[slug] = after
         db.upsert("lc_problem_state", [{"slug": after.slug, "state": after.state,
                                         "interval_days": after.interval_days,
@@ -155,19 +156,18 @@ def load_attempts(db, bank: dict[str, Problem]) -> list[Attempt]:
     return out
 
 
+def topic_pools(bank: dict[str, Problem], topic: str) -> Pools:
+    free = [p for p in bank.values() if p.topic == topic and not p.paid_only]
+    return Pools(*(sum(p.difficulty == d for p in free) for d in ("Easy", "Medium", "Hard")))
+
+
 def recompute_levels(db, bank, topics: list[Topic], today: date) -> dict[str, str]:
     attempts = load_attempts(db, bank)
-    states = load_states(db)
-    prev = {r["topic"]: r["level"] for r in db.select("lc_topic_state")}
     result: dict[str, str] = {}
     for t in topics:  # roadmap order puts prerequisites first
-        in_topic = [x for x in attempts if x.topic == t.name]
-        pool = [p for p in bank.values() if p.topic == t.name and not p.paid_only]
-        result[t.name] = topic_level(
-            prev=prev.get(t.name, "locked"), attempts=in_topic,
-            easy_pool=sum(p.difficulty == "Easy" for p in pool),
-            nc150={p.slug for p in pool if "nc150" in p.lists},
-            states=states, prereq_levels=[result.get(x, "locked") for x in t.prereqs], today=today)
+        result[t.name] = topic_level(attempts=[x for x in attempts if x.topic == t.name],
+                                     pools=topic_pools(bank, t.name),
+                                     prereq_levels=[result.get(x, "locked") for x in t.prereqs])
     db.upsert("lc_topic_state", [{"topic": k, "level": v, "updated_at": clock.now().isoformat()}
                                  for k, v in result.items()], on_conflict="topic")
     return result

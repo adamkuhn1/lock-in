@@ -1,5 +1,7 @@
 import type { Profile } from '../lib/profile';
-export type Rating = 'nailed' | 'struggled' | 'help';
+export type Rating = 'nailed' | 'struggled' | 'help'; // learning items
+/** LeetCode: solved it myself / watched the explanation, then wrote it / coded along with the solution. */
+export type LcRating = 'solo' | 'explained' | 'codealong';
 export type Slot = 'new' | 'review' | 'mystery' | 'spot';
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type Level = 'locked' | 'available' | 'learning' | 'practicing' | 'solid' | 'mastered';
@@ -74,9 +76,10 @@ export interface Solve {
   slug: string;
   title: string;
   accepted_at: string;
-  rating: Rating | null;
+  rating: LcRating | null;
   rated_at: string | null;
   applied_at?: string | null; // set once the worker has counted this solve; absent = unapplied
+  effective_rating?: LcRating | null; // what the worker counted (an unrated past solve counts as explained)
   slot: Slot | null;
   note: string | null;
 }

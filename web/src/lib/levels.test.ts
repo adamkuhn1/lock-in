@@ -1,21 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Problem, ProblemState, Solve, Topic } from '../data/types';
-import { reviewQueue, roadmapRows, topicCounts, upcomingReviews } from './levels';
-
-const T = (name: string, tier: number, ord: number, prereqs: string[] = []): Topic => ({ name, tier, ord, prereqs, lc_tags: [] });
-const topics = [T('Two Pointers', 1, 2, ['Arrays & Hashing']), T('Arrays & Hashing', 0, 1), T('Stack', 1, 3, ['Arrays & Hashing'])];
+import type { Problem, ProblemState } from '../data/types';
+import { reviewQueue, upcomingReviews } from './levels';
 
 describe('levels', () => {
-  it('roadmapRows groups by tier in roadmap order and marks focus', () => {
-    const rows = roadmapRows(topics, [{ topic: 'Arrays & Hashing', level: 'solid' }], 'Two Pointers');
-    expect(rows.map((r) => [r.tier, r.topics.map((t) => t.name)])).toEqual([[0, ['Arrays & Hashing']], [1, ['Two Pointers', 'Stack']]]);
-    expect(rows[1].topics[0]).toMatchObject({ level: 'locked', isFocus: true });
-  });
-  it('roadmapRows defaults: no state → available without prereqs, locked with', () => {
-    const rows = roadmapRows(topics, [], null);
-    expect(rows[0].topics[0].level).toBe('available');
-    expect(rows[1].topics[1].level).toBe('locked');
-  });
   const P = (slug: string, difficulty: Problem['difficulty'], topic = 'Stack'): Problem => ({
     slug, lc_id: null, title: slug, difficulty, topic, lists: [], paid_only: false, ac_rate: null, target_minutes: null, neetcode_link: null,
   });
@@ -28,9 +15,5 @@ describe('levels', () => {
   });
   it('upcomingReviews counts the next N days, excluding today', () => {
     expect(upcomingReviews([PS('b', '2026-10-14'), PS('c', '2026-10-20'), PS('d', '2026-10-22')], '2026-10-14', 7)).toBe(1);
-  });
-  it('topicCounts counts distinct solved problems by difficulty', () => {
-    const solves = [{ slug: 'a' }, { slug: 'a' }, { slug: 'b' }, { slug: 'not-in-bank' }] as Solve[];
-    expect(topicCounts(solves, problems, 'Stack')).toEqual({ Easy: 1, Medium: 1, Hard: 0 });
   });
 });

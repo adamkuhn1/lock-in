@@ -70,10 +70,10 @@ describe('buildTodayItems', () => {
     const second = S('best-time', '2026-10-14T14:00:00+00:00');
     const unrated = buildTodayItems(set, [second, first], problems, '2026-10-14')[1];
     expect(unrated.solve?.id).toBe(first.id);
-    const ratedSecond = { ...second, rating: 'nailed' as const };
+    const ratedSecond = { ...second, rating: 'solo' as const };
     const done = buildTodayItems(set, [ratedSecond, first], problems, '2026-10-14')[1];
     expect(done.needsRating).toBe(false);
-    expect(done.solve?.rating).toBe('nailed');
+    expect(done.solve?.rating).toBe('solo');
   });
   it('falls back to the slug when a problem is unknown', () => {
     const odd = { ...set, items: [{ slug: 'not-in-bank', slot: 'new' as const, order: 0, done: false }] };

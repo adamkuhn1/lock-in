@@ -5,7 +5,7 @@ import { useApi } from './context';
 import { addDays, planDay } from '../lib/time';
 import type {
   Application, CompanyPrepInput, FindEngineersInput, LearnCheck, LearnProgressPatch, Idea, ReferralPatch, Tier, MarkAppliedInput, UndoAppliedInput, IdeaPatch, LaunchKind, NewCalEvent, NewIdea, NewPrepSession, NewProject, OutreachPatch, PostingStatus,
-  PrepStatus, Problem, ProjectPatch, Rating, SettingsPatch, Solve, StoryInput, StoryPatch,
+  LcRating, PrepStatus, Problem, ProjectPatch, SettingsPatch, Solve, StoryInput, StoryPatch,
 } from './types';
 
 export const keys = {
@@ -115,7 +115,7 @@ export function useRateSolve() {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: number; rating: Rating }) => api.rateSolve(v.id, v.rating, new Date()),
+    mutationFn: (v: { id: number; rating: LcRating }) => api.rateSolve(v.id, v.rating, new Date()),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: keys.solves });
       const prev = qc.getQueryData<Solve[]>(keys.solves);
