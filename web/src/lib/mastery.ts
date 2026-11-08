@@ -3,7 +3,7 @@
  * Same rules as worker/lockin_worker/levels.py (both read shared/mastery.json and pass shared/mastery_cases.json).
  */
 import rules from '../../../shared/mastery.json';
-import roadmap from '../../../worker/lockin_worker/data/roadmap.json';
+import roadmap from '../../../shared/roadmap.json';
 import type { Difficulty, LcRating, Level, Problem, Slot, Solve, Topic } from '../data/types';
 import { planDay } from './time';
 

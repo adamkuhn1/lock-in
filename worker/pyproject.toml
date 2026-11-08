@@ -18,8 +18,5 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["lockin_worker*", "job_radar*"]
 
-[tool.setuptools.package-data]
-lockin_worker = ["data/*.json"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,4 +1,4 @@
-import bank from '../../../worker/lockin_worker/data/problems.json';
+import bank from '../../../shared/problems.json';
 import learning from '../../../shared/learning.json';
 import prepItems from '../../../shared/prep_items.json';
 import { addDays, localDay, planDay } from '../lib/time';

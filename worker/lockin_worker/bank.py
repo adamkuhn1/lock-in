@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from functools import cache
-from importlib import resources
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -29,8 +29,11 @@ class Topic:
     lc_tags: tuple[str, ...]
 
 
+SHARED = Path(__file__).resolve().parents[2] / "shared"  # the web app reads the same files
+
+
 def _read(name: str):
-    return json.loads(resources.files("lockin_worker.data").joinpath(name).read_text())
+    return json.loads((SHARED / name).read_text(encoding="utf-8"))
 
 
 @cache
