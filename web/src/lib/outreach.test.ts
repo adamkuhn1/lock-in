@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LaunchRequest, Outreach } from '../data/types';
 import type { Contact } from '../data/types';
-import { PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, followUpsDue, isPlainEmail, latestRequest, mailtoHref, outreachPhase, sortOutreach } from './outreach';
+import { PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, canFill, fillNote, followUpsDue, isPlainEmail, latestFill, latestRequest, mailtoHref, outreachPhase, sortOutreach } from './outreach';
 
 const O = (id: string, over: Partial<Outreach> = {}): Outreach => ({
   id, job_url: 'https://x.com/' + id, company: null, role: null, resume_path: null, status: 'queued',
@@ -146,5 +146,31 @@ describe('mailtoHref', () => {
       expect(followUpDraft(O('a', { company: 'Stripe' }), C()).body).toContain('to the role at Stripe.');
       expect(followUpDraft(O('a', { role: 'SWE' }), C()).body).toContain('to SWE.');
     });
+  });
+});
+
+describe('Fill out application', () => {
+  const R = (kind: LaunchRequest['kind'], created_at: string, status: LaunchRequest['status'] = 'launched'): LaunchRequest =>
+    ({ id: kind + created_at, kind, payload: { outreach_id: 'a' }, status, error: null, created_at });
+  const tailored = '/R/Stripe_SWE/Adam_Kuhn_Resume.pdf';
+  it('needs a tailored PDF and a plain job link', () => {
+    expect(canFill(O('a', { job_url: 'https://jobs.lever.co/a/1', resume_path: tailored }))).toBe(true);
+    expect(canFill(O('a', { job_url: 'https://jobs.lever.co/a/1', resume_path: '/R/Base_Resume/Adam_Kuhn_Resume.pdf' }))).toBe(false);
+    expect(canFill(O('a', { job_url: 'https://jobs.lever.co/a/1', resume_path: null }))).toBe(false);
+    expect(canFill(O('a', { job_url: 'https://jobs.lever.co/a/1', resume_path: '/R/Stripe_SWE/Adam_Kuhn_Resume.tex' }))).toBe(false);
+    expect(canFill(O('a', { job_url: 'javascript:alert(1)', resume_path: tailored }))).toBe(false);
+  });
+  it('latestFill is the newest fill; latestRequest never sees fills', () => {
+    const reqs = [R('tailor_resume', '2026-11-18T10:00:00Z'), R('fill_application', '2026-11-18T11:00:00Z', 'failed'),
+      R('fill_application', '2026-11-18T12:00:00Z', 'queued')];
+    expect(latestFill(O('a'), reqs)?.created_at).toBe('2026-11-18T12:00:00Z');
+    expect(latestRequest(O('a'), reqs)?.kind).toBe('tailor_resume');
+    expect(latestFill(O('b'), reqs)).toBeNull();
+  });
+  it('says where the fill is', () => {
+    expect(fillNote(R('fill_application', 'x', 'queued'))).toBe('Fill queued for your Mac');
+    expect(fillNote(R('fill_application', 'x'))).toBe('Filling it in Chrome on your Mac. Review it there and submit when ready.');
+    expect(fillNote(R('fill_application', 'x', 'failed'))).toBeNull();
+    expect(fillNote(null)).toBeNull();
   });
 });

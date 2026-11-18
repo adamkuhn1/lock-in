@@ -1,5 +1,6 @@
 import type { Contact, LaunchRequest, Outreach } from '../data/types';
 import { addDays, daysBetween, weekStart } from './time';
+import { safeHref } from './url';
 
 export const FOLLOW_UP_DAYS = 5;
 export const FOLLOW_UP_RETRY_DAYS = 7;
@@ -49,6 +50,25 @@ export function latestRequest(o: Outreach, requests: LaunchRequest[]): LaunchReq
   const mine = requests.filter((r) => OUTREACH_KINDS.has(r.kind) && r.payload.outreach_id === o.id);
   mine.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   return mine[0] ?? null;
+}
+
+/** Fill out application: only for a card with a tailored PDF (never the base resume) and a plain job link. */
+export function canFill(o: Outreach): boolean {
+  const p = o.resume_path ?? '';
+  return /\.pdf$/i.test(p) && !p.includes('/Base_Resume/') && !!safeHref(o.job_url);
+}
+
+/** The newest Fill out application request for a card. Kept out of latestRequest so it never changes the card's phase. */
+export function latestFill(o: Outreach, requests: LaunchRequest[]): LaunchRequest | null {
+  const mine = requests.filter((r) => r.kind === 'fill_application' && r.payload.outreach_id === o.id);
+  mine.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  return mine[0] ?? null;
+}
+
+export function fillNote(r: LaunchRequest | null): string | null {
+  if (r?.status === 'queued') return 'Fill queued for your Mac';
+  if (r?.status === 'launched') return 'Filling it in Chrome on your Mac. Review it there and submit when ready.';
+  return null;
 }
 
 export function outreachPhase(o: Outreach, requests: LaunchRequest[], today: string): Phase {

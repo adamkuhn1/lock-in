@@ -15,7 +15,7 @@ export const KEPT = 'Kept by Adam';
 export type OutreachStatus = 'queued' | 'drafted' | 'sent' | 'replied' | 'closed';
 export type LaunchStatus = 'queued' | 'launched' | 'failed';
 export type LaunchKind = 'outreach' | 'suggest_ideas' | 'work_on_idea' | 'mock_interview' | 'tailor_resume' | 'best_fit' | 'report' | 'find_engineers'
-  | 'teach_item' | 'check_module' | 'review_module';
+  | 'teach_item' | 'check_module' | 'review_module' | 'fill_application';
 export type Confidence = 'verified' | 'pattern' | 'guess';
 
 export interface Settings {

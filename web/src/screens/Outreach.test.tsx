@@ -350,4 +350,68 @@ describe('Outreach', () => {
     expect(within(card).queryByRole('link', { name: /^Open in Outlook/ })).toBeNull();
     expect(within(card).getByRole('link', { name: /^Open follow-up/ })).toBeInTheDocument();
   });
+  describe('Fill out application', () => {
+    const tailoredCard = async () => {
+      const api = createDemoApi();
+      const o = await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/3', company: 'Acme', role: 'SWE' });
+      const list = await api.listOutreach();
+      api.listOutreach = async () => list.map((r) => r.id === o.id ? { ...r, status: 'drafted' as const, resume_path: '/R/Acme_SWE/Adam_Kuhn_Resume.pdf' } : r);
+      const reqs = await api.listLaunchRequests();
+      api.listLaunchRequests = async () => reqs.map((r) => r.payload.outreach_id === o.id ? { ...r, status: 'launched' as const } : r);
+      return { api, o, reqs: await api.listLaunchRequests() };
+    };
+    const fill = (o: { id: string }, status: 'queued' | 'launched' | 'failed', error: string | null = null) =>
+      ({ id: 'f' + status, kind: 'fill_application' as const, payload: { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3' }, status, error, created_at: '2099-01-01T00:00:00Z' });
+
+    it('on a tailored card queues a fill with the job link', async () => {
+      const { api, o } = await tailoredCard();
+      const spy = vi.spyOn(api, 'requestLaunch');
+      renderWithData(<Outreach />, { api });
+      await userEvent.click(within(await cardFor('Acme')).getByRole('button', { name: 'Fill out application: Acme' }));
+      expect(spy).toHaveBeenCalledWith('fill_application', { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3' });
+    });
+    it('no button before tailoring or with the base resume', async () => {
+      const api = createDemoApi();
+      await api.queueTailor({ job_url: 'https://jobs.lever.co/acme/3', company: 'Acme', role: 'SWE' });
+      await api.queueOutreach({ job_url: 'https://jobs.lever.co/cold/1', company: 'Coldco', role: 'SWE' });
+      const list = await api.listOutreach();
+      api.listOutreach = async () => list.map((r) => r.company === 'Coldco' ? { ...r, resume_path: '/R/Base_Resume/Adam_Kuhn_Resume.pdf' } : r);
+      renderWithData(<Outreach />, { api });
+      expect(within(await cardFor('Acme')).queryByRole('button', { name: /Fill out application/ })).toBeNull();
+      expect(within(await cardFor('Coldco')).queryByRole('button', { name: /Fill out application/ })).toBeNull();
+    });
+    it('no button on a Cold email card, even when it matched a tailored resume from another job', async () => {
+      const api = createDemoApi();
+      const o = await api.queueOutreach({ job_url: 'https://jobs.lever.co/cold/1', company: 'Coldco', role: 'SWE' });
+      const list = await api.listOutreach();
+      api.listOutreach = async () => list.map((r) => r.id === o.id ? { ...r, status: 'drafted' as const, resume_path: '/R/Coldco_Other_Role/Adam_Kuhn_Resume.pdf' } : r);
+      renderWithData(<Outreach />, { api });
+      expect(within(await cardFor('Coldco')).queryByRole('button', { name: /Fill out application/ })).toBeNull();
+    });
+    it('disabled while a fill is queued, and says so', async () => {
+      const { api, o, reqs } = await tailoredCard();
+      api.listLaunchRequests = async () => [fill(o, 'queued'), ...reqs];
+      renderWithData(<Outreach />, { api });
+      const card = await cardFor('Acme');
+      expect(await within(card).findByText('Fill queued for your Mac')).toBeInTheDocument();
+      expect(within(card).getByRole('button', { name: 'Fill out application: Acme' })).toBeDisabled();
+    });
+    it('a newer fill leaves the phase and Retailor resume alone', async () => {
+      const { api, o, reqs } = await tailoredCard();
+      api.listLaunchRequests = async () => [fill(o, 'launched'), ...reqs];
+      renderWithData(<Outreach />, { api });
+      const card = await cardFor('Acme');
+      expect(await within(card).findByText('Drafted')).toBeInTheDocument();
+      expect(within(card).getByRole('button', { name: 'Retailor resume: Acme' })).toBeInTheDocument();
+      expect(within(card).getByText(/Filling it in Chrome on your Mac/)).toBeInTheDocument();
+    });
+    it('a failed fill shows its error and can be tried again', async () => {
+      const { api, o, reqs } = await tailoredCard();
+      api.listLaunchRequests = async () => [fill(o, 'failed', 'LaunchError: Tailored resume not found at /R/x.pdf'), ...reqs];
+      renderWithData(<Outreach />, { api });
+      const card = await cardFor('Acme');
+      expect(await within(card).findByText('LaunchError: Tailored resume not found at /R/x.pdf')).toBeInTheDocument();
+      expect(within(card).getByRole('button', { name: 'Fill out application: Acme' })).toBeEnabled();
+    });
+  });
 });

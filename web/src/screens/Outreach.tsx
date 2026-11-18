@@ -3,7 +3,7 @@ import {
   useApplications, useContacts, useLaunchRequests, useNow, useOutreach, useQueueOutreach, useRequestLaunch, useSettings, useUpdateOutreach,
 } from '../data/hooks';
 import type { Contact, LaunchRequest, Outreach as OutreachRow } from '../data/types';
-import { FOLLOW_UP_RETRY_DAYS, PHASE_LABEL, followUpDraft, followUpLabel, followUpOn, isPlainEmail, latestRequest, mailtoHref, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
+import { FOLLOW_UP_RETRY_DAYS, PHASE_LABEL, canFill, fillNote, followUpDraft, followUpLabel, followUpOn, isPlainEmail, latestFill, latestRequest, mailtoHref, outreachPhase, sortOutreach, type Phase } from '../lib/outreach';
 import { copyPrompt } from '../lib/outreachPrompt';
 import { addDays, localDay } from '../lib/time';
 import { hostOf, isJobUrl, safeHref } from '../lib/url';
@@ -94,13 +94,17 @@ export function PromptButton({ build }: { build: () => string }) {
   );
 }
 
-function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry, onRetailor, note }: {
+function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contactsLoaded, onSent, onFollowedUp, onReplied, onClose, onReopen, onRetry, onRetailor, note, onFill, fill }: {
   o: OutreachRow; phase: Phase; today: string; contacts: Contact[]; prompt: () => string; busy: boolean; contactsLoaded: boolean; applied: boolean;
   onSent: () => void; onFollowedUp: () => void; onReplied: () => void; onClose: () => void; onReopen: () => void; onRetry: () => void;
   /** Tailor cards only: the Mac reuses a resume already saved for this card, or tailors again; either way the posting reopens. */
   onRetailor?: () => void;
   /** What the Mac did with the last Retailor resume, if anything. */
   note?: string | null;
+  /** Cards with a tailored PDF: Claude fills in the application in Chrome and leaves Submit to Adam. */
+  onFill?: () => void;
+  /** The card's newest Fill out application request, if any. */
+  fill?: LaunchRequest | null;
 }) {
   const headId = `out-${o.id}`;
   const waiting = phase.kind === 'queued' || phase.kind === 'on_mac' || phase.kind === 'failed' || phase.kind === 'not_queued';
@@ -128,6 +132,9 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
         {onRetailor && phase.kind !== 'queued' && safeHref(o.job_url) && (
           <Button aria-label={`Retailor resume: ${name}`} onClick={onRetailor} disabled={busy}>Retailor resume</Button>
         )}
+        {onFill && (
+          <Button aria-label={`Fill out application: ${name}`} onClick={onFill} disabled={busy || fill?.status === 'queued'}>Fill out application</Button>
+        )}
         {phase.kind === 'drafted' && <Button variant="primary" onClick={onSent} disabled={busy}>Sent</Button>}
         {firstFollowUp && <Button variant="primary" aria-label={`Follow-up sent: ${name}`} onClick={onFollowedUp} disabled={busy}>Follow-up sent</Button>}
         {(phase.kind === 'sent' || phase.kind === 'due') && (
@@ -146,6 +153,8 @@ function OutreachCard({ o, phase, today, contacts, prompt, busy, applied, contac
         <ExternalLink className="btn btn-quiet" href={o.job_url}>Posting</ExternalLink>
         {safeHref(o.job_url) && <IApplied input={{ outreach_id: o.id }} company={name} role={o.role} applied={applied} />}
       </div>
+      {onFill && fillNote(fill ?? null) && <p className="muted small" role="status">{fillNote(fill ?? null)}</p>}
+      {onFill && fill?.status === 'failed' && <ErrorDetail error={fill.error ?? 'Unknown error'} />}
       {o.resume_path && <p className="muted small resume-path">Resume: {o.resume_path}</p>}
       {phase.kind === 'resume_ready' && contacts.length === 0 && <p className="muted small">No recruiter found yet.</p>}
       {contacts.map((c) => <ContactBlock key={c.id} c={c} o={o} name={name} followUp={firstFollowUp} original={phase.kind !== 'sent' && phase.kind !== 'due'} />)}
@@ -212,6 +221,11 @@ export default function Outreach() {
       note={retailorNote(latestRequest(o, reqs))}
       onRetailor={(o.status === 'queued' || o.status === 'drafted') && latestRequest(o, reqs)?.kind === 'tailor_resume' ? () => launch.mutate({
         kind: 'tailor_resume', payload: { outreach_id: o.id, job_url: o.job_url, retailor: true },
+      }) : undefined}
+      fill={latestFill(o, reqs)}
+      // Tailor cards only: a Cold email card's resume_path is a matched resume that may have been tailored for another job.
+      onFill={o.status !== 'closed' && canFill(o) && latestRequest(o, reqs)?.kind === 'tailor_resume' ? () => launch.mutate({
+        kind: 'fill_application', payload: { outreach_id: o.id, job_url: o.job_url },
       }) : undefined} />
   );
 
