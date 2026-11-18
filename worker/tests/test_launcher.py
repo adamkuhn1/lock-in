@@ -741,3 +741,78 @@ def test_report_dumps_every_table_and_renders_prompt(tmp_path, monkeypatch):
 
 def test_report_is_a_known_kind():
     assert "report" in launcher.BUILDERS
+
+
+# --- fill out application (fill-only, after tailoring) ---------------------------------------
+
+TAILORED = "Stripe_Software_Engineer_New_Grad_2027/Adam_Kuhn_Resume.pdf"
+
+
+def fill_db(tmp_path, resume_rel=TAILORED, create=True, resume_path=None, job_url="https://boards.greenhouse.io/stripe/jobs/1"):
+    root = tmp_path / "Resumes"
+    pdf = root / resume_rel
+    if create:
+        pdf.parent.mkdir(parents=True)
+        pdf.write_bytes(b"%PDF-1.4")
+    db = MemoryDB()
+    db.insert("settings", [{"resume_root": str(root), "profile": {"application": "US citizen. Start: June 2027"}}])
+    db.insert("outreach", [{"id": "t-1", "job_url": job_url, "status": "drafted", "company": "Stripe",
+                            "role": "Software Engineer, New Grad (2027)",
+                            "resume_path": str(pdf) if resume_path is None else resume_path or None}])
+    db.insert("launch_requests", [{"id": "fr1", "kind": "fill_application",
+                                   "payload": {"outreach_id": "t-1", "job_url": job_url},
+                                   "status": "queued", "created_at": "2026-11-18T12:00:00Z"}])
+    return db, pdf
+
+
+def test_fill_opens_chrome_with_the_tailored_pdf(tmp_path, tailor_dir):
+    db, pdf = fill_db(tmp_path)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("fr1", "launched")]
+    assert op.kwargs == [{"chrome": True}]
+    cwd, prompt, _ = op.calls[0]
+    assert Path(cwd).parent == tailor_dir
+    assert f"upload the tailored PDF at {pdf} (never the base resume)" not in prompt  # no doubled rule
+    for needle in [str(pdf), "Open https://boards.greenhouse.io/stripe/jobs/1 in a new Chrome tab",
+                   "You never click the final Submit button", "Decline to self-identify", "US citizen. Start: June 2027",
+                   "Software Engineer, New Grad (2027) at Stripe", "## Who Adam is", "never the base resume"]:
+        assert needle in prompt, needle
+    assert "Part 2" not in prompt and "Part 1b" not in prompt and "{{" not in prompt
+
+
+@pytest.mark.parametrize("kw, msg", [
+    ({"resume_rel": "Base_Resume/Adam_Kuhn_Resume.pdf"}, "needs a tailored resume"),
+    ({"resume_path": ""}, "run Tailor resume first"),
+    ({"resume_path": "/tmp/elsewhere/Adam_Kuhn_Resume.pdf"}, "needs a tailored resume"),
+    ({"resume_rel": "Stripe_SWE/Adam_Kuhn_Resume.tex"}, "needs a tailored resume"),
+    ({"create": False}, "Tailored resume not found"),
+])
+def test_fill_refuses_without_a_tailored_pdf(tmp_path, kw, msg):
+    db, _ = fill_db(tmp_path, **kw)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("fr1", "failed")]
+    assert op.calls == []
+    assert msg in status(db, "fr1")["error"]
+
+
+def test_fill_icloud_placeholder_gets_icloud_message(tmp_path, monkeypatch):
+    db, pdf = fill_db(tmp_path)
+    pdf.rename(pdf.with_name(f".{pdf.name}.icloud"))
+    monkeypatch.setattr(launcher.resume, "ensure_local", lambda *a, **k: False)
+    assert launcher.poll_once(db, Opener(), "/v/bin/lockin") == [("fr1", "failed")]
+    assert "in iCloud and couldn't be downloaded" in status(db, "fr1")["error"]
+
+
+@pytest.mark.parametrize("bad", ["javascript:alert(1)", "https://x.com/a b", "https://x.com/$(rm -rf ~)"])
+def test_fill_rejects_unsafe_job_url(tmp_path, tailor_dir, bad):
+    db, _ = fill_db(tmp_path, job_url=bad)
+    op = Opener()
+    assert launcher.poll_once(db, op, "/v/bin/lockin") == [("fr1", "failed")]
+    assert op.calls == [] and not tailor_dir.exists()
+
+
+def test_fill_unknown_outreach_fails(tmp_path):
+    db, _ = fill_db(tmp_path)
+    db.update("launch_requests", {"id": "fr1"}, {"payload": {"outreach_id": "nope"}})
+    assert launcher.poll_once(db, Opener(), "/v/bin/lockin") == [("fr1", "failed")]
+    assert "not found" in status(db, "fr1")["error"]

@@ -340,6 +340,63 @@ def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
             "form_rule": "Never submit an application. Fill in the form in Chrome only as Part 1b says, and leave Submit for Adam."}
 
 
+FILL_ICLOUD_MSG = ("Tailored resume is in iCloud and couldn't be downloaded — open its folder in Finder once "
+                   "(or right-click → Keep Downloaded), then Try again")
+
+
+def _tailored_pdf(o: dict, root: Path) -> Path:
+    """The card's tailored PDF, checked: inside the resume root, a .pdf, not the base resume, and on disk."""
+    raw = o.get("resume_path")
+    if not raw:
+        raise LaunchError("No tailored resume on this card yet: run Tailor resume first")
+    pdf = Path(os.path.expanduser(str(raw)))
+    try:
+        rel = pdf.resolve().relative_to(root.resolve())
+    except ValueError:
+        rel = None
+    if rel is None or pdf.suffix.lower() != ".pdf" or rel.parts[:1] == (BASE_RESUME,) or len(rel.parts) < 2:
+        raise LaunchError(f"Fill out application needs a tailored resume, not {pdf}")
+    resume.ensure_local(pdf, ICLOUD_RUN, ICLOUD_SLEEP)
+    if not _is_file(pdf):
+        if _is_file(pdf.with_name(f".{pdf.name}.icloud")):
+            raise LaunchError(FILL_ICLOUD_MSG)
+        raise LaunchError(f"Tailored resume not found at {pdf} (check the file exists and Terminal/Python has Desktop access)")
+    return pdf
+
+
+def build_fill(db, payload: dict, lockin: str, find=None) -> tuple[Path, str, dict]:
+    """Fill out application: a fill-only Claude in Chrome session with the card's tailored PDF. Never submits."""
+    oid = payload.get("outreach_id")
+    rows = db.select("outreach", {"id": oid}) if oid else []
+    if not rows:
+        raise LaunchError(f"outreach {oid!r} not found")
+    o = rows[0]
+    job_url, posting = _job_context(db, o, payload)
+    safe_job_url(job_url)
+    settings = (db.select("settings") or [{}])[0]
+    root = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT))
+    pdf = _tailored_pdf(o, root)
+    company = o.get("company") or (posting or {}).get("company") or resume.company_from_url(job_url) or "the company"
+    role = o.get("role") or (posting or {}).get("title") or "the role"
+    answers = profile.merged(settings.get("profile")).get("application") or NO_ANSWERS
+    rules = prompts.render(prompts.load("fill_application"), {
+        "heading": "## Fill in the application in Chrome (never submit)",
+        "resume_source": f"the tailored PDF at `{pdf}`",
+        "next_step": "stop there: this session only fills in the form",
+        "job_url": job_url, "job_url_shell": shlex.quote(job_url), "application_answers": answers,
+    })
+    text = prompts.render(prompts.load("fill_only"), {
+        "who": profile.prompt_values(settings.get("profile"))["who"], "company": company, "role": role,
+        "job_url": job_url, "resume_path": str(pdf), "fill_rules": rules,
+    })
+    TAILOR_DIR.mkdir(parents=True, exist_ok=True)
+    TAILOR_DIR.chmod(0o700)
+    work = TAILOR_DIR / f"fill-{slugify(folder_hint(company, role))}-{slugify(str(oid))[:8]}"
+    work.mkdir(exist_ok=True)
+    work.chmod(0o700)
+    return work, text, {"chrome": True}
+
+
 def _write_json(path: Path, rows) -> None:
     path.write_text(json.dumps(rows, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     path.chmod(0o600)
@@ -631,7 +688,8 @@ def build_review(db, payload: dict, lockin: str, find=None) -> tuple[Path, str]:
 BUILDERS = {"outreach": build_outreach, "suggest_ideas": build_suggest,
             "work_on_idea": build_work, "mock_interview": build_mock, "tailor_resume": build_tailor,
             "best_fit": build_best_fit, "report": build_report, "find_engineers": build_engineers,
-            "teach_item": build_teach, "check_module": build_check, "review_module": build_review}
+            "teach_item": build_teach, "check_module": build_check, "review_module": build_review,
+            "fill_application": build_fill}
 ON_FAIL = {"work_on_idea": revert_work}
 
 
