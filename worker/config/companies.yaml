@@ -252,7 +252,7 @@ companies:
   # --- Ashby
   - { name: Talos,               ats: ashby, token: talos-trading,       tier: volume }
   - { name: Valon,               ats: ashby, token: valon,               tier: volume }
-  - { name: Browserbase,         ats: ashby, token: browserbase,         tier: volume }
+  - { name: Browserbase,         ats: greenhouse, token: browserbaseinc, tier: volume }
   - { name: Ellipsis Labs,       ats: ashby, token: ellipsislabs,        tier: volume }
   - { name: Niantic Spatial,     ats: ashby, token: niantic-spatial,     tier: volume }
   - { name: Pylon,               ats: ashby, token: pylon-labs,          tier: volume }

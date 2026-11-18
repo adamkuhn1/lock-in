@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 import statistics
+import threading
+import zlib
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
@@ -23,6 +26,14 @@ SCREENED_RETENTION_DAYS = 60
 SEED_DAYS = 90  # a newly added company brings its matching postings from this far back (season programs stay open for months)
 UNDATED_ATS = {"meta"}  # sites that never give a posting date
 FAIL_ALERT_AFTER = 6  # consecutive failed runs (~3 hours at every 30 min) before a board is reported
+# Every Workday board sits on *.myworkdayjobs.com, which answers HTTP 429 when one runner sends it hundreds of
+# searches every 10 minutes. So Workday gets at most 2 requests in flight, each board is read every 3rd run
+# (~30 min), and a 429 pauses that whole site: no more requests this run, then 30 min, doubling up to 6 hours.
+THROTTLED_ATS = {"workday": 2}
+ROTATE_ATS = {"workday": 3}
+COOLDOWN_FIRST_MIN = 30
+COOLDOWN_MAX_MIN = 360
+RATE_LIMITED = re.compile(r"\bHTTP 429\b")
 OPEN = ("new", "seen")
 TRADING_FIRM = "Trading firm"
 TITLE_RULE = "Title doesn't fit (filters.yaml)"
@@ -156,23 +167,38 @@ def collect(db, sources: list[Source], filters: Filters, session, now: datetime,
     tier_by_company = {_norm(s.label): s.tier for s in sources if not isinstance(s.target, GitHubList)}
     direct = set(tier_by_company)  # companies with their own board: their GitHub-list rows would only be duplicates
 
+    cooling = _cooling(st, now)
+    active = [s for s in sources if not _sits_out(s, cooling, now)]
+    gates = {ats: threading.Semaphore(n) for ats, n in THROTTLED_ATS.items()}
+    tripped: set[str] = set()  # sites that answered 429 this run: their remaining boards are skipped
+
     def one(src):
-        try:
-            return src, fetch(src, session, st["sources"].get(src.key, {}).get("sha")), None
-        except Exception as exc:  # FetchError or a parser bug: report it and keep going
-            return src, None, str(exc)
+        ats = _ats(src)[0]
+        with gates.get(ats) or nullcontext():
+            if ats in tripped:
+                return src, None, None
+            try:
+                return src, fetch(src, session, st["sources"].get(src.key, {}).get("sha")), None
+            except Exception as exc:  # FetchError or a parser bug: report it and keep going
+                if ats and RATE_LIMITED.search(str(exc)):
+                    tripped.add(ats)
+                return src, None, str(exc)
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(one, sources))
+        results = list(pool.map(one, active))
 
     existing = db.select("postings")
     seen_before = SeenPostings(existing)
-    errors = {src.key: err for src, _, err in results if err}
-    alert = _track_failures(st, sources, errors, now)
+    limited = {src.key: err for src, _, err in results if err and RATE_LIMITED.search(err)}
+    errors = {src.key: err for src, _, err in results if err and src.key not in limited}
+    skipped = {s.key for s in sources} - {src.key for src, fetched, err in results if fetched is not None or err}
+    rate_alert = _update_cooldown(st, {_ats(src)[0] for src, _, err in results if src.key in limited},
+                                  {_ats(src)[0] for src, fetched, _ in results if fetched is not None}, now)
+    alert = _track_failures(st, sources, errors, now, keep=skipped | set(limited))
     current_ids: dict[str, set[str]] = {}
     to_insert, to_check, seeded, dupes, cache = [], [], 0, 0, {}
     for src, fetched, err in results:
-        if err or fetched[0] is None:
+        if err or fetched is None or fetched[0] is None:
             continue
         found, sha = fetched
         current_ids[src.key] = {j.id for j in found}
@@ -224,7 +250,8 @@ def collect(db, sources: list[Source], filters: Filters, session, now: datetime,
     new = [r for r in to_insert if r["status"] == "new"]
     fresh = [r for r, c in zip(to_insert, to_check) if r["status"] == "new" and not c[3] and _alertable(r, now)]
     return {"new": len(new), "filtered": len(to_insert) - len(new), "dupes": dupes, "seeded": seeded,
-            "refiled": refiled, "lag_min": _lag_minutes(new, now), "errors": errors, "alert": alert, "fresh": fresh}
+            "refiled": refiled, "lag_min": _lag_minutes(new, now), "errors": errors, "alert": alert, "fresh": fresh,
+            "rate_limited": sorted(limited), "skipped": len(skipped), "rate_alert": rate_alert}
 
 
 def _refile_open(db, existing: list[dict], filters: Filters, index: tiers.TierIndex, st: dict, today: str,
@@ -348,12 +375,51 @@ def _recent(posted_at: str | None, now: datetime) -> bool:
     return now - when <= timedelta(days=SEED_DAYS)
 
 
-def _track_failures(st: dict, sources: list[Source], errors: dict[str, str], now: datetime) -> list[str]:
+def _sits_out(src: Source, cooling: set[str], now: datetime) -> bool:
+    """True when this board isn't read this run: its site is paused after a 429, or it's another slice's turn."""
+    ats = _ats(src)[0]
+    if ats in cooling:
+        return True
+    n = ROTATE_ATS.get(ats)
+    return bool(n) and zlib.crc32(src.key.encode()) % n != ((now.hour * 60 + now.minute) // 10) % n
+
+
+def _cooling(st: dict, now: datetime) -> set[str]:
+    out = set()
+    for ats, c in (st.get("cooldown") or {}).items():
+        try:
+            if datetime.fromisoformat(c["until"]) > now:
+                out.add(ats)
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
+
+
+def _update_cooldown(st: dict, hit: set[str], ok: set[str], now: datetime) -> list[str]:
+    """Pause each site that answered 429 (30 min, doubling to 6 h); a clean read ends the pause.
+
+    Returns one line per site that just started a pause, for the phone alert."""
+    cd = st.setdefault("cooldown", {})
+    for ats in ok - hit:
+        cd.pop(ats, None)
+    out = []
+    for ats in sorted(hit):
+        prev = cd.get(ats) or {}
+        mins = min(int(prev.get("minutes") or COOLDOWN_FIRST_MIN // 2) * 2, COOLDOWN_MAX_MIN)
+        cd[ats] = {"until": (now + timedelta(minutes=mins)).isoformat(timespec="seconds"), "minutes": mins}
+        if not prev:
+            out.append(f"{ats}: too many requests (HTTP 429), paused for {mins} min")
+    return out
+
+
+def _track_failures(st: dict, sources: list[Source], errors: dict[str, str], now: datetime,
+                    keep: set[str] = frozenset()) -> list[str]:
     """Count consecutive failures per board; return "Name: error" for boards that just reached FAIL_ALERT_AFTER.
 
-    Each board is reported once per outage: it alerts again only after it recovers and breaks again."""
+    Each board is reported once per outage: it alerts again only after it recovers and breaks again.
+    Boards in `keep` weren't really read this run (skipped or rate-limited), so their count is left as it was."""
     failing = st.setdefault("failing", {})
-    for key in [k for k in failing if k not in errors]:
+    for key in [k for k in failing if k not in errors and k not in keep]:
         del failing[key]
     label = {s.key: s.label for s in sources}
     out = []

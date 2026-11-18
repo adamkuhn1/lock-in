@@ -83,6 +83,15 @@ def default_steps(env: dict):
                 except Exception as exc:
                     print(f"FAILED job alert: {_safe_err(exc)}", file=sys.stderr)
                     break
+        if out.get("rate_limited"):
+            print("job sources rate-limited:", out["rate_limited"])
+        if out.get("rate_alert") and topic:
+            try:
+                nudges.send(session, topic, nudges.Nudge(
+                    "jobs_rate_limited", "Job scanner is being rate-limited",
+                    "\n".join(out["rate_alert"]) + "\n\nNothing to fix: Lock In backs off and retries on its own.", "low"))
+            except Exception as exc:
+                print(f"FAILED rate-limit alert: {_safe_err(exc)}", file=sys.stderr)
         if out.get("alert") and topic:
             try:
                 nudges.send(session, topic, nudges.Nudge(

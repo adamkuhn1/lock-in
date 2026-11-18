@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from job_radar.config import Company, Filters, LocationRules
 from job_radar.models import FetchError, Job
@@ -311,3 +311,73 @@ def test_a_posting_adam_restored_is_never_refiled():
     jobs.collect(db, sources(), FILTERS, object(), NOW, fetch=fake({"greenhouse:stripe": [], "ashby:ramp": []}),
                  describe=lambda *a, **k: "PhD required.")
     assert db.select("postings")[0]["status"] == "new"
+
+
+# ---- rate limits (Workday answers HTTP 429 when it's read too often) ----
+
+def workday_sources(n=3):
+    return build_sources([Company(f"W{i}", "workday", f"w{i}.wd5/Site", "volume") for i in range(n)]
+                         + [Company("Stripe", "greenhouse", "stripe", "reach")], [])
+
+
+def counting(board, calls):
+    def fetch(src, session, prev_sha):
+        calls.append(src.key)
+        v = board.get(src.key, [])
+        if isinstance(v, Exception):
+            raise v
+        return v, None
+    return fetch
+
+
+def test_a_429_stops_the_site_for_the_run_and_pauses_it(monkeypatch):
+    monkeypatch.setattr(jobs, "ROTATE_ATS", {})
+    monkeypatch.setattr(jobs, "THROTTLED_ATS", {"workday": 1})  # one at a time, so the order is fixed
+    db, calls = MemoryDB(), []
+    board = {f"workday:w{i}.wd5/Site": FetchError("HTTP 429 from https://w.myworkdayjobs.com") for i in range(3)}
+    out = jobs.collect(db, workday_sources(), FILTERS, None, NOW, fetch=counting(board, calls))
+    assert sum(k.startswith("workday") for k in calls) == 1 and "greenhouse:stripe" in calls
+    assert out["errors"] == {} and len(out["rate_limited"]) == 1 and out["skipped"] == 2
+    assert out["rate_alert"] == ["workday: too many requests (HTTP 429), paused for 30 min"]
+
+    calls.clear()  # 10 minutes later: still paused, Stripe is read as usual
+    out = jobs.collect(db, workday_sources(), FILTERS, None, NOW + timedelta(minutes=10), fetch=counting(board, calls))
+    assert calls == ["greenhouse:stripe"] and out["rate_alert"] == []
+
+    calls.clear()  # 31 minutes later: tried again, still limited, so the pause doubles without a second alert
+    out = jobs.collect(db, workday_sources(), FILTERS, None, NOW + timedelta(minutes=31), fetch=counting(board, calls))
+    assert out["rate_alert"] == [] and jobs._load_state(db)["cooldown"]["workday"]["minutes"] == 60
+
+    board.clear()  # a clean read ends the pause
+    jobs.collect(db, workday_sources(), FILTERS, None, NOW + timedelta(minutes=95), fetch=counting(board, calls))
+    assert "workday" not in jobs._load_state(db)["cooldown"]
+
+
+def test_rate_limited_boards_never_raise_the_broken_board_alert(monkeypatch):
+    monkeypatch.setattr(jobs, "ROTATE_ATS", {})
+    db = MemoryDB()
+    board = {f"workday:w{i}.wd5/Site": FetchError("HTTP 429 from x") for i in range(3)}
+    alerts = [jobs.collect(db, workday_sources(), FILTERS, None, NOW + timedelta(hours=7 * i),
+                           fetch=counting(board, []))["alert"] for i in range(8)]
+    assert alerts == [[]] * 8
+
+
+def test_each_workday_board_is_read_once_every_three_runs():
+    db, calls = MemoryDB(), []
+    srcs = workday_sources(9)
+    for i in range(3):
+        jobs.collect(db, srcs, FILTERS, None, NOW + timedelta(minutes=10 * i), fetch=counting({}, calls))
+    wd = [k for k in calls if k.startswith("workday")]
+    assert sorted(wd) == sorted(s.key for s in srcs if s.key.startswith("workday"))
+    assert calls.count("greenhouse:stripe") == 3
+
+
+def test_a_board_that_sits_out_keeps_its_failure_count(monkeypatch):
+    db = MemoryDB()
+    srcs = workday_sources(1)
+    key = srcs[0].key
+    monkeypatch.setattr(jobs, "ROTATE_ATS", {})
+    jobs.collect(db, srcs, FILTERS, None, NOW, fetch=counting({key: FetchError("HTTP 404")}, []))
+    monkeypatch.setattr(jobs, "_sits_out", lambda s, cooling, now: s.key == key)
+    jobs.collect(db, srcs, FILTERS, None, NOW, fetch=counting({}, []))
+    assert jobs._load_state(db)["failing"][key]["count"] == 1
