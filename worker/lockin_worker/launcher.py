@@ -320,6 +320,10 @@ def build_tailor(db, payload: dict, lockin: str, find=None) -> tuple[Path, str] 
 
 
 NO_ANSWERS = "(none set on the Me tab: leave those questions blank and list them for Adam)"
+# The fill rules (prompts/fill_application.md) as Part 1b of Tailor & fill out app.
+FILL_IN_TAILOR = {"heading": "## Part 1b: fill in the application in Chrome (never submit)",
+                  "resume_source": "the tailored PDF you saved in step 5 (the absolute path inside the new folder)",
+                  "next_step": "go straight on to Part 2"}
 
 
 def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
@@ -329,7 +333,7 @@ def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
                 "apply_part": "", "form_rule": "Never apply or fill in forms. Draft only."}
     answers = profile.merged(saved_profile).get("application") or NO_ANSWERS
     part = prompts.render(prompts.load("fill_application"), {
-        "job_url": job_url, "job_url_shell": shlex.quote(job_url), "application_answers": answers,
+        **FILL_IN_TAILOR, "job_url": job_url, "job_url_shell": shlex.quote(job_url), "application_answers": answers,
     })
     return {"open_step": "6. Don't run `open` on the posting here: Part 1b opens it in Chrome.",
             "apply_part": part,
