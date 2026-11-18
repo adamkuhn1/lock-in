@@ -31,7 +31,6 @@ def test_outreach_template_has_guardrails_and_context():
                    "May 2027", "December 2027", "under about 90 words", "`verified`", "`pattern`", "`guess`",
                    "{{lockin}} save-outreach --id {{outreach_id}} <<'JSON'", "Saved N contacts"]:
         assert needle in t, needle
-    assert "Part 2" not in t and "Part 1b" not in t  # those belong to the tailor prompt's values, not the shared rules
 
 
 def test_fill_only_template():
@@ -114,7 +113,10 @@ def test_tailor_resume_template_placeholders():
 
 def test_fill_application_template():
     t = prompts.load("fill_application")
-    assert prompts.placeholders(t) == {"heading", "job_url", "job_url_shell", "application_answers", "resume_source", "next_step"}
+    assert prompts.placeholders(t) == {"heading", "job_url", "job_url_shell", "application_answers", "resume_source", "next_step",
+                                       "contact_source"}
+    assert "Name, email and phone: exactly as they appear in {{contact_source}}." in t
+    assert "Part 2" not in t and "Part 1b" not in t and "this part" not in t  # context-specific wording lives in the values
     assert t.startswith("\n{{heading}}\n") and t.endswith("\n")
     for needle in ["You never click the final Submit button", "wait for his reply", "Never type a password",
                    "never create an account", "Sign in with Google", "I don't wish to answer", "Decline to self-identify",

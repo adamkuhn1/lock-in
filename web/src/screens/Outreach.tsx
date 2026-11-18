@@ -223,8 +223,9 @@ export default function Outreach() {
         kind: 'tailor_resume', payload: { outreach_id: o.id, job_url: o.job_url, retailor: true },
       }) : undefined}
       fill={latestFill(o, reqs)}
-      // Tailor cards only: a Cold email card's resume_path is a matched resume that may have been tailored for another job.
-      onFill={o.status !== 'closed' && canFill(o) && latestRequest(o, reqs)?.kind === 'tailor_resume' ? () => launch.mutate({
+      // Tailor cards only (a Cold email card's resume_path may be tailored for another job), and not while a Retailor run is queued.
+      onFill={o.status !== 'closed' && canFill(o) && latestRequest(o, reqs)?.kind === 'tailor_resume'
+        && latestRequest(o, reqs)?.status !== 'queued' ? () => launch.mutate({
         kind: 'fill_application', payload: { outreach_id: o.id, job_url: o.job_url },
       }) : undefined} />
   );

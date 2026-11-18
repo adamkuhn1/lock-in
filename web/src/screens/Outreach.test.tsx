@@ -388,6 +388,15 @@ describe('Outreach', () => {
       renderWithData(<Outreach />, { api });
       expect(within(await cardFor('Coldco')).queryByRole('button', { name: /Fill out application/ })).toBeNull();
     });
+    it('hidden while a Retailor resume run is queued, so it never uploads the old PDF', async () => {
+      const { api, o, reqs } = await tailoredCard();
+      api.listLaunchRequests = async () => [{ id: 'rt', kind: 'tailor_resume' as const, payload: { outreach_id: o.id, job_url: 'https://jobs.lever.co/acme/3', retailor: true },
+        status: 'queued' as const, error: null, created_at: '2099-01-01T00:00:00Z' }, ...reqs];
+      renderWithData(<Outreach />, { api });
+      const card = await cardFor('Acme');
+      await within(card).findByText('Queued for Mac').catch(() => null);
+      expect(within(card).queryByRole('button', { name: /Fill out application/ })).toBeNull();
+    });
     it('disabled while a fill is queued, and says so', async () => {
       const { api, o, reqs } = await tailoredCard();
       api.listLaunchRequests = async () => [fill(o, 'queued'), ...reqs];

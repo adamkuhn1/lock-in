@@ -323,7 +323,7 @@ NO_ANSWERS = "(none set on the Me tab: leave those questions blank and list them
 # The fill rules (prompts/fill_application.md) as Part 1b of Tailor & fill out app.
 FILL_IN_TAILOR = {"heading": "## Part 1b: fill in the application in Chrome (never submit)",
                   "resume_source": "the tailored PDF you saved in step 5 (the absolute path inside the new folder)",
-                  "next_step": "go straight on to Part 2"}
+                  "next_step": "go straight on to Part 2", "contact_source": "the base resume header"}
 
 
 def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
@@ -342,6 +342,10 @@ def _apply_values(fill: bool, job_url: str, saved_profile: dict | None) -> dict:
 
 FILL_ICLOUD_MSG = ("Tailored resume is in iCloud and couldn't be downloaded — open its folder in Finder once "
                    "(or right-click → Keep Downloaded), then Try again")
+
+
+def _one_line(text, cap: int = 120) -> str:
+    return " ".join(str(text or "").split())[:cap]
 
 
 def _tailored_pdf(o: dict, root: Path) -> Path:
@@ -376,13 +380,15 @@ def build_fill(db, payload: dict, lockin: str, find=None) -> tuple[Path, str, di
     settings = (db.select("settings") or [{}])[0]
     root = Path(os.path.expanduser(settings.get("resume_root") or DEFAULT_ROOT))
     pdf = _tailored_pdf(o, root)
-    company = o.get("company") or (posting or {}).get("company") or resume.company_from_url(job_url) or "the company"
-    role = o.get("role") or (posting or {}).get("title") or "the role"
+    # Scraped text goes into the prompt's title line: one line, capped, so it can't pose as a heading or rule.
+    company = _one_line(o.get("company") or (posting or {}).get("company") or resume.company_from_url(job_url)) or "the company"
+    role = _one_line(o.get("role") or (posting or {}).get("title")) or "the role"
     answers = profile.merged(settings.get("profile")).get("application") or NO_ANSWERS
     rules = prompts.render(prompts.load("fill_application"), {
         "heading": "## Fill in the application in Chrome (never submit)",
         "resume_source": f"the tailored PDF at `{pdf}`",
         "next_step": "stop there: this session only fills in the form",
+        "contact_source": f"the header of the tailored resume at `{pdf}` (read the PDF; reading is fine, editing isn't)",
         "job_url": job_url, "job_url_shell": shlex.quote(job_url), "application_answers": answers,
     })
     text = prompts.render(prompts.load("fill_only"), {
